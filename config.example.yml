@@ -1,0 +1,13 @@
+DB:
+  HOST: localhost
+  PORT: 5432
+  USER: your_user
+  PASSWORD: your_password
+  DBNAME: your_db_name
+  SSLMODE: disable
+
+REDIS:
+  ADDR: localhost:6379
+
+PROMETHEUS:
+  ADDRESS: localhost:9090

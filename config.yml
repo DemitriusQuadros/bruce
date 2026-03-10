@@ -1,0 +1,17 @@
+BROKER:
+  KEY: B66NyqEpuBhzXicd3ODgBPRcb0SZuhBjiSX9FNtfrIk9NObB5smrPgKMHfZuJeXO
+  SECRET: ylUR8ZZnu7zqQO0lwqRUB8OAsQVsEGK1AqvNeLcFpFq5B2HjKpqRAJhvzh9waoe6
+
+DB:
+  HOST: localhost
+  PORT: 5432
+  USER: admin
+  PASSWORD: admin
+  DBNAME: Dummy
+  SSLMODE: disable
+
+REDIS:
+  ADDR: localhost:6379
+
+PROMETHEUS:
+  ADDRESS: localhost:9090
