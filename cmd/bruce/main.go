@@ -26,6 +26,7 @@ import (
 	"bruce/internal/ai"
 	bruceapi "bruce/internal/api"
 	"bruce/internal/config"
+	"bruce/internal/connectors/discord"
 	"bruce/internal/database"
 	"bruce/internal/repository"
 	"bruce/internal/worker"
@@ -64,6 +65,24 @@ func main() {
 	redisOpt := asynq.RedisClientOpt{Addr: cfg.Redis.Address}
 	asynqClient := asynq.NewClient(redisOpt)
 	defer asynqClient.Close()
+
+	// 4a. Init Discord connector if enabled.
+	if cfg.Connectors.Discord.Enabled {
+		token, err := resolveDiscordToken(cfg, configRepo)
+		if err != nil || token == "" {
+			log.Printf("discord: bot_token not configured — connector disabled")
+		} else {
+			dc, err := discord.New(token, asynqClient)
+			if err != nil {
+				log.Fatalf("discord init: %v", err)
+			}
+			if err := dc.Connect(); err != nil {
+				log.Fatalf("discord connect: %v", err)
+			}
+			dispatcherRegistry.Register("discord", dc)
+			defer dc.Disconnect()
+		}
+	}
 
 	asynqServer := asynq.NewServer(redisOpt, asynq.Config{
 		Concurrency:    2, // 2 in-flight Claude requests; sufficient for single-user agent
@@ -127,4 +146,13 @@ func runSchema(db *sql.DB) error {
 		return fmt.Errorf("exec schema.sql: %w", err)
 	}
 	return nil
+}
+
+// resolveDiscordToken fetches the Discord bot token from the database (if configured)
+// or falls back to the config file. Database config takes precedence.
+func resolveDiscordToken(cfg *config.Config, repo repository.ConfigRepository) (string, error) {
+	if t, err := repo.Get("connectors.discord.bot_token"); err == nil && t != "" {
+		return t, nil
+	}
+	return cfg.Connectors.Discord.BotToken, nil
 }

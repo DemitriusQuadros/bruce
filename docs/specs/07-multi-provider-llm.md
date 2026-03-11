@@ -1,4 +1,4 @@
-# Spec 09: Multi-Provider LLM (Claude + Gemini)
+# Spec 07: Multi-Provider LLM (Claude + Gemini)
 
 ## Objective
 Extend the AI inference layer from Spec 03 to support multiple LLM providers — starting with

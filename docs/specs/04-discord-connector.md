@@ -1,4 +1,4 @@
-# Spec 07: Discord Connector
+# Spec 04: Discord Connector
 
 ## Objective
 Implement a Discord bot connector using `bwmarrin/discordgo` as the second messaging channel.
