@@ -4,9 +4,9 @@ import "time"
 
 // Message represents a single chat message within a session.
 type Message struct {
-	ID        string
-	SessionID string
-	Role      string // "user" or "assistant"
-	Content   string
-	CreatedAt time.Time
+	ID        string    `db:"id"`
+	SessionID string    `db:"session_id"`
+	Role      string    `db:"role"` // "user" | "assistant" | "system"
+	Content   string    `db:"content"`
+	Timestamp time.Time `db:"timestamp"`
 }

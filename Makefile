@@ -4,13 +4,16 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .+' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
-.PHONY: build up down stop restart logs clean run run-dev build-binary test test-race vet fmt
+.PHONY: build up down stop restart logs clean run run-dev build-binary test test-race vet fmt run-redis
 
 build: ## Build docker images
 	docker-compose build
 
-up: build ## Build and start all containers (Redis + Bruce)
+up: ## Build and start all containers (Redis + Bruce)
 	docker-compose up -d
+
+run-redis: ## Start only the Redis container
+	docker-compose up -d redis
 
 down: ## Stop containers but keep volumes
 	docker-compose down

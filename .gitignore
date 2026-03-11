@@ -13,6 +13,7 @@ bin/
 # Environment variables
 .env
 .env.*
+config.yml
 
 # Editor directories and files
 .idea/
@@ -26,3 +27,4 @@ Thumbs.db
 
 # Output directory for sqlite files or temporary data
 /tmp/
+*.db

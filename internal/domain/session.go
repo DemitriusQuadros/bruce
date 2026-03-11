@@ -5,10 +5,11 @@ import "time"
 
 // Session represents a conversation session with an AI assistant.
 type Session struct {
-	ID           string
-	Name         string
-	SystemPrompt string
-	Connector    string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID            string    `db:"id"`
+	ConnectorType string    `db:"connector_type"` // "whatsapp" | "discord"
+	ChannelID     string    `db:"channel_id"`
+	SystemPrompt  string    `db:"system_prompt"`
+	IsActive      bool      `db:"is_active"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
 }
