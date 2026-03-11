@@ -106,3 +106,38 @@ New domains follow the same pattern: create module file, add to `fx.New(...)` in
 ### Monitoring
 - Prometheus scrapes the API (`/metrics`) and worker. Grafana dashboards are in `docs/grafana/`.
 - Asynqmon UI available at `http://localhost:9191/tasks/monitoring` when the worker is running.
+
+## Agents & Skills (SDD Pipeline)
+
+This project ships with 6 Claude Code agents and 6 skills that encode a full **Spec-Driven Development (SDD)** pipeline. They are automatically loaded when you open Claude Code in this directory.
+
+### Pipeline
+
+```
+business-investor-validator → product-manager-prd → software-architect → go-backend-dev → frontend-specialist → qa-specialist
+```
+
+| Stage | Agent / Skill | Purpose |
+|---|---|---|
+| 1 | `business-investor-validator` | Validate the idea with an investor-grade scorecard |
+| 2 | `product-manager-prd` | Generate a full PRD from the validated idea |
+| 3 | `software-architect` | Convert the PRD into a technical blueprint |
+| 4 | `go-backend-dev` | Implement Go domains (handlers, usecases, repos, FX wiring) |
+| 5 | `frontend-specialist` | Build UI pages against the Go API (port 8080) |
+| 6 | `qa-specialist` | Generate E2E BDD tests (Gherkin + godog) from specs |
+
+### How to invoke
+
+- **Agents** — ask Claude to "use the `go-backend-dev` agent to implement a new domain" and it will load with full architectural context.
+- **Skills** — type `/` in Claude Code to see the slash-command list; each skill appears as a named command (e.g. `/go-backend-dev`, `/qa-specialist`).
+
+### Example flow
+
+```
+1. /business-investor-validator   ← describe your idea
+2. /product-manager-prd           ← turn validated idea into PRD
+3. /software-architect            ← convert PRD into technical plan
+4. /go-backend-dev                ← implement a Go domain from the plan
+5. /frontend-specialist           ← build UI against the API
+6. /qa-specialist                 ← generate BDD tests for the spec
+```
