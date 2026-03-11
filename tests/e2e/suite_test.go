@@ -107,6 +107,7 @@ func TestE2E(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			RegisterCommonSteps(ctx, tc)
 			RegisterWorkerSteps(ctx, tc)
+			RegisterDiscordSteps(ctx, tc)
 		},
 		Options: opts,
 	}
