@@ -28,7 +28,7 @@ func NewMessageRepository(db *sql.DB) MessageRepository {
 func (r *SQLiteMessageRepository) Insert(msg *domain.Message) error {
 	_, err := r.db.Exec(
 		`INSERT INTO messages (id, session_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)`,
-		msg.ID, msg.SessionID, msg.Role, msg.Content, msg.Timestamp.Format("2006-01-02 15:04:05"),
+		msg.ID, msg.SessionID, msg.Role, msg.Content, msg.Timestamp.Format("2006-01-02 15:04:05.000000000"),
 	)
 	if err != nil {
 		return fmt.Errorf("message insert: %w", err)

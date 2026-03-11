@@ -153,6 +153,7 @@ func scanSessionRows(rows *sql.Rows) (*domain.Session, error) {
 
 // parseSQLiteTime parses the datetime strings produced by SQLite's datetime('now').
 var sqliteTimeFormats = []string{
+	"2006-01-02 15:04:05.000000000",
 	"2006-01-02 15:04:05",
 	time.RFC3339,
 	"2006-01-02T15:04:05Z",
