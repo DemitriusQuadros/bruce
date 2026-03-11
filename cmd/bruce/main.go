@@ -1,4 +1,11 @@
 // Command bruce is the main entrypoint for the Bruce AI assistant server.
+
+// @title           Bruce API
+// @version         1.0
+// @description     Personal AI assistant — REST API
+// @host            localhost:8080
+// @BasePath        /
+
 package main
 
 import (
@@ -13,10 +20,15 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/hibiken/asynqmon"
 
+	_ "bruce/docs"
+	"bruce/internal/ai"
 	bruceapi "bruce/internal/api"
 	"bruce/internal/config"
 	"bruce/internal/database"
+	"bruce/internal/repository"
+	"bruce/internal/worker"
 )
 
 func main() {
@@ -40,20 +52,29 @@ func main() {
 		log.Fatalf("FATAL: run schema: %v", err)
 	}
 
-	// 3. Init Asynq client + server.
+	// 3. Wire repositories, LLM service, and dispatcher.
+	sessionRepo := repository.NewSessionRepository(db)
+	messageRepo := repository.NewMessageRepository(db)
+	configRepo := repository.NewConfigRepository(db)
+	llmService := ai.NewClaudeService(cfg)
+	dispatcherRegistry := worker.NewDispatcherRegistry()
+	// Connector dispatchers (whatsapp, discord) are registered here when connectors are enabled.
+
+	// 4. Init Asynq client + server.
 	redisOpt := asynq.RedisClientOpt{Addr: cfg.Redis.Address}
 	asynqClient := asynq.NewClient(redisOpt)
 	defer asynqClient.Close()
 
 	asynqServer := asynq.NewServer(redisOpt, asynq.Config{
-		Concurrency: 4,
-		Queues: map[string]int{
-			"default": 1,
-		},
+		Concurrency:    2, // 2 in-flight Claude requests; sufficient for single-user agent
+		RetryDelayFunc: asynq.DefaultRetryDelayFunc,
+		Queues:         map[string]int{"default": 1},
 	})
 
+	proc := worker.NewProcessor(sessionRepo, messageRepo, configRepo, llmService, dispatcherRegistry, cfg)
 	muxHandler := asynq.NewServeMux()
-	// Task handlers will be registered here in later specs.
+	muxHandler.HandleFunc(worker.TaskProcessIncomingMessage, proc.HandleProcessIncomingMessageTask)
+
 	go func() {
 		if err := asynqServer.Run(muxHandler); err != nil {
 			log.Printf("WARNING: asynq server stopped: %v", err)
@@ -61,7 +82,11 @@ func main() {
 	}()
 
 	// 4. Init HTTP server.
-	router := bruceapi.NewRouter(startTime)
+	mon := asynqmon.New(asynqmon.Options{
+		RootPath:     "/monitor",
+		RedisConnOpt: redisOpt,
+	})
+	router := bruceapi.NewRouter(startTime, mon)
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	httpServer := &http.Server{
 		Addr:         addr,

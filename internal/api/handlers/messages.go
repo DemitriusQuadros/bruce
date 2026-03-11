@@ -5,8 +5,14 @@ import (
 	"net/http"
 )
 
-// MessagesHandler returns a stub HTTP handler for message endpoints.
-// Full implementation is deferred to a later spec.
+// MessagesHandler godoc
+// @Summary      Session messages
+// @Description  List and post messages within a session
+// @Tags         messages
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /api/sessions/{id}/messages [get]
+// @Router       /api/sessions/{id}/messages [post]
 func MessagesHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

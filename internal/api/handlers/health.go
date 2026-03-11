@@ -13,8 +13,13 @@ type healthResponse struct {
 	UptimeSeconds int64  `json:"uptime_seconds"`
 }
 
-// HealthHandler returns an http.HandlerFunc that responds to liveness checks.
-// It always returns 200 while the process is alive — no DB ping is performed.
+// HealthHandler godoc
+// @Summary      Health check
+// @Description  Returns server status and uptime
+// @Tags         system
+// @Produce      json
+// @Success      200  {object}  healthResponse
+// @Router       /health [get]
 func HealthHandler(startTime time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

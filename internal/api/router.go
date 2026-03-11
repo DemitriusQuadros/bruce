@@ -7,14 +7,17 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger"
 
+	_ "bruce/docs"
 	"bruce/internal/api/handlers"
 	"bruce/web"
 )
 
 // NewRouter creates and returns the application HTTP router.
 // startTime is used to calculate uptime for the /health endpoint.
-func NewRouter(startTime time.Time) *mux.Router {
+// asynqmonHandler is the Asynqmon dashboard handler mounted at /monitor.
+func NewRouter(startTime time.Time, asynqmonHandler http.Handler) *mux.Router {
 	r := mux.NewRouter()
 
 	// API routes — registered first so the catch-all below does not intercept them.
@@ -23,6 +26,12 @@ func NewRouter(startTime time.Time) *mux.Router {
 	r.HandleFunc("/api/sessions", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc("/api/sessions/{id}", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPut, http.MethodDelete)
 	r.HandleFunc("/api/sessions/{id}/messages", handlers.MessagesHandler()).Methods(http.MethodGet, http.MethodPost)
+
+	// Asynqmon dashboard — must be before the SPA catch-all.
+	r.PathPrefix("/monitor").Handler(asynqmonHandler)
+
+	// Swagger UI.
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	// Static assets — embedded at compile time from web/public/.
 	// Any path not matched above falls through here.

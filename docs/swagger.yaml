@@ -1,0 +1,151 @@
+basePath: /
+definitions:
+  handlers.healthResponse:
+    properties:
+      status:
+        type: string
+      uptime_seconds:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Personal AI assistant — REST API
+  title: Bruce API
+  version: "1.0"
+paths:
+  /api/config:
+    get:
+      description: Returns or updates the runtime configuration
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get / update runtime config
+      tags:
+      - config
+    put:
+      description: Returns or updates the runtime configuration
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get / update runtime config
+      tags:
+      - config
+  /api/sessions:
+    get:
+      description: Create, list, retrieve, update, and delete chat sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Manage sessions
+      tags:
+      - sessions
+    post:
+      description: Create, list, retrieve, update, and delete chat sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Manage sessions
+      tags:
+      - sessions
+  /api/sessions/{id}:
+    delete:
+      description: Create, list, retrieve, update, and delete chat sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Manage sessions
+      tags:
+      - sessions
+    get:
+      description: Create, list, retrieve, update, and delete chat sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Manage sessions
+      tags:
+      - sessions
+    put:
+      description: Create, list, retrieve, update, and delete chat sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Manage sessions
+      tags:
+      - sessions
+  /api/sessions/{id}/messages:
+    get:
+      description: List and post messages within a session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Session messages
+      tags:
+      - messages
+    post:
+      description: List and post messages within a session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Session messages
+      tags:
+      - messages
+  /health:
+    get:
+      description: Returns server status and uptime
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.healthResponse'
+      summary: Health check
+      tags:
+      - system
+swagger: "2.0"

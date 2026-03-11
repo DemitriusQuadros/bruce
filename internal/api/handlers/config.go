@@ -5,8 +5,14 @@ import (
 	"net/http"
 )
 
-// ConfigHandler returns a stub HTTP handler for config endpoints.
-// Full implementation is deferred to a later spec.
+// ConfigHandler godoc
+// @Summary      Get / update runtime config
+// @Description  Returns or updates the runtime configuration
+// @Tags         config
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /api/config [get]
+// @Router       /api/config [put]
 func ConfigHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

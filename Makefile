@@ -29,7 +29,12 @@ logs: ## Tail logs for all containers
 clean: ## Stop and remove containers, volumes, networks, and images
 	docker-compose down -v --rmi all --remove-orphans
 
-run: ## Run bruce locally with embedded assets
+SWAG := $(shell go env GOPATH)/bin/swag
+
+swag: ## Generate Swagger docs from annotations
+	$(SWAG) init -g cmd/bruce/main.go -o docs/
+
+run: swag ## Run bruce locally (generates docs first)
 	CGO_ENABLED=1 go run cmd/bruce/main.go
 
 build-binary: ## Compile bruce binary with embedded assets into bin/bruce
