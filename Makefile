@@ -4,7 +4,7 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .+' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
-.PHONY: build up down stop restart logs clean run run-dev build-binary test test-race vet fmt run-redis
+.PHONY: build up down stop restart logs clean run run-dev build-binary test test-race test-e2e test-e2e-smoke vet fmt run-redis swag
 
 build: ## Build docker images
 	docker-compose build
@@ -41,11 +41,17 @@ build-binary: ## Compile bruce binary with embedded assets into bin/bruce
 	@mkdir -p bin
 	CGO_ENABLED=1 go build -o bin/bruce ./cmd/bruce
 
-test: ## Run all tests
+test: ## Run all unit tests
 	CGO_ENABLED=1 go test ./...
 
-test-race: ## Run all tests with race detector
+test-race: ## Run all unit tests with race detector
 	CGO_ENABLED=1 go test -race ./...
+
+test-e2e: ## Run full E2E suite (requires running server + Redis)
+	CGO_ENABLED=1 go test -v -timeout 120s ./tests/e2e/
+
+test-e2e-smoke: ## Run E2E smoke scenarios only
+	CGO_ENABLED=1 go test -v -timeout 60s ./tests/e2e/ -args -godog.tags="@smoke"
 
 vet: ## Run go vet
 	go vet ./...
