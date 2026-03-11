@@ -74,16 +74,21 @@ Feature: Discord Connector
   # --- Message Validation ---
 
   @error-case @REQ-005
-  Scenario: Empty messages are ignored
+  Scenario: Empty messages are ignored by connector before enqueueing
+    # The Discord connector filters empty messages at event handler level
+    # so they never reach the task queue or create messages in DB
     Given a session exists for connector "discord" and channel "dm-empty-001"
-    When I enqueue a "message:process" task with connector "discord", channel "dm-empty-001", and content ""
-    Then the message is ignored and no user message is created
+    When the discord connector receives an empty message from a Discord DM
+    Then no task is enqueued
+    And the database contains zero messages for the session
 
   @edge-case @REQ-005
-  Scenario: Messages with only whitespace are ignored
+  Scenario: Messages with only whitespace are ignored by connector before enqueueing
+    # Whitespace-only messages are also filtered by the connector
     Given a session exists for connector "discord" and channel "dm-whitespace-001"
-    When I enqueue a "message:process" task with connector "discord", channel "dm-whitespace-001", and content "   "
-    Then the message is ignored and no user message is created
+    When the discord connector receives a whitespace-only message from a Discord DM
+    Then no task is enqueued
+    And the database contains zero messages for the session
 
   # --- Bot Self-Message Filtering ---
 
