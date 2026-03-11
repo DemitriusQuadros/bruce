@@ -1,4 +1,7 @@
-FROM golang:1.22 as builder
+FROM golang:1.23-alpine AS builder
+
+# gcc and musl-dev are required for CGO (mattn/go-sqlite3).
+RUN apk add --no-cache gcc musl-dev
 
 WORKDIR /app
 
@@ -7,14 +10,17 @@ RUN go mod download
 
 COPY . .
 
-ARG TARGET
-
-RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/app ./cmd/$TARGET
+RUN CGO_ENABLED=1 GOOS=linux go build -o /bin/bruce ./cmd/bruce
 
 FROM alpine:latest
 
-WORKDIR /root/
+RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /bin/app .
+WORKDIR /app
 
-CMD ["./app"]
+# Persist SQLite databases on a host-mounted volume.
+RUN mkdir -p /app/data
+
+COPY --from=builder /bin/bruce .
+
+CMD ["./bruce"]
