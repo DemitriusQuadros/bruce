@@ -4,35 +4,43 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .+' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
-DOCKER_COMPOSE_FILE = docker-compose.yml
-
-.PHONY: build up down stop restart logs clean
+.PHONY: build up down stop restart logs clean run run-dev build-binary test test-race vet fmt
 
 build: ## Build docker images
-	docker-compose -f $(DOCKER_COMPOSE_FILE) build
+	docker-compose build
 
-up: build ## Up containers
-	docker-compose -f $(DOCKER_COMPOSE_FILE) up -d
+up: build ## Build and start all containers (Redis + Bruce)
+	docker-compose up -d
 
 down: ## Stop containers but keep volumes
-	docker-compose -f $(DOCKER_COMPOSE_FILE) down
+	docker-compose down
 
 stop: ## Stop containers without removing them
-	docker-compose -f $(DOCKER_COMPOSE_FILE) stop
+	docker-compose stop
 
 restart: down up ## Restart containers
 
-logs: ## Show logs for all containers
-	docker-compose -f $(DOCKER_COMPOSE_FILE) logs -f
+logs: ## Tail logs for all containers
+	docker-compose logs -f
 
 clean: ## Stop and remove containers, volumes, networks, and images
-	docker-compose -f $(DOCKER_COMPOSE_FILE) down -v --rmi all --remove-orphans
+	docker-compose down -v --rmi all --remove-orphans
 
-run-api-local: ## Run the API project locally
-	go run cmd/api/main.go
+run: ## Run bruce locally with embedded assets
+	CGO_ENABLED=1 go run cmd/bruce/main.go
 
-run-worker-local: ## Run the Worker project locally
-	go run cmd/worker/main.go
+build-binary: ## Compile bruce binary with embedded assets into bin/bruce
+	@mkdir -p bin
+	CGO_ENABLED=1 go build -o bin/bruce ./cmd/bruce
 
-run-console: ## Run the console project locally
-	go run cmd/console/main.go
+test: ## Run all tests
+	CGO_ENABLED=1 go test ./...
+
+test-race: ## Run all tests with race detector
+	CGO_ENABLED=1 go test -race ./...
+
+vet: ## Run go vet
+	go vet ./...
+
+fmt: ## Check formatting (lists unformatted files)
+	gofmt -l .

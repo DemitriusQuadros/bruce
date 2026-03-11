@@ -1,50 +1,45 @@
-version: '3.8'
+version: "3.8"
 
 services:
   redis:
-    image: redis:latest
-    container_name: redis
+    image: redis:7-alpine
+    container_name: bruce-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 32mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
     ports:
-      - "6379:6379" 
-    volumes:
-      - redis_data:/data
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  postgres:
-    image: postgres:15
+  bruce:
+    build: .
+    image: ghcr.io/demitriusquadros/bruce:latest
+    container_name: bruce
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./config.yml:/app/config.yml:ro
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: Dummy
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - prometheus_data:/prometheus
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: "admin" 
-    volumes:
-      - grafana_data:/var/lib/grafana
+      - CONFIG_PATH=/app/config.yml
+      - REDIS_ADDRESS=redis:6379
     depends_on:
-      - prometheus
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
 volumes:
-  redis_data:
-  mongo_data:
-  prometheus_data:
-  grafana_data:
-  postgres_data:
+  data:

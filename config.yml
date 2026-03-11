@@ -1,17 +1,26 @@
-BROKER:
-  KEY: B66NyqEpuBhzXicd3ODgBPRcb0SZuhBjiSX9FNtfrIk9NObB5smrPgKMHfZuJeXO
-  SECRET: ylUR8ZZnu7zqQO0lwqRUB8OAsQVsEGK1AqvNeLcFpFq5B2HjKpqRAJhvzh9waoe6
+server:
+  port: 8080
 
-DB:
-  HOST: localhost
-  PORT: 5432
-  USER: admin
-  PASSWORD: admin
-  DBNAME: Dummy
-  SSLMODE: disable
+redis:
+  address: "localhost:6379"
+  max_retries: 3
 
-REDIS:
-  ADDR: localhost:6379
+sqlite:
+  dsn: "./data/bruce.db"
 
-PROMETHEUS:
-  ADDRESS: localhost:9090
+claude:
+  api_key: ""
+  model: "claude-opus-4-6"
+  max_tokens: 1024
+  context_window: 15
+
+connectors:
+  whatsapp:
+    enabled: false
+    device_store_dsn: "./data/whatsapp.db"
+  discord:
+    enabled: false
+    bot_token: ""
+
+ui:
+  default_system_prompt: "You are Bruce, a personal AI assistant."

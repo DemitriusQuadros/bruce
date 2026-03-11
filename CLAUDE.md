@@ -4,112 +4,139 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-### Running the applications locally
+### Running the application locally
 ```bash
-go run cmd/api/main.go        # HTTP API server (port 8080)
-go run cmd/worker/main.go     # Asynq task worker + monitoring UI (port 9191)
-go run cmd/console/main.go    # Terminal UI dashboard
-```
-
-Or via Makefile:
-```bash
-make run-api-local
-make run-worker-local
-make run-console
+go run cmd/bruce/main.go      # HTTP API server (port 8080)
 ```
 
 ### Infrastructure (Docker)
 ```bash
-make up       # Build and start all containers (Redis, PostgreSQL, Prometheus, Grafana)
-make down     # Stop containers, keep volumes
-make stop     # Stop containers without removing them
-make restart  # Restart containers
-make logs     # Tail logs
-make clean    # Remove containers, volumes, images
+docker compose up -d          # Start Redis + Bruce containers
+docker compose down           # Stop containers, keep volumes
+docker compose logs -f        # Tail logs
 ```
 
 ### Tests
 ```bash
-go test ./...                                    # Run all tests
-go test ./app/usecase/dummy/...                  # Run tests in a specific package
-go test -run TestDummyUseCase_CreateDummy ./app/usecase/dummy/...  # Run a single test
+go test ./...                 # Run all tests
+go test -race ./...           # Run with race detector
+go test -cover ./...          # Coverage report
+```
+
+### Quality
+```bash
+go build ./...                # Must compile with zero errors
+go vet ./...                  # Static analysis
+gofmt -l .                    # Check formatting (empty = clean)
 ```
 
 ### Configuration
-Copy `config.example.yml` to `config.yml` and fill in credentials. The app reads `config.yml` from the working directory by default, or from the path in `CONFIG_PATH` env var.
+Copy `config.example.yml` to `config.yml` and fill in credentials. The app reads `config.yml`
+from the working directory by default, or from the path in the `CONFIG_PATH` env var.
+
+---
 
 ## Architecture
 
-This is a Go scaffolding project with three separate entry points sharing common `app/` and `internal/` packages. The `Dummy` domain serves as a working reference implementation to copy when adding new domains.
-
-### Entry Points (`cmd/`)
-- **api** — REST API server using `gorilla/mux`, port 8080. Registers routes, runs DB migrations via GORM `AutoMigrate` on startup, and exposes a `/metrics` Prometheus endpoint.
-- **worker** — Asynq async task processor. Registers task handlers and serves the Asynqmon monitoring UI at port 9191 (`/tasks/monitoring`).
-- **console** — Terminal dashboard using `termui`. Wires dependencies manually via `cmd/console/dependencies/` (no FX) and renders pages from `cmd/console/pages/`.
-
-Each `cmd/api` and `cmd/worker` entry point defines its own `modules/` directory with FX dependency injection modules (`ConfigurationModule`, `DbModule`, `MetricsModule`, `DummyModule`). The worker also includes `CacheModule`.
-
-### Application Layer (`app/`)
-
-Follows clean architecture — dependencies flow inward:
+Bruce is a **single-binary Go application** — one entrypoint, no FX, manual dependency
+injection in `main.go`. All application code lives under `internal/`.
 
 ```
-handler → usecase → repository → (entities/DB)
-                 → services    → (external/domain logic)
+bruce/
+├── cmd/bruce/main.go          # Sole entrypoint — wires all packages, graceful shutdown
+├── internal/
+│   ├── config/                # Viper config loader + Config struct
+│   ├── database/              # SQLite connection (WAL mode) + schema.sql DDL
+│   ├── domain/                # Plain Go domain structs (Session, Message, ConfigEntry)
+│   ├── repository/            # database/sql CRUD implementations
+│   ├── ai/                    # LLMService interface + Anthropic implementation
+│   ├── worker/                # Asynq task payloads, processor, dispatcher
+│   ├── connectors/
+│   │   ├── whatsapp/          # WhatsApp connector (uses whatsmeow)
+│   │   └── discord/           # Discord connector
+│   └── api/
+│       ├── router.go          # Gorilla Mux setup
+│       └── handlers/          # HTTP handlers (health, sessions, messages, config)
+├── web/public/                # Static web assets (index.html, style.css, app.js)
+├── docker-compose.yml         # redis:7-alpine + bruce (no Postgres, no Prometheus)
+├── config.example.yml
+└── Dockerfile                 # CGO-enabled build (required for mattn/go-sqlite3)
 ```
 
-- **`app/entities/`** — GORM-mapped domain types. Example: `Dummy{ID int64, Text string}`.
-- **`app/repository/`** — GORM data access. Each domain has its own package (e.g., `dummy/`).
-- **`app/usecase/`** — Business logic. Each usecase defines its own interfaces for its dependencies (`DummyRepository`, `DummyService`), enabling mock-based testing without infrastructure.
-- **`app/handler/web/`** — HTTP handlers implementing the `Route` interface (`Handlers() []handler.Configuration`). Each handler takes a `UseCase` interface, not a concrete type. DTOs live alongside the handler.
-- **`app/handler/tasks/`** — Asynq task handlers. Each processor unmarshals a payload and delegates to a usecase method.
-- **`app/services/`** — Domain services containing business logic or external calls that don't belong in a usecase. Example: `DummyService.ProcessDummy`.
-- **`app/workers/`** — Asynq client wrappers that serialize a payload and enqueue a named task. Example: `DummyWorker.EnqueueDummyTask`.
+### Dependency flow
 
-### FX Module Wiring (`cmd/*/modules/dummy.go`)
-
-Each domain module wires all layers using `fx.Provide` and explicit interface adapters:
-
-```go
-var DummyModule = fx.Module("dummy",
-    fx.Provide(
-        repository.NewDummyRepository,
-        service.NewDummyService,
-        usecase.NewDummyUseCase,
-        worker.NewDummyWorker,
-        taskHandler.NewDummyProcessor,
-        webHandler.NewDummyHandler,
-        func(s repository.DummyRepository) usecase.DummyRepository { return s },
-        func(s service.DummyService) usecase.DummyService { return s },
-        func(s *usecase.DummyUseCase) taskHandler.DummyUseCase { return s },
-        func(s *usecase.DummyUseCase) webHandler.UseCase { return s },
-    ),
-)
+```
+internal/api/handlers → internal/repository → internal/domain
+                      → internal/ai
+                      → internal/worker
+internal/worker/processor → internal/repository
+                          → internal/ai
 ```
 
-New domains follow the same pattern: create module file, add to `fx.New(...)` in `main.go`, register routes and task handlers.
+### Tech Stack
+- **Router**: `gorilla/mux`
+- **Database**: SQLite via `database/sql` + `mattn/go-sqlite3` (WAL mode, MaxOpenConns=1)
+- **Async tasks**: `github.com/hibiken/asynq` (Redis-backed)
+- **Config**: `viper` — keys: `server.port`, `redis.address`, `sqlite.dsn`, `claude.*`, `connectors.*`, `ui.*`
+- **Tests**: `testify` — repository tests use SQLite in-memory (`:memory:`)
 
-### Internal / Infrastructure (`internal/`)
-- **`configuration/`** — Viper-based config loader. Reads `config.yml` with keys: `DB.HOST`, `DB.PORT`, `DB.USER`, `DB.PASSWORD`, `DB.DBNAME`, `DB.SSLMODE`, `REDIS.ADDR`, `PROMETHEUS.ADDRESS`.
-- **`db/`** — GORM PostgreSQL connection factory (`NewDatabase`).
-- **`memcache/`** — Thread-safe in-memory key-value store.
-- **`customerror/`** — `CustomError{Code, Message}` — errors carry HTTP status codes so handlers can respond correctly.
-- **`metrics/`** — Prometheus counter/gauge wrapper (`MetricsCollector`).
-- **`middleware/`** — HTTP middleware (`ConfigMiddleware`) and Asynq middleware that inject config and metrics into requests.
-- **`handler/`** — Shared `handler.Configuration` struct (`Pattern`, `Action`, `Method`) used by all web handlers.
+### Key architectural rules
+- **No FX** — all wiring is explicit in `cmd/bruce/main.go`
+- **No GORM** — repositories use `database/sql` directly
+- **No PostgreSQL** — SQLite is the sole database
+- `internal/` packages depend only inward — handlers never import repositories directly,
+  they go through interfaces defined in the handler package
+- `mattn/go-sqlite3` requires CGO — always build with `CGO_ENABLED=1`
 
-### Testing Patterns
-- Mocks are defined inline in `_test.go` files using `testify/mock` — no separate `mocks/` directory.
-- Repository tests use SQLite in-memory (`gorm.io/driver/sqlite`) to avoid needing a real Postgres instance.
-- Usecase and task handler tests mock all interfaces — no DB, Redis, or external services required.
+### `config.yml` schema
+```yaml
+server:
+  port: 8080
 
-### Monitoring
-- Prometheus scrapes the API (`/metrics`) and worker. Grafana dashboards are in `docs/grafana/`.
-- Asynqmon UI available at `http://localhost:9191/tasks/monitoring` when the worker is running.
+redis:
+  address: "redis:6379"
+  max_retries: 3
+
+sqlite:
+  dsn: "./data/bruce.db"
+
+claude:
+  api_key: ""
+  model: "claude-opus-4-6"
+  max_tokens: 1024
+  context_window: 15
+
+connectors:
+  whatsapp:
+    enabled: false
+    device_store_dsn: "./data/whatsapp.db"
+  discord:
+    enabled: false
+    bot_token: ""
+
+ui:
+  default_system_prompt: "You are Bruce, a personal AI assistant."
+```
+
+### Graceful shutdown order
+1. HTTP server (`Shutdown` with 10s timeout) — stops accepting new requests
+2. Asynq server (`Shutdown`) — finishes in-flight tasks
+3. SQLite DB (`Close` via defer) — safe after no writers remain
+
+### `/health` endpoint
+```
+GET /health
+  Auth: none
+  Returns: 200 { "status": "ok", "uptime_seconds": N }
+```
+
+---
 
 ## Agents & Skills (SDD Pipeline)
 
-This project ships with 6 Claude Code agents and 6 skills that encode a full **Spec-Driven Development (SDD)** pipeline. They are automatically loaded when you open Claude Code in this directory.
+This project ships with 6 Claude Code agents and 6 skills that encode a full **Spec-Driven
+Development (SDD)** pipeline. They are automatically loaded when you open Claude Code in
+this directory.
 
 ### Pipeline
 
@@ -122,14 +149,14 @@ business-investor-validator → product-manager-prd → software-architect → g
 | 1 | `business-investor-validator` | Validate the idea with an investor-grade scorecard |
 | 2 | `product-manager-prd` | Generate a full PRD from the validated idea |
 | 3 | `software-architect` | Convert the PRD into a technical blueprint |
-| 4 | `go-backend-dev` | Implement Go domains (handlers, usecases, repos, FX wiring) |
+| 4 | `go-backend-dev` | Implement Go packages under `internal/` |
 | 5 | `frontend-specialist` | Build UI pages against the Go API (port 8080) |
-| 6 | `qa-specialist` | Generate E2E BDD tests (Gherkin + godog) from specs |
+| 6 | `qa-specialist` | Generate E2E BDD tests from specs in `docs/specs/` |
 
 ### How to invoke
 
-- **Agents** — ask Claude to "use the `go-backend-dev` agent to implement a new domain" and it will load with full architectural context.
-- **Skills** — type `/` in Claude Code to see the slash-command list; each skill appears as a named command (e.g. `/go-backend-dev`, `/qa-specialist`).
+- **Skills** — type `/` in Claude Code to see the slash-command list (e.g. `/go-backend-dev`, `/qa-specialist`).
+- **Agents** — ask Claude to "use the `go-backend-dev` agent" and it will load with full architectural context.
 
 ### Example flow
 
@@ -137,7 +164,7 @@ business-investor-validator → product-manager-prd → software-architect → g
 1. /business-investor-validator   ← describe your idea
 2. /product-manager-prd           ← turn validated idea into PRD
 3. /software-architect            ← convert PRD into technical plan
-4. /go-backend-dev                ← implement a Go domain from the plan
+4. /go-backend-dev                ← implement internal/ packages from the plan
 5. /frontend-specialist           ← build UI against the API
 6. /qa-specialist                 ← generate BDD tests for the spec
 ```
