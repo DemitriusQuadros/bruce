@@ -18,6 +18,7 @@ type SessionRepository interface {
 	GetByID(id string) (*domain.Session, error)
 	UpdateSystemPrompt(id, prompt string) error
 	SetActive(id string, active bool) error
+	UpdateProviderOverride(id, provider string) error
 }
 
 // SQLiteSessionRepository is the SQLite-backed implementation of SessionRepository.
@@ -43,7 +44,7 @@ func (r *SQLiteSessionRepository) FindOrCreate(connectorType, channelID string) 
 	}
 
 	row := r.db.QueryRow(
-		`SELECT id, connector_type, channel_id, system_prompt, is_active, created_at, updated_at
+		`SELECT id, connector_type, channel_id, system_prompt, is_active, provider_override, created_at, updated_at
 		 FROM sessions WHERE connector_type = ? AND channel_id = ?`,
 		connectorType, channelID,
 	)
@@ -53,7 +54,7 @@ func (r *SQLiteSessionRepository) FindOrCreate(connectorType, channelID string) 
 // GetAll returns all sessions ordered by creation time descending.
 func (r *SQLiteSessionRepository) GetAll() ([]*domain.Session, error) {
 	rows, err := r.db.Query(
-		`SELECT id, connector_type, channel_id, system_prompt, is_active, created_at, updated_at
+		`SELECT id, connector_type, channel_id, system_prompt, is_active, provider_override, created_at, updated_at
 		 FROM sessions ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -75,7 +76,7 @@ func (r *SQLiteSessionRepository) GetAll() ([]*domain.Session, error) {
 // GetByID fetches a session by its primary key.
 func (r *SQLiteSessionRepository) GetByID(id string) (*domain.Session, error) {
 	row := r.db.QueryRow(
-		`SELECT id, connector_type, channel_id, system_prompt, is_active, created_at, updated_at
+		`SELECT id, connector_type, channel_id, system_prompt, is_active, provider_override, created_at, updated_at
 		 FROM sessions WHERE id = ?`,
 		id,
 	)
@@ -113,11 +114,23 @@ func (r *SQLiteSessionRepository) SetActive(id string, active bool) error {
 	return nil
 }
 
+// UpdateProviderOverride sets the provider_override for a session.
+func (r *SQLiteSessionRepository) UpdateProviderOverride(id, provider string) error {
+	_, err := r.db.Exec(
+		`UPDATE sessions SET provider_override = ?, updated_at = datetime('now') WHERE id = ?`,
+		provider, id,
+	)
+	if err != nil {
+		return fmt.Errorf("session update_provider_override: %w", err)
+	}
+	return nil
+}
+
 // scanSession scans a *sql.Row into a domain.Session.
 func scanSession(row *sql.Row) (*domain.Session, error) {
 	s := &domain.Session{}
 	var createdAt, updatedAt string
-	if err := row.Scan(&s.ID, &s.ConnectorType, &s.ChannelID, &s.SystemPrompt, &s.IsActive, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&s.ID, &s.ConnectorType, &s.ChannelID, &s.SystemPrompt, &s.IsActive, &s.ProviderOverride, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	var err error
@@ -136,7 +149,7 @@ func scanSession(row *sql.Row) (*domain.Session, error) {
 func scanSessionRows(rows *sql.Rows) (*domain.Session, error) {
 	s := &domain.Session{}
 	var createdAt, updatedAt string
-	if err := rows.Scan(&s.ID, &s.ConnectorType, &s.ChannelID, &s.SystemPrompt, &s.IsActive, &createdAt, &updatedAt); err != nil {
+	if err := rows.Scan(&s.ID, &s.ConnectorType, &s.ChannelID, &s.SystemPrompt, &s.IsActive, &s.ProviderOverride, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	var err error

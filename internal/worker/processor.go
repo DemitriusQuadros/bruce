@@ -104,7 +104,7 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 	}
 	logging.Debug("user message inserted successfully")
 
-	// 5. Fetch context window for Claude.
+	// 5. Fetch context window.
 	logging.Debugf("fetching context window - session_id=%s, window_size=%d",
 		session.ID, p.cfg.Claude.ContextWindow)
 	historyPtrs, err := p.messageRepo.GetContextWindow(session.ID, p.cfg.Claude.ContextWindow)
@@ -122,19 +122,19 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 			i, msg.Role, len(msg.Content), truncateForLog(msg.Content, 80))
 	}
 
-	// 6. Call Claude.
-	logging.Debugf("calling Claude API - model=%s, max_tokens=%d",
-		p.cfg.Claude.Model, p.cfg.Claude.MaxTokens)
+	// 6. Call LLM — inject session ID into context for provider resolution.
+	logging.Debug("calling LLM")
+	ctx = ai.WithSessionID(ctx, session.ID)
 	response, err := p.llm.GenerateResponse(ctx, systemPrompt, history)
 	if err != nil {
 		if errors.Is(err, ai.ErrRateLimited) {
-			logging.Warn("rate limited by Claude API")
+			logging.Warn("rate limited by LLM provider")
 			return fmt.Errorf("rate limited: %w", err)
 		}
-		logging.Errorf("Claude API call failed: %v", err)
+		logging.Errorf("LLM call failed: %v", err)
 		return fmt.Errorf("llm: %w", err)
 	}
-	logging.Debugf("Claude response received - len=%d, preview=%s",
+	logging.Debugf("LLM response received - len=%d, preview=%s",
 		len(response), truncateForLog(response, 150))
 
 	// 7. Insert assistant response.

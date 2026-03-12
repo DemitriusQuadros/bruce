@@ -1,11 +1,12 @@
 CREATE TABLE IF NOT EXISTS sessions (
-    id             TEXT    PRIMARY KEY,
-    connector_type TEXT    NOT NULL CHECK(connector_type IN ('whatsapp', 'discord')),
-    channel_id     TEXT    NOT NULL,
-    system_prompt  TEXT    NOT NULL DEFAULT '',
-    is_active      INTEGER NOT NULL DEFAULT 1,
-    created_at     DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at     DATETIME NOT NULL DEFAULT (datetime('now')),
+    id               TEXT    PRIMARY KEY,
+    connector_type   TEXT    NOT NULL CHECK(connector_type IN ('whatsapp', 'discord')),
+    channel_id       TEXT    NOT NULL,
+    system_prompt    TEXT    NOT NULL DEFAULT '',
+    is_active        INTEGER NOT NULL DEFAULT 1,
+    provider_override TEXT    NOT NULL DEFAULT '',
+    created_at       DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at       DATETIME NOT NULL DEFAULT (datetime('now')),
     UNIQUE(connector_type, channel_id)
 );
 

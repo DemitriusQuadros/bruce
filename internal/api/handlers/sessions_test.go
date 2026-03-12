@@ -186,6 +186,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			channel_id TEXT NOT NULL,
 			system_prompt TEXT,
 			is_active INTEGER DEFAULT 1,
+			provider_override TEXT NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			UNIQUE(connector_type, channel_id)

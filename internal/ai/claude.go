@@ -1,44 +1,32 @@
-// Package ai defines the LLM service interface and provides the Claude implementation.
+// Package ai defines the LLM service interface and provides implementations.
 package ai
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"bruce/internal/config"
 	"bruce/internal/domain"
 )
 
-// ErrRateLimited is returned when the Claude API responds with 429 or 529.
-// Asynq checks for this and retries the task with exponential backoff.
-var ErrRateLimited = errors.New("claude: rate limited")
-
-// LLMService is the abstraction over any LLM provider.
-// Claude is the only implementation for MVP; the interface makes testing trivial.
-type LLMService interface {
-	GenerateResponse(ctx context.Context, systemPrompt string, history []domain.Message) (string, error)
-}
-
-type claudeService struct {
+type claudeProvider struct {
 	apiKey     string
 	model      string
 	maxTokens  int
 	httpClient *http.Client
 }
 
-// NewClaudeService returns an LLMService backed by the Anthropic Claude API.
-func NewClaudeService(cfg *config.Config) LLMService {
-	return &claudeService{
-		apiKey:     cfg.Claude.APIKey,
-		model:      cfg.Claude.Model,
-		maxTokens:  cfg.Claude.MaxTokens,
+// NewClaudeProvider returns an LLMService backed by the Anthropic Claude API.
+func NewClaudeProvider(cfg config.ClaudeConfig) LLMService {
+	return &claudeProvider{
+		apiKey:     cfg.APIKey,
+		model:      cfg.Model,
+		maxTokens:  cfg.MaxTokens,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -63,33 +51,19 @@ type anthropicResponse struct {
 }
 
 // GenerateResponse builds the Anthropic request, calls the API, and returns the reply text.
-func (c *claudeService) GenerateResponse(ctx context.Context, systemPrompt string, history []domain.Message) (string, error) {
-	// Separate system-role messages from the conversation; concatenate into the system field.
-	systemParts := []string{}
-	if systemPrompt != "" {
-		systemParts = append(systemParts, systemPrompt)
-	}
-	var conv []domain.Message
-	for _, m := range history {
-		if m.Role == "system" {
-			systemParts = append(systemParts, m.Content)
-		} else {
-			conv = append(conv, m)
-		}
-	}
+func (c *claudeProvider) GenerateResponse(ctx context.Context, systemPrompt string, history []domain.Message) (string, error) {
+	// Sanitize history: filter system messages and merge consecutive same-role messages
+	cleaned := sanitizeHistory(history)
 
-	// Anthropic requires strict user/assistant alternation — merge consecutive same-role messages.
-	merged := mergeConsecutive(conv)
-
-	msgs := make([]anthropicMessage, len(merged))
-	for i, m := range merged {
+	msgs := make([]anthropicMessage, len(cleaned))
+	for i, m := range cleaned {
 		msgs[i] = anthropicMessage{Role: m.Role, Content: m.Content}
 	}
 
 	reqBody := anthropicRequest{
 		Model:     c.model,
 		MaxTokens: c.maxTokens,
-		System:    strings.Join(systemParts, "\n"),
+		System:    systemPrompt,
 		Messages:  msgs,
 	}
 
@@ -123,6 +97,10 @@ func (c *claudeService) GenerateResponse(ctx context.Context, systemPrompt strin
 		// handled below
 	case 429, 529:
 		return "", ErrRateLimited
+	case 500, 502, 503:
+		return "", ErrProviderDown
+	case 400:
+		return "", fmt.Errorf("%w: %s", ErrBadRequest, string(respBytes))
 	default:
 		return "", fmt.Errorf("claude API %d: %s", resp.StatusCode, string(respBytes))
 	}
@@ -135,21 +113,4 @@ func (c *claudeService) GenerateResponse(ctx context.Context, systemPrompt strin
 		return "", fmt.Errorf("claude returned empty content")
 	}
 	return apiResp.Content[0].Text, nil
-}
-
-// mergeConsecutive joins consecutive messages with the same role using a newline.
-func mergeConsecutive(msgs []domain.Message) []domain.Message {
-	if len(msgs) == 0 {
-		return msgs
-	}
-	result := []domain.Message{msgs[0]}
-	for _, m := range msgs[1:] {
-		last := &result[len(result)-1]
-		if last.Role == m.Role {
-			last.Content = last.Content + "\n" + m.Content
-		} else {
-			result = append(result, m)
-		}
-	}
-	return result
 }

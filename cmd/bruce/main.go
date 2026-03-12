@@ -57,11 +57,12 @@ func main() {
 		log.Fatalf("FATAL: run schema: %v", err)
 	}
 
-	// 3. Wire repositories, LLM service, and dispatcher.
+	// 3. Wire repositories, LLM providers and registry, and dispatcher.
 	sessionRepo := repository.NewSessionRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
-	llmService := ai.NewClaudeService(cfg)
+	providers := ai.BuildProviders(cfg)
+	llmService := ai.NewProviderRegistry(configRepo, sessionRepo, providers, cfg)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
 	// Connector dispatchers (whatsapp, discord) are registered here when connectors are enabled.
 
@@ -109,7 +110,7 @@ func main() {
 		RootPath:     "/monitor",
 		RedisConnOpt: redisOpt,
 	})
-	router := bruceapi.NewRouter(startTime, mon)
+	router := bruceapi.NewRouter(startTime, mon, llmService)
 
 	// Wrap router with middleware to inject dependencies into request context.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
