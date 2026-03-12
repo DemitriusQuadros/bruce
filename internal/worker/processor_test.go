@@ -178,6 +178,54 @@ func TestProcessor_UsesSessionSystemPromptOverDefault(t *testing.T) {
 	assert.Equal(t, "session-specific prompt", llm.capturedPrompt)
 }
 
+func TestProcessor_UsesDBSystemPromptWhenNoSessionPrompt(t *testing.T) {
+	db := openTestDB(t)
+	sessRepo := repository.NewSessionRepository(db)
+	msgRepo := repository.NewMessageRepository(db)
+	cfgRepo := repository.NewConfigRepository(db)
+
+	// Store a default system prompt in config database only.
+	require.NoError(t, cfgRepo.Upsert("ui.default_system_prompt", "database default prompt"))
+
+	llm := &mockLLM{response: "ok"}
+	registry := NewDispatcherRegistry()
+	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, testConfig())
+
+	task := makeTask(t, ProcessIncomingMessagePayload{
+		ConnectorType: "discord",
+		ChannelID:     "channel-456",
+		Content:       "hello",
+	})
+	require.NoError(t, proc.HandleProcessIncomingMessageTask(context.Background(), task))
+
+	assert.Equal(t, "database default prompt", llm.capturedPrompt)
+}
+
+func TestProcessor_UsesYAMLSystemPromptWhenNotInDB(t *testing.T) {
+	db := openTestDB(t)
+	sessRepo := repository.NewSessionRepository(db)
+	msgRepo := repository.NewMessageRepository(db)
+	cfgRepo := repository.NewConfigRepository(db)
+
+	// Do NOT store a system prompt in config database.
+	// The processor should fall back to the YAML config.
+	cfg := testConfig()
+	cfg.UI.DefaultSystemPrompt = "yaml default prompt"
+
+	llm := &mockLLM{response: "ok"}
+	registry := NewDispatcherRegistry()
+	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, cfg)
+
+	task := makeTask(t, ProcessIncomingMessagePayload{
+		ConnectorType: "discord",
+		ChannelID:     "channel-789",
+		Content:       "hello",
+	})
+	require.NoError(t, proc.HandleProcessIncomingMessageTask(context.Background(), task))
+
+	assert.Equal(t, "yaml default prompt", llm.capturedPrompt)
+}
+
 func TestProcessor_RateLimitedErrorReturnsForRetry(t *testing.T) {
 	db := openTestDB(t)
 	sessRepo := repository.NewSessionRepository(db)

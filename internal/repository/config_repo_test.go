@@ -50,3 +50,17 @@ func TestGetAll_ReturnsAll(t *testing.T) {
 	assert.Equal(t, "a", entries[0].Key)
 	assert.Equal(t, "c", entries[2].Key)
 }
+
+// TestGet_UIDefaultSystemPrompt tests retrieval of ui.default_system_prompt specifically.
+func TestGet_UIDefaultSystemPrompt(t *testing.T) {
+	repo := NewConfigRepository(openTestDB(t))
+
+	key := "ui.default_system_prompt"
+	value := "You are Bruce, a helpful AI assistant."
+
+	require.NoError(t, repo.Upsert(key, value))
+
+	retrieved, err := repo.Get(key)
+	require.NoError(t, err)
+	assert.Equal(t, value, retrieved)
+}

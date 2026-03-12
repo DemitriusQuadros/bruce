@@ -182,6 +182,11 @@ these steps exactly. Read `references/domain-scaffold.md` for full templates.
 - Test actual GORM queries — these are integration-style tests without needing Postgres
 - Use `assert.NoError`, `assert.Equal`, `assert.NotZero` from testify
 
+## IMPORTANT
+- didn't commit without asking
+- didn't push without asking
+- didn't create documentation file explaning what was implemented if not asked
+
 ### Usecase Tests
 - Mock every dependency using `testify/mock` — define mocks inline in `_test.go`
 - Type: `type mockXxxRepository struct { mock.Mock }`

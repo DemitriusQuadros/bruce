@@ -28,12 +28,16 @@ import (
 	"bruce/internal/config"
 	"bruce/internal/connectors/discord"
 	"bruce/internal/database"
+	"bruce/internal/logging"
 	"bruce/internal/repository"
 	"bruce/internal/worker"
 )
 
 func main() {
 	startTime := time.Now()
+
+	// 0. Initialize logger based on ENV variable.
+	logging.Init()
 
 	// 1. Load config.
 	cfg := config.Load()
@@ -162,8 +166,15 @@ func runSchema(db *sql.DB) error {
 // resolveDiscordToken fetches the Discord bot token from the database (if configured)
 // or falls back to the config file. Database config takes precedence.
 func resolveDiscordToken(cfg *config.Config, repo repository.ConfigRepository) (string, error) {
-	if t, err := repo.Get("connectors.discord.bot_token"); err == nil && t != "" {
+	t, err := repo.Get("connectors.discord.bot_token")
+	if err != nil {
+		logging.Debugf("resolveDiscordToken: database lookup failed (falling back to config): %v", err)
+		return cfg.Connectors.Discord.BotToken, nil
+	}
+	if t != "" {
+		logging.Debug("resolveDiscordToken: using token from database")
 		return t, nil
 	}
+	logging.Debug("resolveDiscordToken: database value is empty, falling back to config")
 	return cfg.Connectors.Discord.BotToken, nil
 }
