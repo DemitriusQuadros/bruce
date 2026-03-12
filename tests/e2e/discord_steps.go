@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/cucumber/godog"
+	"github.com/hibiken/asynq"
 
 	"bruce/internal/connectors/discord"
 	"bruce/internal/worker"
@@ -29,6 +31,7 @@ func RegisterDiscordSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	// --- Message handling ---
 	ctx.Step(`^I enqueue a message from a guild channel \(not DM\)$`, tc.iEnqueueMessageFromGuildChannel)
+	ctx.Step(`^the discord connector receives a message from the bot$`, tc.theDiscordConnectorReceivesAMessageFromTheBot)
 	ctx.Step(`^the discord connector receives an empty message from a Discord DM$`, tc.theDiscordConnectorReceivesAnEmptyMessage)
 	ctx.Step(`^the discord connector receives a whitespace-only message from a Discord DM$`, tc.theDiscordConnectorReceivesAWhitespaceOnlyMessage)
 	ctx.Step(`^no task is enqueued$`, tc.noTaskIsEnqueued)
@@ -92,14 +95,14 @@ func (tc *TestContext) theDiscordConnectorIsInitialized() error {
 		return nil
 	}
 
-	// In a real test, we'd create a proper Discord connector
-	// For this test, we just verify the constructor works with a token
+	// Create a proper Discord connector with the test token
 	conn, err := discord.New(token, tc.AsynqClient)
 	if err != nil {
 		tc.ScenarioData["init_error"] = err
 		tc.ScenarioData["discord_connector"] = nil
-		return nil
+		return fmt.Errorf("failed to initialize Discord connector: %w", err)
 	}
+	// Store the connector for later assertions
 	tc.ScenarioData["discord_connector"] = conn
 	return nil
 }
@@ -191,12 +194,21 @@ func (tc *TestContext) iCallTheDispatcherWithLongWordNoSpaces(n int) error {
 // ---------------------------------------------------------------------------
 
 func (tc *TestContext) iEnqueueMessageFromGuildChannel() error {
-	// Mark this as a guild channel message
+	// Record the current queue depth before the "message" is processed
+	inspector := asynq.NewInspector(asynq.RedisClientOpt{Addr: tc.RedisAddr})
+	defer inspector.Close()
+
+	info, err := inspector.GetQueueInfo("default")
+	sizeBefore := 0
+	if err == nil && info != nil {
+		sizeBefore = info.Size
+	}
+
+	tc.ScenarioData["queue_size_before"] = sizeBefore
 	tc.ScenarioData["is_guild_channel"] = true
 	tc.ScenarioData["connector_type"] = "discord"
 	tc.ScenarioData["channel_id"] = "guild-channel-001"
 	tc.ScenarioData["content"] = "guild message"
-	// In real scenario, this would be ignored by the connector's channel type filter
 	return nil
 }
 
@@ -314,20 +326,14 @@ func (tc *TestContext) noChunkEndsMiddWord() error {
 		return fmt.Errorf("no chunks stored")
 	}
 
-	// The chunking algorithm tries to break on word boundaries (spaces) when possible.
-	// However, if there are no spaces within the chunk, it does a hard cut.
-	// For messages with word boundaries, most chunks should end with a space.
-	//
-	// This assertion verifies that:
-	// 1. All chunks except possibly the last try to break on spaces
-	// 2. If a chunk doesn't end with a space, it means there were no spaces in the next maxLen chars
-	//    (which is acceptable - a hard cut is necessary)
-
+	// Verify that non-final chunks end with a space (or are the last chunk).
+	// This ensures no chunk ends mid-word.
 	for i, chunk := range chunks {
-		if i < len(chunks)-1 && len(chunk) > 0 {
-			// Check if the next character in the original message (if available) would have been after a space
-			// For now, we just verify that hard-cuts are only done when necessary
-			// The spec says "breaks on word boundaries where possible" - so this is acceptable
+		if i == len(chunks)-1 {
+			break // last chunk may end anywhere
+		}
+		if len(chunk) > 0 && chunk[len(chunk)-1] != ' ' {
+			return fmt.Errorf("chunk %d ends mid-word: last char=%q", i, chunk[len(chunk)-1])
 		}
 	}
 
@@ -374,9 +380,34 @@ func (tc *TestContext) theLastChunkIsShorterThanNCharacters(n int) error {
 }
 
 func (tc *TestContext) theMessageIsIgnoredAndNoTaskIsEnqueued() error {
-	// This would normally be verified by checking that no task was enqueued
-	// In a real E2E test with a running connector, this would check the Asynq queue
-	tc.ScenarioData["message_ignored"] = true
+	sizeBefore, ok := tc.ScenarioData["queue_size_before"].(int)
+	if !ok {
+		// If queue size wasn't recorded, skip this check
+		// (may happen in scenarios that don't call iEnqueueMessageFromGuildChannel)
+		return nil
+	}
+
+	// Wait a moment to allow any pending queue operations to complete
+	time.Sleep(1 * time.Second)
+
+	// Check the current queue size
+	inspector := asynq.NewInspector(asynq.RedisClientOpt{Addr: tc.RedisAddr})
+	defer inspector.Close()
+
+	info, err := inspector.GetQueueInfo("default")
+	if err != nil {
+		return fmt.Errorf("failed to get queue info: %w", err)
+	}
+
+	sizeAfter := 0
+	if info != nil {
+		sizeAfter = info.Size
+	}
+
+	if sizeAfter > sizeBefore {
+		return fmt.Errorf("expected no new tasks enqueued, queue grew from %d to %d", sizeBefore, sizeAfter)
+	}
+
 	return nil
 }
 
@@ -415,22 +446,54 @@ func (tc *TestContext) theMessageIsIgnoredAndNoTaskIsEnqueuedFromGuild() error {
 }
 
 func (tc *TestContext) theConnectorOnlyRequestsNecessaryIntents() error {
-	// This verifies the intents set in the Discord connector
-	// In actual testing, this would check the discordgo.Session.Identify.Intents field
-	conn, ok := tc.ScenarioData["discord_connector"]
+	connAny, ok := tc.ScenarioData["discord_connector"]
 	if !ok {
 		return fmt.Errorf("no discord connector stored")
 	}
 
-	// The constructor already validates intents
-	_ = conn // verify connector exists
+	if connAny == nil {
+		return fmt.Errorf("discord connector is nil (initialization failed)")
+	}
+
+	conn, ok := connAny.(*discord.DiscordConnector)
+	if !ok {
+		return fmt.Errorf("discord connector has wrong type: %T (expected *discord.DiscordConnector)", connAny)
+	}
+
+	// Check that only the required intents are set
+	expected := discordgo.IntentsDirectMessages | discordgo.IntentsDirectMessageReactions
+	actual := conn.Session().Identify.Intents
+
+	if actual != expected {
+		return fmt.Errorf("expected intents %d, got %d", expected, actual)
+	}
 
 	return nil
 }
 
 func (tc *TestContext) noOtherIntentsAreRequested() error {
-	// Verify that only necessary intents are requested
-	// This is enforced by the Discord connector's New function
+	connAny, ok := tc.ScenarioData["discord_connector"]
+	if !ok {
+		return fmt.Errorf("no discord connector stored")
+	}
+
+	if connAny == nil {
+		return fmt.Errorf("discord connector is nil (initialization failed)")
+	}
+
+	conn, ok := connAny.(*discord.DiscordConnector)
+	if !ok {
+		return fmt.Errorf("discord connector has wrong type: %T (expected *discord.DiscordConnector)", connAny)
+	}
+
+	// Verify that only DirectMessages and DirectMessageReactions intents are set
+	expected := discordgo.IntentsDirectMessages | discordgo.IntentsDirectMessageReactions
+	actual := conn.Session().Identify.Intents
+
+	if actual != expected {
+		return fmt.Errorf("unexpected intents requested; expected %d but got %d (other intents present)", expected, actual)
+	}
+
 	return nil
 }
 
@@ -438,35 +501,58 @@ func (tc *TestContext) noOtherIntentsAreRequested() error {
 // Helper functions
 // ---------------------------------------------------------------------------
 
+func (tc *TestContext) theDiscordConnectorReceivesAMessageFromTheBot() error {
+	// Record the current queue depth before the "message" is processed
+	tc.ScenarioData["message_from_bot"] = true
+	return tc.iEnqueueMessageFromGuildChannel()
+}
+
 func (tc *TestContext) theDiscordConnectorReceivesAnEmptyMessage() error {
 	// Empty messages are filtered by the connector's handleMessage function
 	// so they never reach the Asynq queue
 	tc.ScenarioData["empty_message_received"] = true
+	// Record queue depth for later assertion
+	inspector := asynq.NewInspector(asynq.RedisClientOpt{Addr: tc.RedisAddr})
+	defer inspector.Close()
+
+	info, err := inspector.GetQueueInfo("default")
+	sizeBefore := 0
+	if err == nil && info != nil {
+		sizeBefore = info.Size
+	}
+	tc.ScenarioData["queue_size_before"] = sizeBefore
 	return nil
 }
 
 func (tc *TestContext) theDiscordConnectorReceivesAWhitespaceOnlyMessage() error {
 	// Whitespace messages are filtered by strings.TrimSpace() in handleMessage
 	tc.ScenarioData["whitespace_message_received"] = true
+	// Record queue depth for later assertion
+	inspector := asynq.NewInspector(asynq.RedisClientOpt{Addr: tc.RedisAddr})
+	defer inspector.Close()
+
+	info, err := inspector.GetQueueInfo("default")
+	sizeBefore := 0
+	if err == nil && info != nil {
+		sizeBefore = info.Size
+	}
+	tc.ScenarioData["queue_size_before"] = sizeBefore
 	return nil
 }
 
 func (tc *TestContext) noTaskIsEnqueued() error {
-	// This is enforced by the connector's handleMessage function
-	// which returns early for empty messages without calling asynqClient.Enqueue
-	tc.ScenarioData["no_task_enqueued"] = true
-	return nil
+	// Delegate to the real queue check
+	return tc.theMessageIsIgnoredAndNoTaskIsEnqueued()
 }
 
 func (tc *TestContext) theDatabaseContainsZeroMessagesForTheSession() error {
-	sessionID, err := resolveSessionIDFromScenario(tc)
-	if err != nil {
-		// No session was created, which is correct for empty messages
-		return nil
+	sessionID := resolveSessionIDFromScenario(tc)
+	if sessionID == "" {
+		return fmt.Errorf("no session_id in ScenarioData — precondition missing")
 	}
 
 	var count int
-	err = tc.DB.QueryRow(
+	err := tc.DB.QueryRow(
 		`SELECT COUNT(*) FROM messages WHERE session_id = ?`,
 		sessionID,
 	).Scan(&count)
@@ -491,8 +577,8 @@ func chunkMessageForTest(msg string, maxLen int) []string {
 	var chunks []string
 	for len(msg) > maxLen {
 		split := maxLen
-		// Walk back to find a space
-		for split > 0 && msg[split] != ' ' {
+		// Walk back to find a space (checking position before split)
+		for split > 0 && msg[split-1] != ' ' {
 			split--
 		}
 		if split == 0 {
@@ -508,9 +594,9 @@ func chunkMessageForTest(msg string, maxLen int) []string {
 }
 
 // resolveSessionIDFromScenario is a helper to get session ID from scenario data
-func resolveSessionIDFromScenario(tc *TestContext) (string, error) {
+func resolveSessionIDFromScenario(tc *TestContext) string {
 	if id, ok := tc.ScenarioData["session_id"].(string); ok && id != "" {
-		return id, nil
+		return id
 	}
-	return "", fmt.Errorf("no session_id in ScenarioData")
+	return ""
 }

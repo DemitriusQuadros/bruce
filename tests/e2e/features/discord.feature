@@ -103,6 +103,7 @@ Feature: Discord Connector
   @invariant @REQ-007
   Scenario: Discord connector requests only necessary gateway intents
     # Principle of least privilege
-    Given the discord connector is initialized
+    Given a discord bot token is configured
+    When the discord connector is initialized
     Then the connector only requests IntentsDirectMessages and IntentsDirectMessageReactions
     And no other intents are requested

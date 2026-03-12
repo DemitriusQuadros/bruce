@@ -42,6 +42,11 @@ func New(token string, asynqClient *asynq.Client) (*DiscordConnector, error) {
 	}, nil
 }
 
+// Session returns the underlying discordgo.Session for testing and inspection.
+func (c *DiscordConnector) Session() *discordgo.Session {
+	return c.session
+}
+
 // Connect opens the Discord WebSocket connection and registers event handlers.
 func (c *DiscordConnector) Connect() error {
 	c.session.AddHandler(c.handleMessage)
@@ -170,8 +175,8 @@ func chunkMessage(msg string, maxLen int) []string {
 	var chunks []string
 	for len(msg) > maxLen {
 		split := maxLen
-		// Walk back to find a space
-		for split > 0 && msg[split] != ' ' {
+		// Walk back to find a space (checking position before split)
+		for split > 0 && msg[split-1] != ' ' {
 			split--
 		}
 		if split == 0 {
