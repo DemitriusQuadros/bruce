@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/config": {
+        "/api/v1/config": {
             "get": {
                 "description": "Returns or updates the runtime configuration",
                 "produces": [
@@ -29,8 +29,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.configEntry"
+                            }
                         }
                     }
                 }
@@ -48,14 +50,39 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.configEntry"
+                            }
                         }
                     }
                 }
             }
         },
-        "/api/sessions": {
+        "/api/v1/connectors": {
+            "get": {
+                "description": "Returns the status of all connectors (WhatsApp, Discord)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "connectors"
+                ],
+                "summary": "Get connector status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.connectorResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sessions": {
             "get": {
                 "description": "Create, list, retrieve, update, and delete chat sessions",
                 "produces": [
@@ -69,33 +96,16 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Create, list, retrieve, update, and delete chat sessions",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "sessions"
-                ],
-                "summary": "Manage sessions",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.sessionResponse"
+                            }
                         }
                     }
                 }
             }
         },
-        "/api/sessions/{id}": {
+        "/api/v1/sessions/{id}": {
             "get": {
                 "description": "Create, list, retrieve, update, and delete chat sessions",
                 "produces": [
@@ -109,13 +119,15 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.sessionResponse"
+                            }
                         }
                     }
                 }
             },
-            "put": {
+            "patch": {
                 "description": "Create, list, retrieve, update, and delete chat sessions",
                 "produces": [
                     "application/json"
@@ -128,35 +140,18 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Create, list, retrieve, update, and delete chat sessions",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "sessions"
-                ],
-                "summary": "Manage sessions",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.sessionResponse"
+                            }
                         }
                     }
                 }
             }
         },
-        "/api/sessions/{id}/messages": {
+        "/api/v1/sessions/{id}/messages": {
             "get": {
-                "description": "List and post messages within a session",
+                "description": "List messages within a session",
                 "produces": [
                     "application/json"
                 ],
@@ -168,27 +163,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "List and post messages within a session",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "messages"
-                ],
-                "summary": "Session messages",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.messageResponse"
+                            }
                         }
                     }
                 }
@@ -216,6 +194,32 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.configEntry": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.connectorResponse": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "description": "\"connected\" | \"disconnected\" | \"needs_qr\" | \"disabled\"",
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.healthResponse": {
             "type": "object",
             "properties": {
@@ -224,6 +228,52 @@ const docTemplate = `{
                 },
                 "uptime_seconds": {
                     "type": "integer"
+                }
+            }
+        },
+        "handlers.messageResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.sessionResponse": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "connector_type": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "system_prompt": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         }

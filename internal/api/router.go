@@ -2,7 +2,9 @@
 package api
 
 import (
+	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"time"
 
@@ -20,12 +22,21 @@ import (
 func NewRouter(startTime time.Time, asynqmonHandler http.Handler) *mux.Router {
 	r := mux.NewRouter()
 
-	// API routes — registered first so the catch-all below does not intercept them.
+	// Apply middleware stack (innermost to outermost).
+	r.Use(recoveryMiddleware)
+	r.Use(loggingMiddleware)
+	r.Use(corsMiddleware)
+
+	// Health check (no /api/v1 prefix — used by Docker healthcheck).
 	r.HandleFunc("/health", handlers.HealthHandler(startTime)).Methods(http.MethodGet)
-	r.HandleFunc("/api/config", handlers.ConfigHandler()).Methods(http.MethodGet, http.MethodPut)
-	r.HandleFunc("/api/sessions", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPost)
-	r.HandleFunc("/api/sessions/{id}", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPut, http.MethodDelete)
-	r.HandleFunc("/api/sessions/{id}/messages", handlers.MessagesHandler()).Methods(http.MethodGet, http.MethodPost)
+
+	// API routes under /api/v1.
+	api := r.PathPrefix("/api/v1").Subrouter()
+	api.HandleFunc("/config", handlers.ConfigHandler()).Methods(http.MethodGet, http.MethodPut)
+	api.HandleFunc("/sessions", handlers.SessionsHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/sessions/{id}", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPatch)
+	api.HandleFunc("/sessions/{id}/messages", handlers.MessagesHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/connectors", handlers.ConnectorsHandler()).Methods(http.MethodGet)
 
 	// Asynqmon dashboard — must be before the SPA catch-all.
 	r.PathPrefix("/monitor").Handler(asynqmonHandler)
@@ -43,6 +54,61 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler) *mux.Router {
 	r.PathPrefix("/").HandlerFunc(spaHandler(staticFS))
 
 	return r
+}
+
+// recoveryMiddleware catches panics and returns HTTP 500.
+func recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("PANIC: %v", err)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, `{"error":"internal server error","code":500}`)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+// responseWriter wraps http.ResponseWriter to capture the status code written.
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+// WriteHeader captures the status code before delegating to the wrapped writer.
+func (w *responseWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+
+// loggingMiddleware logs HTTP request details (method, path, status, duration).
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		wrapped := &responseWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(wrapped, r)
+		duration := time.Since(start).Milliseconds()
+		log.Printf("%s %s %d %dms", r.Method, r.URL.Path, wrapped.status, duration)
+	})
+}
+
+// corsMiddleware adds CORS headers to allow all origins (safe for private LAN).
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+
+		// Handle OPTIONS preflight requests.
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // spaHandler serves files from the embedded FS.

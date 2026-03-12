@@ -106,10 +106,21 @@ func main() {
 		RedisConnOpt: redisOpt,
 	})
 	router := bruceapi.NewRouter(startTime, mon)
+
+	// Wrap router with middleware to inject dependencies into request context.
+	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, "sessionRepo", sessionRepo)
+		ctx = context.WithValue(ctx, "messageRepo", messageRepo)
+		ctx = context.WithValue(ctx, "configRepo", configRepo)
+		ctx = context.WithValue(ctx, "dispatcherRegistry", dispatcherRegistry)
+		router.ServeHTTP(w, r.WithContext(ctx))
+	})
+
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	httpServer := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      wrappedRouter,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

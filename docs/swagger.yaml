@@ -1,11 +1,58 @@
 basePath: /
 definitions:
+  handlers.configEntry:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    type: object
+  handlers.connectorResponse:
+    properties:
+      enabled:
+        type: boolean
+      status:
+        description: '"connected" | "disconnected" | "needs_qr" | "disabled"'
+        type: string
+      type:
+        type: string
+    type: object
   handlers.healthResponse:
     properties:
       status:
         type: string
       uptime_seconds:
         type: integer
+    type: object
+  handlers.messageResponse:
+    properties:
+      content:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+      session_id:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  handlers.sessionResponse:
+    properties:
+      channel_id:
+        type: string
+      connector_type:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      system_prompt:
+        type: string
+      updated_at:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -14,7 +61,7 @@ info:
   title: Bruce API
   version: "1.0"
 paths:
-  /api/config:
+  /api/v1/config:
     get:
       description: Returns or updates the runtime configuration
       produces:
@@ -23,8 +70,9 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/handlers.configEntry'
+            type: array
       summary: Get / update runtime config
       tags:
       - config
@@ -36,12 +84,28 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/handlers.configEntry'
+            type: array
       summary: Get / update runtime config
       tags:
       - config
-  /api/sessions:
+  /api/v1/connectors:
+    get:
+      description: Returns the status of all connectors (WhatsApp, Discord)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.connectorResponse'
+            type: array
+      summary: Get connector status
+      tags:
+      - connectors
+  /api/v1/sessions:
     get:
       description: Create, list, retrieve, update, and delete chat sessions
       produces:
@@ -50,38 +114,13 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/handlers.sessionResponse'
+            type: array
       summary: Manage sessions
       tags:
       - sessions
-    post:
-      description: Create, list, retrieve, update, and delete chat sessions
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Manage sessions
-      tags:
-      - sessions
-  /api/sessions/{id}:
-    delete:
-      description: Create, list, retrieve, update, and delete chat sessions
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Manage sessions
-      tags:
-      - sessions
+  /api/v1/sessions/{id}:
     get:
       description: Create, list, retrieve, update, and delete chat sessions
       produces:
@@ -90,12 +129,13 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/handlers.sessionResponse'
+            type: array
       summary: Manage sessions
       tags:
       - sessions
-    put:
+    patch:
       description: Create, list, retrieve, update, and delete chat sessions
       produces:
       - application/json
@@ -103,35 +143,24 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/handlers.sessionResponse'
+            type: array
       summary: Manage sessions
       tags:
       - sessions
-  /api/sessions/{id}/messages:
+  /api/v1/sessions/{id}/messages:
     get:
-      description: List and post messages within a session
+      description: List messages within a session
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
-      summary: Session messages
-      tags:
-      - messages
-    post:
-      description: List and post messages within a session
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/handlers.messageResponse'
+            type: array
       summary: Session messages
       tags:
       - messages

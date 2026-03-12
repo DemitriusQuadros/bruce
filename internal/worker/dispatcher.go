@@ -31,6 +31,13 @@ func (r *DispatcherRegistry) Register(connectorType string, d Dispatcher) {
 	log.Printf("DEBUG: dispatcher registered for connector type: %s", connectorType)
 }
 
+// Get returns the Dispatcher for a connector type, or nil if not registered.
+func (r *DispatcherRegistry) Get(connectorType string) Dispatcher {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.dispatchers[connectorType]
+}
+
 // Dispatch forwards a message to the registered Dispatcher for connectorType.
 func (r *DispatcherRegistry) Dispatch(connectorType, channelID, message string) error {
 	r.mu.RLock()
