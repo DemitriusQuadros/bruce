@@ -11,6 +11,8 @@ description: >
   Always use this skill even for vague ideas — extract what's needed through the output structure.
   If a business-investor-validator output is present in the conversation, build directly on top
   of it as the source of truth.
+agent: product-manager-prd
+delegation: true
 ---
 
 # Product Manager PRD Skill

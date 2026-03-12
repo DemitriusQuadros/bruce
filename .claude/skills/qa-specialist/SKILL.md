@@ -11,6 +11,8 @@ description: >
   against its documented behavior. Always use this skill even if the spec is partial — infer
   scenarios from the API contracts and user stories and flag gaps. The spec files in docs/specs/
   are the source of truth for what scenarios to generate.
+agent: qa-specialist
+delegation: true
 ---
 
 # QA Specialist Agent

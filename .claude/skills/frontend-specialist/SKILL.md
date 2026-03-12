@@ -10,6 +10,8 @@ description: >
   wireframes, accessibility review, or any request involving user interfaces for this project.
   Always use this skill even for simple page requests — it enforces UX thinking first, then
   the right stack choice, then production-quality implementation.
+agent: frontend-specialist
+delegation: true
 ---
 
 # Frontend Specialist Agent
