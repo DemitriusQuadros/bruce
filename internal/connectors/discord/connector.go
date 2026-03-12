@@ -63,8 +63,12 @@ func (c *DiscordConnector) Disconnect() {
 
 // handleMessage is the MessageCreate event handler for incoming Discord DMs.
 func (c *DiscordConnector) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
+	log.Printf("DEBUG: MessageCreate event received - channel=%s, author=%s, content_len=%d",
+		m.ChannelID, m.Author.ID, len(m.Content))
+
 	// Ignore messages from the bot itself
 	if m.Author.ID == c.botUserID {
+		log.Printf("DEBUG: ignoring message from bot itself - bot_id=%s", c.botUserID)
 		return
 	}
 
@@ -73,23 +77,28 @@ func (c *DiscordConnector) handleMessage(s *discordgo.Session, m *discordgo.Mess
 	channel, err := s.State.Channel(m.ChannelID)
 	if err != nil {
 		// Channel not in state cache — fetch it
+		log.Printf("DEBUG: channel not in state cache, fetching from API - channel=%s", m.ChannelID)
 		channel, err = s.Channel(m.ChannelID)
 		if err != nil {
-			log.Printf("discord: failed to fetch channel %s: %v", m.ChannelID, err)
+			log.Printf("ERROR: failed to fetch channel %s: %v", m.ChannelID, err)
 			return
 		}
 	}
 	if channel.Type != discordgo.ChannelTypeDM {
+		log.Printf("DEBUG: ignoring non-DM message - channel=%s, type=%v", m.ChannelID, channel.Type)
 		return // Ignore guild messages in Phase 1
 	}
 
 	// Ignore empty messages (attachments, embeds without text)
 	content := strings.TrimSpace(m.Content)
 	if content == "" {
+		log.Printf("DEBUG: ignoring empty message - channel=%s", m.ChannelID)
 		return
 	}
 
 	// Enqueue for async processing — identical payload structure to WhatsApp
+	log.Printf("DEBUG: enqueueing task - connector=discord, channel=%s, content_len=%d, preview=%s",
+		m.ChannelID, len(content), truncateForLog(content, 100))
 	payload := worker.ProcessIncomingMessagePayload{
 		ConnectorType: "discord",
 		ChannelID:     m.ChannelID, // Discord DM channel ID (stable per user pair)
@@ -97,21 +106,36 @@ func (c *DiscordConnector) handleMessage(s *discordgo.Session, m *discordgo.Mess
 	}
 	task, err := worker.NewProcessIncomingMessageTask(payload)
 	if err != nil {
-		log.Printf("discord: failed to create task: %v", err)
+		log.Printf("ERROR: failed to create task: %v", err)
 		return
 	}
 	if _, err := c.asynqClient.Enqueue(task); err != nil {
-		log.Printf("discord: failed to enqueue from channel %s: %v", m.ChannelID, err)
+		log.Printf("ERROR: failed to enqueue from channel %s: %v", m.ChannelID, err)
+		return
 	}
+	log.Printf("DEBUG: task enqueued successfully - channel=%s", m.ChannelID)
+}
+
+// truncateForLog returns a shortened version of s for logging purposes.
+func truncateForLog(s string, maxLen int) string {
+	if len(s) > maxLen {
+		return s[:maxLen] + "..."
+	}
+	return s
 }
 
 // Send implements worker.Dispatcher.
 // It sends a message to the Discord channel, chunking if necessary to respect the 2000 character limit.
 func (c *DiscordConnector) Send(channelID string, message string) error {
+	log.Printf("DEBUG: Discord Send called - channel=%s, message_len=%d", channelID, len(message))
+
 	// Discord message length limit: 2000 characters
 	// Claude max_tokens: 1024 ≈ ~4000 chars worst case — must chunk
 	chunks := chunkMessage(message, 1900) // 1900 to leave room for formatting
-	for _, chunk := range chunks {
+	log.Printf("DEBUG: message chunked into %d chunks", len(chunks))
+
+	for i, chunk := range chunks {
+		log.Printf("DEBUG: sending chunk %d/%d - len=%d", i+1, len(chunks), len(chunk))
 		_, err := c.session.ChannelMessageSend(channelID, chunk)
 		if err != nil {
 			// Check for rate limit (HTTP 429)
@@ -119,16 +143,21 @@ func (c *DiscordConnector) Send(channelID string, message string) error {
 				if restErr.Response.StatusCode == 429 {
 					// discordgo handles rate limits internally — this shouldn't happen
 					// but if it does, log and continue
-					log.Printf("discord rate limited on channel %s", channelID)
+					log.Printf("WARN: discord rate limited on channel %s, retrying after 1s", channelID)
 					time.Sleep(1 * time.Second)
 					_, err = c.session.ChannelMessageSend(channelID, chunk)
 				}
 			}
 			if err != nil {
+				log.Printf("ERROR: failed to send chunk %d to Discord channel %s: %v", i+1, channelID, err)
 				return fmt.Errorf("discord send to %s: %w", channelID, err)
 			}
+			log.Printf("DEBUG: chunk %d sent successfully", i+1)
+		} else {
+			log.Printf("DEBUG: chunk %d sent successfully", i+1)
 		}
 	}
+	log.Printf("DEBUG: all chunks sent successfully to Discord channel %s", channelID)
 	return nil
 }
 
