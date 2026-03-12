@@ -1,0 +1,71 @@
+/* Connectors */
+#connectors-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.connector-card {
+    display: grid;
+    grid-template-columns: 1fr 250px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.connector-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.connector-header {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.connector-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--accent);
+}
+
+.connector-header i {
+    font-size: 2rem;
+    color: var(--accent);
+    line-height: 1;
+    min-width: 2rem;
+    text-align: center;
+}
+
+.connector-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--accent);
+}
+
+.connector-desc {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.connector-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.connector-controls input {
+    width: 100%;
+    padding: 0.65rem;
+    font-size: 0.85rem;
+}
+
+.connector-status-msg {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 0.75rem;
+    background: var(--accent-dim);
+    border-radius: var(--radius);
+    text-align: center;
+}

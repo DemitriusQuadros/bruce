@@ -57,7 +57,29 @@ bruce/
 │   └── api/
 │       ├── router.go          # Gorilla Mux setup
 │       └── handlers/          # HTTP handlers (health, sessions, messages, config)
-├── web/public/                # Static web assets (index.html, style.css, app.js)
+├── web/public/                # Static web assets (modular ES modules)
+│   ├── index.html             # SPA entrypoint
+│   ├── css/                   # Modular CSS
+│   │   ├── main.css           # @import entrypoint
+│   │   ├── tokens.css         # Design tokens (colors, spacing, fonts)
+│   │   ├── base.css           # Global base styles (body, scrollbar)
+│   │   ├── layout.css         # Header, main, tab sections
+│   │   └── components/        # Component-scoped CSS
+│   │       ├── button.css, card.css, badge.css, form.css
+│   │       ├── connector.css, session.css, logs.css
+│   │       └── toast.css, spinner.css
+│   ├── js/                    # Modular JavaScript (ES modules)
+│   │   ├── main.js            # Bootstrap application
+│   │   ├── api.js             # HTTP client (fetch wrapper)
+│   │   ├── store.js           # Reactive state (CustomEvent-based)
+│   │   ├── router.js          # Hash-based routing
+│   │   ├── toast.js           # Toast notifications
+│   │   └── modules/           # Feature modules
+│   │       ├── connectors.js  # Connectors tab
+│   │       ├── sessions.js    # Sessions tab
+│   │       ├── logs.js        # Logs tab (subscribes to sessions changes)
+│   │       └── settings.js    # Settings tab
+│   └── bruce-logo.png
 ├── docker-compose.yml         # redis:7-alpine + bruce (no Postgres, no Prometheus)
 ├── config.example.yml
 └── Dockerfile                 # CGO-enabled build (required for mattn/go-sqlite3)
@@ -129,6 +151,69 @@ GET /health
   Auth: none
   Returns: 200 { "status": "ok", "uptime_seconds": N }
 ```
+
+---
+
+## Frontend Architecture
+
+The frontend is a **modular vanilla ES6 application** served directly from the Go binary via `web/embed.go`. No build step, no bundler — native browser ES modules with CSS `@import`.
+
+### Key Principles
+- **Zero external dependencies** — vanilla JS, native fetch API, CSS custom properties
+- **Module decoupling** — each tab (connectors, sessions, logs, settings) is an independent module
+- **Reactive store** — global state via `CustomEvent` (no circular imports between modules)
+- **Hash-based routing** — `#connectors`, `#sessions`, `#logs`, `#settings` — tab state persists on refresh
+- **CSS tokens** — all colors, spacing, typography in `css/tokens.css`, used throughout components
+
+### Module Initialization Flow
+1. `index.html` loads `js/main.js` with `type="module"`
+2. `main.js` imports all modules (connectors, sessions, logs, settings)
+3. Each module calls `init()` — registers with router, subscribes to store changes, sets up event listeners
+4. `router.start()` wires hash navigation and activates initial tab
+
+### Store Pattern (Fixes Coupling)
+```javascript
+// Store provides reactive state without circular imports
+setState({ sessions: data });           // Update state
+subscribe('sessions', callback);        // Listen for changes via CustomEvent
+const value = getState('sessions');     // Read current value
+```
+
+**Key fix**: Sessions module no longer directly calls `populateLogsDropdown()`. Instead:
+- Sessions calls `setState({ sessions: data })`
+- Logs module has `subscribe('sessions', populateLogsDropdown)`
+- Both modules import from store; no direct imports between them
+
+### CSS Architecture
+- `tokens.css` — CSS custom properties (colors, spacing, radius, fonts, transitions, shadows)
+- `base.css` — global resets (*, html, body, scrollbar)
+- `layout.css` — header, main, tab sections, responsive grid
+- `components/*.css` — isolated component styles (button, card, badge, form, connector, session, logs, toast, spinner)
+- `main.css` — single `@import` entrypoint that chains all files
+
+### Frontend Testing
+E2E tests use **Playwright** (no unit test framework needed for vanilla JS):
+
+```bash
+make test-frontend    # Installs npm deps + runs tests
+# Or manually:
+npm install && npx playwright test
+```
+
+Test file: `tests/ui/navigation.spec.ts` covers:
+- Hash routing navigation
+- Tab state persistence on refresh
+- Sessions → Logs decoupling (dropdown populated without visiting Sessions tab)
+- Form rendering and interaction
+
+### Development Workflow
+1. Edit `.css` or `.js` files in `web/public/`
+2. Refresh browser at `http://localhost:8080`
+3. No build step — changes are live (Go binary auto-serves from disk in dev)
+4. Run `make test-frontend` to verify E2E tests pass
+
+### Deployment
+The `Dockerfile` builds a single binary with all frontend assets embedded via `//go:embed public`. Deploy just the binary — no separate static file server needed.
 
 ---
 

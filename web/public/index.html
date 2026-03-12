@@ -4,11 +4,95 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bruce</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="css/main.css" />
 </head>
 <body>
-    <h1>Bruce</h1>
-    <p>Your personal AI assistant.</p>
-    <script src="app.js"></script>
+    <header>
+        <div class="logo">
+            <img src="bruce-logo.png" alt="Bruce Logo" class="logo-image" />
+        </div>
+        <nav>
+            <button class="tab-button" data-tab="connectors">Connectors</button>
+            <button class="tab-button" data-tab="sessions">Sessions</button>
+            <button class="tab-button" data-tab="logs">Logs</button>
+            <button class="tab-button" data-tab="settings">Settings</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Tab: Connectors -->
+        <section id="tab-connectors" class="tab-section">
+            <h2>Connectors</h2>
+            <div id="connectors-list"></div>
+        </section>
+
+        <!-- Tab: Sessions -->
+        <section id="tab-sessions" class="tab-section" hidden>
+            <h2>Sessions</h2>
+            <div class="sessions-container">
+                <div id="sessions-list"></div>
+                <aside id="session-detail" hidden>
+                    <h3>Session Detail</h3>
+                    <div class="form-group">
+                        <label>System Prompt</label>
+                        <textarea id="session-prompt" rows="6"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="session-active" />
+                            Active
+                        </label>
+                    </div>
+                    <button id="session-save" class="btn-primary">Save</button>
+                </aside>
+            </div>
+        </section>
+
+        <!-- Tab: Logs -->
+        <section id="tab-logs" class="tab-section" hidden>
+            <h2>Logs</h2>
+            <div class="logs-controls">
+                <select id="logs-session-select"></select>
+                <button id="logs-refresh" class="btn-secondary">Refresh</button>
+            </div>
+            <div id="logs-messages"></div>
+        </section>
+
+        <!-- Tab: Settings -->
+        <section id="tab-settings" class="tab-section" hidden>
+            <h2>Settings</h2>
+            <form id="settings-form">
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" name="claude.api_key" />
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select name="claude.model">
+                        <option>claude-opus-4-6</option>
+                        <option>claude-sonnet-4-6</option>
+                        <option>claude-haiku-4-5-20251001</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Max Tokens</label>
+                    <input type="number" name="claude.max_tokens" />
+                </div>
+                <div class="form-group">
+                    <label>Context Window</label>
+                    <input type="number" name="claude.context_window" />
+                </div>
+                <div class="form-group">
+                    <label>Default System Prompt</label>
+                    <textarea name="ui.default_system_prompt" rows="6"></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Save Settings</button>
+            </form>
+        </section>
+    </main>
+
+    <div id="toast-container"></div>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>

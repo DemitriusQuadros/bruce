@@ -4,7 +4,7 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .+' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
-.PHONY: build up down stop restart logs clean run run-dev build-binary test test-race test-e2e test-e2e-smoke vet fmt run-redis swag
+.PHONY: build up down stop restart logs clean run run-dev build-binary test test-race test-e2e test-e2e-smoke test-frontend vet fmt run-redis swag
 
 build: ## Build docker images
 	docker-compose build
@@ -52,6 +52,11 @@ test-e2e: ## Run full E2E suite (requires running server + Redis)
 
 test-e2e-smoke: ## Run E2E smoke scenarios only
 	CGO_ENABLED=1 go test -v -timeout 60s ./tests/e2e/ -args -godog.tags="@smoke"
+
+test-frontend: ## Run frontend E2E tests (requires running server: make run)
+	@command -v npm >/dev/null 2>&1 || { echo "npm not found. Install Node.js first."; exit 1; }
+	npm install
+	npx playwright test
 
 vet: ## Run go vet
 	go vet ./...

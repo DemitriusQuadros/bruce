@@ -1,0 +1,10 @@
+{
+  "name": "bruce-ui-tests",
+  "private": true,
+  "scripts": {
+    "test:ui": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}

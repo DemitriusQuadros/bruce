@@ -1,0 +1,56 @@
+/* Logs */
+.logs-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#logs-session-select {
+    flex: 1;
+    max-width: 400px;
+}
+
+#logs-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    background: var(--bg-card);
+}
+
+.message {
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    word-wrap: break-word;
+}
+
+.message-user {
+    background: var(--accent-dim);
+    color: var(--accent);
+    text-align: right;
+    margin-left: 2rem;
+}
+
+.message-assistant {
+    background: rgba(0, 255, 136, 0.05);
+    color: var(--text);
+    margin-right: 2rem;
+}
+
+.message-system {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.message-timestamp {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}

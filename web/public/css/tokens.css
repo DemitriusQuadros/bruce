@@ -1,0 +1,19 @@
+/* Design Tokens */
+:root {
+    --bg: #0f1117;
+    --bg-card: #1e2130;
+    --bg-hover: #262940;
+    --border: #2d3148;
+    --text: #e2e8f0;
+    --text-muted: #6b7280;
+    --accent: #00d4ff;
+    --accent-dim: rgba(0, 212, 255, 0.12);
+    --green: #00ff88;
+    --red: #ff4d6d;
+    --orange: #ffb347;
+    --grey: #6b7280;
+    --radius: 6px;
+    --font: ui-monospace, Menlo, Consolas, monospace;
+    --transition-fast: 0.2s ease;
+    --shadow-focus: 0 0 0 3px var(--accent-dim);
+}

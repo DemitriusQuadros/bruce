@@ -1,0 +1,35 @@
+/* Status badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.badge::before {
+    content: '●';
+    font-size: 0.7rem;
+}
+
+.badge--connected {
+    color: var(--green);
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.badge--disconnected {
+    color: var(--red);
+    background: rgba(255, 77, 109, 0.1);
+}
+
+.badge--needs-qr {
+    color: var(--orange);
+    background: rgba(255, 179, 71, 0.1);
+}
+
+.badge--disabled {
+    color: var(--grey);
+    background: rgba(107, 114, 128, 0.1);
+}
