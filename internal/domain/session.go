@@ -6,8 +6,9 @@ import "time"
 // Session represents a conversation session with an AI assistant.
 type Session struct {
 	ID               string    `db:"id"`
-	ConnectorType    string    `db:"connector_type"` // "whatsapp" | "discord"
+	ConnectorType    string    `db:"connector_type"` // "whatsapp" | "discord" | "web"
 	ChannelID        string    `db:"channel_id"`
+	Title            string    `db:"title"`
 	SystemPrompt     string    `db:"system_prompt"`
 	IsActive         bool      `db:"is_active"`
 	ProviderOverride string    `db:"provider_override"` // "" | "claude" | "gemini"

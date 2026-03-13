@@ -14,6 +14,7 @@ import (
 	_ "bruce/docs"
 	"bruce/internal/ai"
 	"bruce/internal/api/handlers"
+	"bruce/internal/config"
 	"bruce/web"
 )
 
@@ -21,7 +22,7 @@ import (
 // startTime is used to calculate uptime for the /health endpoint.
 // asynqmonHandler is the Asynqmon dashboard handler mounted at /monitor.
 // registry is the LLM provider registry for the /api/v1/providers endpoint.
-func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry) *mux.Router {
+func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 
 	// Apply middleware stack (innermost to outermost).
@@ -40,6 +41,12 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/sessions/{id}", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPatch)
 	api.HandleFunc("/sessions/{id}/messages", handlers.MessagesHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/connectors", handlers.ConnectorsHandler()).Methods(http.MethodGet)
+
+	// Chat routes (web chat interface — synchronous LLM calls).
+	chatHandler := handlers.ChatHandler(registry, cfg)
+	api.HandleFunc("/chat/sessions", chatHandler).Methods("GET", "POST", "OPTIONS")
+	api.HandleFunc("/chat/sessions/{id}", chatHandler).Methods("GET", "DELETE", "OPTIONS")
+	api.HandleFunc("/chat/sessions/{id}/messages", chatHandler).Methods("GET", "POST", "OPTIONS")
 
 	// Asynqmon dashboard — must be before the SPA catch-all.
 	r.PathPrefix("/monitor").Handler(asynqmonHandler)

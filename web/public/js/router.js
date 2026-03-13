@@ -13,7 +13,7 @@ export function registerTab(name, onActivate) {
  * Get the currently active tab name
  */
 export function currentTab() {
-    const hash = window.location.hash.slice(1) || 'connectors';
+    const hash = window.location.hash.slice(1) || 'chat';
     return hash;
 }
 

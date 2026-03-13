@@ -24,26 +24,32 @@ func TestRunMigrations_FreshDatabase(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, exists, "provider_override column should exist after migration")
 
-	// Verify we can insert a session with provider_override
+	// Verify title column also exists
+	titleExists, err := columnExists(db, "sessions", "title")
+	require.NoError(t, err)
+	assert.True(t, titleExists, "title column should exist after migration")
+
+	// Verify we can insert a session with provider_override and title
 	_, err = db.Exec(
-		`INSERT INTO sessions (id, connector_type, channel_id, system_prompt, is_active, provider_override, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-		"test-id", "whatsapp", "123456", "You are helpful", 1, "gemini",
+		`INSERT INTO sessions (id, connector_type, channel_id, title, system_prompt, is_active, provider_override, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+		"test-id", "whatsapp", "123456", "Test Chat", "You are helpful", 1, "gemini",
 	)
 	require.NoError(t, err)
 
 	// Query it back
-	var id, connectorType, channelID, systemPrompt, providerOverride string
+	var id, connectorType, channelID, title, systemPrompt, providerOverride string
 	var isActive int
 	err = db.QueryRow(
-		`SELECT id, connector_type, channel_id, system_prompt, is_active, provider_override
+		`SELECT id, connector_type, channel_id, title, system_prompt, is_active, provider_override
 		 FROM sessions WHERE id = ?`,
 		"test-id",
-	).Scan(&id, &connectorType, &channelID, &systemPrompt, &isActive, &providerOverride)
+	).Scan(&id, &connectorType, &channelID, &title, &systemPrompt, &isActive, &providerOverride)
 	require.NoError(t, err)
 	assert.Equal(t, "test-id", id)
 	assert.Equal(t, "whatsapp", connectorType)
 	assert.Equal(t, "123456", channelID)
+	assert.Equal(t, "Test Chat", title)
 	assert.Equal(t, "gemini", providerOverride)
 }
 

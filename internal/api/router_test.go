@@ -38,7 +38,7 @@ func TestRouterMiddlewareStack(t *testing.T) {
 	registry := worker.NewDispatcherRegistry()
 	llmRegistry := mockProviderRegistry()
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, llmRegistry)
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, llmRegistry, mockConfig())
 
 	// Wrap router with context injection.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +67,7 @@ func TestRouterCORSHeaders(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry())
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig())
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -87,7 +87,7 @@ func TestRouterCORSHeaders(t *testing.T) {
 
 // TestRouterOPTIONSPreflight verifies CORS preflight requests work.
 func TestRouterOPTIONSPreflight(t *testing.T) {
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry())
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig())
 
 	req, _ := http.NewRequest(http.MethodOptions, "/api/v1/config", nil)
 	w := httptest.NewRecorder()
@@ -100,7 +100,7 @@ func TestRouterOPTIONSPreflight(t *testing.T) {
 // TestRouterHealthEndpoint verifies /health is accessible without auth.
 func TestRouterHealthEndpoint(t *testing.T) {
 	startTime := time.Now().Add(-10 * time.Second) // Set start time 10 seconds ago.
-	router := NewRouter(startTime, &mockAsynqmonHandler{}, mockProviderRegistry())
+	router := NewRouter(startTime, &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig())
 
 	req, _ := http.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -127,7 +127,7 @@ func TestRouterAPIv1Routes(t *testing.T) {
 	configRepo := repository.NewConfigRepository(db)
 	registry := worker.NewDispatcherRegistry()
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry())
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig())
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -168,6 +168,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			id TEXT PRIMARY KEY,
 			connector_type TEXT NOT NULL,
 			channel_id TEXT NOT NULL,
+			title TEXT NOT NULL DEFAULT '',
 			system_prompt TEXT,
 			is_active INTEGER DEFAULT 1,
 			provider_override TEXT NOT NULL DEFAULT '',
@@ -276,6 +277,34 @@ func (m *mockSessionRepository) SetActive(id string, active bool) error {
 	return nil
 }
 
+func (m *mockSessionRepository) GetByConnectorType(connectorType string) ([]*domain.Session, error) {
+	return []*domain.Session{}, nil
+}
+
+func (m *mockSessionRepository) Create(connectorType, channelID, title string) (*domain.Session, error) {
+	return &domain.Session{ID: "test-id", ConnectorType: connectorType, ChannelID: channelID, Title: title}, nil
+}
+
+func (m *mockSessionRepository) Delete(id string) error {
+	return nil
+}
+
+func (m *mockSessionRepository) UpdateTitle(id, title string) error {
+	return nil
+}
+
 func (m *mockSessionRepository) UpdateProviderOverride(id, provider string) error {
 	return nil
+}
+
+func mockConfig() *config.Config {
+	return &config.Config{
+		Claude: config.ClaudeConfig{
+			Model:         "claude-opus-4-6",
+			ContextWindow: 15,
+		},
+		UI: config.UIConfig{
+			DefaultSystemPrompt: "You are Bruce.",
+		},
+	}
 }
