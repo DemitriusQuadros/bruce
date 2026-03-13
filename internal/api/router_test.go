@@ -13,6 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"bruce/internal/ai"
+	"bruce/internal/config"
+	"bruce/internal/domain"
 	"bruce/internal/repository"
 	"bruce/internal/worker"
 )
@@ -33,8 +36,9 @@ func TestRouterMiddlewareStack(t *testing.T) {
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 	registry := worker.NewDispatcherRegistry()
+	llmRegistry := mockProviderRegistry()
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{})
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, llmRegistry)
 
 	// Wrap router with context injection.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +67,7 @@ func TestRouterCORSHeaders(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{})
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry())
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -83,7 +87,7 @@ func TestRouterCORSHeaders(t *testing.T) {
 
 // TestRouterOPTIONSPreflight verifies CORS preflight requests work.
 func TestRouterOPTIONSPreflight(t *testing.T) {
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{})
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry())
 
 	req, _ := http.NewRequest(http.MethodOptions, "/api/v1/config", nil)
 	w := httptest.NewRecorder()
@@ -96,7 +100,7 @@ func TestRouterOPTIONSPreflight(t *testing.T) {
 // TestRouterHealthEndpoint verifies /health is accessible without auth.
 func TestRouterHealthEndpoint(t *testing.T) {
 	startTime := time.Now().Add(-10 * time.Second) // Set start time 10 seconds ago.
-	router := NewRouter(startTime, &mockAsynqmonHandler{})
+	router := NewRouter(startTime, &mockAsynqmonHandler{}, mockProviderRegistry())
 
 	req, _ := http.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -123,7 +127,7 @@ func TestRouterAPIv1Routes(t *testing.T) {
 	configRepo := repository.NewConfigRepository(db)
 	registry := worker.NewDispatcherRegistry()
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{})
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry())
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -166,6 +170,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			channel_id TEXT NOT NULL,
 			system_prompt TEXT,
 			is_active INTEGER DEFAULT 1,
+			provider_override TEXT NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			UNIQUE(connector_type, channel_id)
@@ -202,4 +207,75 @@ type mockAsynqmonHandler struct{}
 
 func (m *mockAsynqmonHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+// mockLLMService for testing.
+type mockLLMService struct{}
+
+func (m *mockLLMService) GenerateResponse(ctx context.Context, systemPrompt string, history []domain.Message) (string, error) {
+	return "test response", nil
+}
+
+// mockProviderRegistry creates a mock ProviderRegistry for testing.
+func mockProviderRegistry() *ai.ProviderRegistry {
+	cfg := &config.Config{
+		Claude: config.ClaudeConfig{
+			Model: "claude-opus-4-6",
+		},
+		Gemini: config.GeminiConfig{
+			Model: "gemini-2.0-flash",
+		},
+	}
+
+	providers := map[ai.ProviderName]ai.LLMService{
+		ai.ProviderClaude: &mockLLMService{},
+	}
+
+	// Create a mock config repo and session repo
+	mockConfigRepo := &mockConfigRepository{}
+	mockSessionRepo := &mockSessionRepository{}
+
+	return ai.NewProviderRegistry(mockConfigRepo, mockSessionRepo, providers, cfg)
+}
+
+// mockConfigRepository for testing.
+type mockConfigRepository struct{}
+
+func (m *mockConfigRepository) Get(key string) (string, error) {
+	return "", nil
+}
+
+func (m *mockConfigRepository) GetAll() ([]*domain.ConfigEntry, error) {
+	return []*domain.ConfigEntry{}, nil
+}
+
+func (m *mockConfigRepository) Upsert(key, value string) error {
+	return nil
+}
+
+// mockSessionRepository for testing.
+type mockSessionRepository struct{}
+
+func (m *mockSessionRepository) FindOrCreate(connectorType, channelID string) (*domain.Session, error) {
+	return &domain.Session{ID: "test-id"}, nil
+}
+
+func (m *mockSessionRepository) GetAll() ([]*domain.Session, error) {
+	return []*domain.Session{}, nil
+}
+
+func (m *mockSessionRepository) GetByID(id string) (*domain.Session, error) {
+	return &domain.Session{ID: id}, nil
+}
+
+func (m *mockSessionRepository) UpdateSystemPrompt(id, prompt string) error {
+	return nil
+}
+
+func (m *mockSessionRepository) SetActive(id string, active bool) error {
+	return nil
+}
+
+func (m *mockSessionRepository) UpdateProviderOverride(id, provider string) error {
+	return nil
 }

@@ -12,6 +12,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	_ "bruce/docs"
+	"bruce/internal/ai"
 	"bruce/internal/api/handlers"
 	"bruce/web"
 )
@@ -19,7 +20,8 @@ import (
 // NewRouter creates and returns the application HTTP router.
 // startTime is used to calculate uptime for the /health endpoint.
 // asynqmonHandler is the Asynqmon dashboard handler mounted at /monitor.
-func NewRouter(startTime time.Time, asynqmonHandler http.Handler) *mux.Router {
+// registry is the LLM provider registry for the /api/v1/providers endpoint.
+func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry) *mux.Router {
 	r := mux.NewRouter()
 
 	// Apply middleware stack (innermost to outermost).
@@ -33,6 +35,7 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler) *mux.Router {
 	// API routes under /api/v1.
 	api := r.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/config", handlers.ConfigHandler()).Methods(http.MethodGet, http.MethodPut)
+	api.HandleFunc("/providers", handlers.ProvidersHandler(registry)).Methods(http.MethodGet)
 	api.HandleFunc("/sessions", handlers.SessionsHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/sessions/{id}", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPatch)
 	api.HandleFunc("/sessions/{id}/messages", handlers.MessagesHandler()).Methods(http.MethodGet)

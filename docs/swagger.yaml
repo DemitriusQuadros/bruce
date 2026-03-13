@@ -37,6 +37,15 @@ definitions:
       timestamp:
         type: string
     type: object
+  handlers.providerInfo:
+    properties:
+      available:
+        type: boolean
+      model:
+        type: string
+      name:
+        type: string
+    type: object
   handlers.sessionResponse:
     properties:
       channel_id:
@@ -49,6 +58,8 @@ definitions:
         type: string
       is_active:
         type: boolean
+      provider_override:
+        type: string
       system_prompt:
         type: string
       updated_at:
@@ -105,6 +116,21 @@ paths:
       summary: Get connector status
       tags:
       - connectors
+  /api/v1/providers:
+    get:
+      description: Returns a list of LLM providers and their availability
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.providerInfo'
+            type: array
+      summary: List available LLM providers
+      tags:
+      - providers
   /api/v1/sessions:
     get:
       description: Create, list, retrieve, update, and delete chat sessions

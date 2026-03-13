@@ -12,13 +12,14 @@ import (
 
 // sessionResponse represents a session in the API response.
 type sessionResponse struct {
-	ID            string `json:"id"`
-	ConnectorType string `json:"connector_type"`
-	ChannelID     string `json:"channel_id"`
-	SystemPrompt  string `json:"system_prompt"`
-	IsActive      bool   `json:"is_active"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID               string `json:"id"`
+	ConnectorType    string `json:"connector_type"`
+	ChannelID        string `json:"channel_id"`
+	SystemPrompt     string `json:"system_prompt"`
+	IsActive         bool   `json:"is_active"`
+	ProviderOverride string `json:"provider_override"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
 }
 
 // SessionsHandler godoc
@@ -90,8 +91,9 @@ func handleGetSession(w http.ResponseWriter, r *http.Request, repo repository.Se
 // handlePatchSession partially updates a session.
 func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.SessionRepository, id string) {
 	var req struct {
-		SystemPrompt *string `json:"system_prompt"`
-		IsActive     *bool   `json:"is_active"`
+		SystemPrompt     *string `json:"system_prompt"`
+		IsActive         *bool   `json:"is_active"`
+		ProviderOverride *string `json:"provider_override"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -123,6 +125,14 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 		s.IsActive = *req.IsActive
 	}
 
+	if req.ProviderOverride != nil {
+		if err := repo.UpdateProviderOverride(id, *req.ProviderOverride); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to update provider override")
+			return
+		}
+		s.ProviderOverride = *req.ProviderOverride
+	}
+
 	// Update the updated_at timestamp (fetch fresh).
 	s, err = repo.GetByID(id)
 	if err != nil {
@@ -136,12 +146,13 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 // sessionToResponse converts a domain.Session to sessionResponse for API output.
 func sessionToResponse(s *domain.Session) sessionResponse {
 	return sessionResponse{
-		ID:            s.ID,
-		ConnectorType: s.ConnectorType,
-		ChannelID:     s.ChannelID,
-		SystemPrompt:  s.SystemPrompt,
-		IsActive:      s.IsActive,
-		CreatedAt:     s.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:     s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:               s.ID,
+		ConnectorType:    s.ConnectorType,
+		ChannelID:        s.ChannelID,
+		SystemPrompt:     s.SystemPrompt,
+		IsActive:         s.IsActive,
+		ProviderOverride: s.ProviderOverride,
+		CreatedAt:        s.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:        s.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }

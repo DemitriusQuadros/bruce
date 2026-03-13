@@ -82,6 +82,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/providers": {
+            "get": {
+                "description": "Returns a list of LLM providers and their availability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "providers"
+                ],
+                "summary": "List available LLM providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.providerInfo"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/sessions": {
             "get": {
                 "description": "Create, list, retrieve, update, and delete chat sessions",
@@ -251,6 +274,20 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.providerInfo": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.sessionResponse": {
             "type": "object",
             "properties": {
@@ -268,6 +305,9 @@ const docTemplate = `{
                 },
                 "is_active": {
                     "type": "boolean"
+                },
+                "provider_override": {
+                    "type": "string"
                 },
                 "system_prompt": {
                     "type": "string"

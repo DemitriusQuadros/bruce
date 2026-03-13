@@ -10,7 +10,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -53,15 +52,16 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := runSchema(db); err != nil {
-		log.Fatalf("FATAL: run schema: %v", err)
+	if err := database.RunMigrations(db); err != nil {
+		log.Fatalf("FATAL: run migrations: %v", err)
 	}
 
-	// 3. Wire repositories, LLM service, and dispatcher.
+	// 3. Wire repositories, LLM providers and registry, and dispatcher.
 	sessionRepo := repository.NewSessionRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
-	llmService := ai.NewClaudeService(cfg)
+	providers := ai.BuildProviders(cfg)
+	llmService := ai.NewProviderRegistry(configRepo, sessionRepo, providers, cfg)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
 	// Connector dispatchers (whatsapp, discord) are registered here when connectors are enabled.
 
@@ -109,7 +109,7 @@ func main() {
 		RootPath:     "/monitor",
 		RedisConnOpt: redisOpt,
 	})
-	router := bruceapi.NewRouter(startTime, mon)
+	router := bruceapi.NewRouter(startTime, mon, llmService)
 
 	// Wrap router with middleware to inject dependencies into request context.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -155,13 +155,6 @@ func main() {
 	// db.Close() handled by defer above.
 }
 
-// runSchema executes the embedded DDL against the open SQLite database.
-func runSchema(db *sql.DB) error {
-	if _, err := db.Exec(database.Schema); err != nil {
-		return fmt.Errorf("exec schema.sql: %w", err)
-	}
-	return nil
-}
 
 // resolveDiscordToken fetches the Discord bot token from the database (if configured)
 // or falls back to the config file. Database config takes precedence.
