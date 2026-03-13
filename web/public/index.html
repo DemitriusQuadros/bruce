@@ -18,6 +18,7 @@
             <button class="tab-button" data-tab="sessions">Sessions</button>
             <button class="tab-button" data-tab="logs">Logs</button>
             <button class="tab-button" data-tab="settings">Settings</button>
+            <button class="tab-button" data-tab="monitoring">Monitoring</button>
         </nav>
     </header>
 
@@ -128,6 +129,57 @@
                 </div>
                 <button type="submit" class="btn-primary">Save Settings</button>
             </form>
+        </section>
+
+        <!-- Tab: Monitoring -->
+        <section id="tab-monitoring" class="tab-section" hidden>
+            <h2>Monitoring Dashboard</h2>
+            <div class="monitoring-container">
+                <div class="monitoring-metrics">
+                    <div id="metrics-cards" class="metrics-grid"></div>
+                </div>
+
+                <div class="monitoring-section">
+                    <h3>Logs</h3>
+                    <div class="logs-filter-bar">
+                        <select id="monitoring-level-filter" class="logs-filter-select">
+                            <option value="">All Levels</option>
+                            <option value="info">Info</option>
+                            <option value="warn">Warn</option>
+                            <option value="error">Error</option>
+                            <option value="debug">Debug</option>
+                        </select>
+                        <button id="monitoring-refresh-btn" class="btn-secondary">Refresh</button>
+                    </div>
+                    <div class="logs-table-container">
+                        <table id="logs-table" class="logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Level</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="logs-prev-btn" class="btn-secondary btn-sm">Previous</button>
+                        <span id="logs-page-info"></span>
+                        <button id="logs-next-btn" class="btn-secondary btn-sm">Next</button>
+                    </div>
+                </div>
+
+                <div class="monitoring-section">
+                    <h3>Configuration</h3>
+                    <div class="config-toggles">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="monitoring-logging-toggle" class="toggle-input" />
+                            <span>Enable Logging</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 

@@ -6,6 +6,7 @@ import { init as initConnectors } from './modules/connectors.js';
 import { init as initSessions } from './modules/sessions.js';
 import { init as initLogs } from './modules/logs.js';
 import { init as initSettings } from './modules/settings.js';
+import { init as initMonitoring } from './modules/monitoring.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initSessions();
         initLogs();
         initSettings();
+        initMonitoring();
 
         // Allow async operations (API calls) to complete
         // Sessions must load so Logs dropdown can populate
