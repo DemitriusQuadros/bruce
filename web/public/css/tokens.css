@@ -16,4 +16,5 @@
     --font: ui-monospace, Menlo, Consolas, monospace;
     --transition-fast: 0.2s ease;
     --shadow-focus: 0 0 0 3px var(--accent-dim);
+    --header-h: calc(100px + 1.5rem + 1px); /* logo + padding + border */
 }

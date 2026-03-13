@@ -111,6 +111,42 @@ func (r *ProviderRegistry) resolveProvider(ctx context.Context) (LLMService, err
 	return p, nil
 }
 
+// ResolveProviderName returns the name of the provider that would be used for a given context.
+func (r *ProviderRegistry) ResolveProviderName(ctx context.Context) string {
+	// 1. Check session-level override
+	if sessionID, ok := sessionIDFromContext(ctx); ok {
+		session, err := r.sessionRepo.GetByID(sessionID)
+		if err == nil && session.ProviderOverride != "" {
+			name := ProviderName(session.ProviderOverride)
+			r.mu.RLock()
+			_, exists := r.providers[name]
+			r.mu.RUnlock()
+			if exists {
+				return string(name)
+			}
+		}
+	}
+
+	// 2. Check global default from database
+	globalDefault, dbErr := r.configRepo.Get("llm.provider")
+	if dbErr == nil && globalDefault != "" {
+		name := ProviderName(globalDefault)
+		r.mu.RLock()
+		_, exists := r.providers[name]
+		r.mu.RUnlock()
+		if exists {
+			return string(name)
+		}
+	}
+
+	// 3. Fall back to static config
+	globalDefault = r.cfg.LLM.Provider
+	if globalDefault == "" {
+		return string(ProviderClaude)
+	}
+	return globalDefault
+}
+
 // ListProviders returns information about all configured providers.
 // Used by the API to populate provider selectors.
 type ProviderInfo struct {

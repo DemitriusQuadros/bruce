@@ -325,8 +325,8 @@ func (tc *TestContext) dbContainsAtLeastNMessages(n int, role string) error {
 func (tc *TestContext) findOrCreateSession(connectorType, channelID string) (string, error) {
 	id := uuid.New().String()
 	_, err := tc.DB.Exec(
-		`INSERT OR IGNORE INTO sessions (id, connector_type, channel_id, system_prompt, is_active, created_at, updated_at)
-		 VALUES (?, ?, ?, '', 1, datetime('now'), datetime('now'))`,
+		`INSERT OR IGNORE INTO sessions (id, connector_type, channel_id, title, system_prompt, is_active, created_at, updated_at)
+		 VALUES (?, ?, ?, '', '', 1, datetime('now'), datetime('now'))`,
 		id, connectorType, channelID,
 	)
 	if err != nil {

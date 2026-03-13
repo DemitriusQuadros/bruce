@@ -13,6 +13,7 @@
             <img src="bruce-logo.png" alt="Bruce Logo" class="logo-image" />
         </div>
         <nav>
+            <button class="tab-button" data-tab="chat">Chat</button>
             <button class="tab-button" data-tab="connectors">Connectors</button>
             <button class="tab-button" data-tab="sessions">Sessions</button>
             <button class="tab-button" data-tab="logs">Logs</button>
@@ -21,6 +22,44 @@
     </header>
 
     <main>
+        <!-- Tab: Chat -->
+        <section id="tab-chat" class="tab-section" hidden>
+            <div class="chat-layout">
+                <aside class="chat-sidebar">
+                    <div class="chat-sidebar-header">
+                        <h3>Conversations</h3>
+                        <button id="chat-new-btn" class="btn-primary btn-sm">
+                            <i class="fas fa-plus"></i> New
+                        </button>
+                    </div>
+                    <div id="chat-session-list" class="chat-session-list"></div>
+                </aside>
+                <div class="chat-main">
+                    <div class="chat-main-header" id="chat-main-header" hidden>
+                        <div class="chat-header-info">
+                            <h3 id="chat-title">New Conversation</h3>
+                            <span id="chat-provider-badge" class="badge badge--accent" hidden></span>
+                        </div>
+                        <button id="chat-delete-btn" class="btn-danger btn-sm" title="Delete conversation">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="chat-empty-state">
+                            <i class="fas fa-comments"></i>
+                            <p>Select a conversation or start a new one</p>
+                        </div>
+                    </div>
+                    <div id="chat-input-area" class="chat-input-area" hidden>
+                        <textarea id="chat-input" class="chat-input" placeholder="Type a message..." rows="1"></textarea>
+                        <button id="chat-send-btn" class="btn-primary chat-send-btn" title="Send message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Tab: Connectors -->
         <section id="tab-connectors" class="tab-section">
             <h2>Connectors</h2>

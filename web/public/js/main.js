@@ -1,6 +1,7 @@
 /* Bootstrap application */
 
 import { start as startRouter } from './router.js';
+import { init as initChat } from './modules/chat.js';
 import { init as initConnectors } from './modules/connectors.js';
 import { init as initSessions } from './modules/sessions.js';
 import { init as initLogs } from './modules/logs.js';
@@ -9,6 +10,7 @@ import { init as initSettings } from './modules/settings.js';
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Initialize all modules synchronously to set up event listeners
+        initChat();
         initConnectors();
         initSessions();
         initLogs();

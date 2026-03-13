@@ -15,6 +15,7 @@ type sessionResponse struct {
 	ID               string `json:"id"`
 	ConnectorType    string `json:"connector_type"`
 	ChannelID        string `json:"channel_id"`
+	Title            string `json:"title"`
 	SystemPrompt     string `json:"system_prompt"`
 	IsActive         bool   `json:"is_active"`
 	ProviderOverride string `json:"provider_override"`
@@ -149,6 +150,7 @@ func sessionToResponse(s *domain.Session) sessionResponse {
 		ID:               s.ID,
 		ConnectorType:    s.ConnectorType,
 		ChannelID:        s.ChannelID,
+		Title:            s.Title,
 		SystemPrompt:     s.SystemPrompt,
 		IsActive:         s.IsActive,
 		ProviderOverride: s.ProviderOverride,

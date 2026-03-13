@@ -108,6 +108,7 @@ func TestE2E(t *testing.T) {
 			RegisterCommonSteps(ctx, tc)
 			RegisterWorkerSteps(ctx, tc)
 			RegisterDiscordSteps(ctx, tc)
+			RegisterWebChatSteps(ctx, tc)
 		},
 		Options: opts,
 	}
