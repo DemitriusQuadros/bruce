@@ -18,6 +18,7 @@ import (
 	"bruce/internal/config"
 	"bruce/internal/database"
 	"bruce/internal/domain"
+	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 	"bruce/internal/worker"
 )
@@ -126,11 +127,16 @@ func startStubWorker(t *testing.T, db *sql.DB, cfg *config.Config, redisAddr str
 	sessionRepo := repository.NewSessionRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
+	monitoringRepo := repository.NewMonitoringRepository(db)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
 	// No real connector dispatchers are registered — dispatch errors are logged
 	// but do not fail the task (ADR-004), so this is safe for E2E testing.
 
-	proc := worker.NewProcessor(sessionRepo, messageRepo, configRepo, &stubLLMService{}, dispatcherRegistry, cfg)
+	metricsCollector := monitoring.NewCollector(db)
+	structuredLogger := monitoring.NewStructuredLogger(db)
+
+	proc := worker.NewProcessor(sessionRepo, messageRepo, configRepo, monitoringRepo,
+		&stubLLMService{}, dispatcherRegistry, metricsCollector, structuredLogger, cfg)
 
 	redisOpt := asynq.RedisClientOpt{Addr: redisAddr}
 	srv := asynq.NewServer(redisOpt, asynq.Config{
@@ -203,10 +209,9 @@ func openTestDB(t *testing.T, cfg *config.Config) *sql.DB {
 		t.Fatalf("openTestDB: cannot open %q: %v", dsn, err)
 	}
 
-	// Ensure the schema exists. This is a no-op on an existing database
-	// because all CREATE TABLE statements use IF NOT EXISTS.
-	if _, err := db.Exec(database.Schema); err != nil {
-		t.Fatalf("openTestDB: apply schema: %v", err)
+	// Ensure the schema exists and apply migrations.
+	if err := database.RunMigrations(db); err != nil {
+		t.Fatalf("openTestDB: run migrations: %v", err)
 	}
 
 	return db

@@ -22,6 +22,7 @@ import (
 // startTime is used to calculate uptime for the /health endpoint.
 // asynqmonHandler is the Asynqmon dashboard handler mounted at /monitor.
 // registry is the LLM provider registry for the /api/v1/providers endpoint.
+// metricsCollector is optional and used to record metrics if provided.
 func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 
@@ -47,6 +48,12 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/chat/sessions", chatHandler).Methods("GET", "POST", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}", chatHandler).Methods("GET", "DELETE", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}/messages", chatHandler).Methods("GET", "POST", "OPTIONS")
+
+	// Monitoring routes.
+	api.HandleFunc("/logs", handlers.LogsHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/metrics", handlers.MetricsHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/monitoring/config", handlers.MonitoringConfigGetHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/monitoring/config", handlers.MonitoringConfigPatchHandler()).Methods(http.MethodPatch)
 
 	// Asynqmon dashboard — must be before the SPA catch-all.
 	r.PathPrefix("/monitor").Handler(asynqmonHandler)

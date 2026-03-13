@@ -3,10 +3,12 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 
 	"bruce/internal/domain"
+	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 )
 
@@ -28,6 +30,7 @@ type messageResponse struct {
 // @Router       /api/v1/sessions/{id}/messages [get]
 func MessagesHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		messageRepo, ok := r.Context().Value("messageRepo").(repository.MessageRepository)
 		if !ok {
 			writeError(w, http.StatusInternalServerError, "message repository not initialized")
@@ -40,12 +43,17 @@ func MessagesHandler() http.HandlerFunc {
 			return
 		}
 
+		collector, ok := r.Context().Value("metricsCollector").(*monitoring.Collector)
+		if !ok {
+			collector = nil
+		}
+
 		vars := mux.Vars(r)
 		sessionID := vars["id"]
 
 		switch r.Method {
 		case http.MethodGet:
-			handleGetMessages(w, r, sessionRepo, messageRepo, sessionID)
+			handleGetMessages(w, r, sessionRepo, messageRepo, collector, sessionID, start)
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
@@ -53,10 +61,22 @@ func MessagesHandler() http.HandlerFunc {
 }
 
 // handleGetMessages returns messages for a session with optional pagination.
-func handleGetMessages(w http.ResponseWriter, r *http.Request, sessionRepo repository.SessionRepository, messageRepo repository.MessageRepository, sessionID string) {
+func handleGetMessages(w http.ResponseWriter, r *http.Request, sessionRepo repository.SessionRepository, messageRepo repository.MessageRepository, collector *monitoring.Collector, sessionID string, start time.Time) {
 	// Check that the session exists.
 	_, err := sessionRepo.GetByID(sessionID)
 	if err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}/messages",
+				"status":   "404",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}/messages",
+				"status":   "404",
+			})
+		}
 		writeError(w, http.StatusNotFound, "session not found")
 		return
 	}
@@ -76,6 +96,18 @@ func handleGetMessages(w http.ResponseWriter, r *http.Request, sessionRepo repos
 	// Get messages (newest first).
 	messages, err := messageRepo.GetRecent(sessionID, limit)
 	if err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}/messages",
+				"status":   "500",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}/messages",
+				"status":   "500",
+			})
+		}
 		writeError(w, http.StatusInternalServerError, "failed to fetch messages")
 		return
 	}
@@ -93,6 +125,19 @@ func handleGetMessages(w http.ResponseWriter, r *http.Request, sessionRepo repos
 			Content:   m.Content,
 			Timestamp: m.Timestamp.Format("2006-01-02T15:04:05Z"),
 		}
+	}
+
+	if collector != nil {
+		collector.IncrementCounter("http_requests_total", map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions/{id}/messages",
+			"status":   "200",
+		})
+		collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions/{id}/messages",
+			"status":   "200",
+		})
 	}
 
 	writeJSON(w, http.StatusOK, result)

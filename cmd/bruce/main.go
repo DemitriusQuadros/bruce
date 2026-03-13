@@ -28,6 +28,7 @@ import (
 	"bruce/internal/connectors/discord"
 	"bruce/internal/database"
 	"bruce/internal/logging"
+	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 	"bruce/internal/worker"
 )
@@ -60,10 +61,15 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
+	monitoringRepo := repository.NewMonitoringRepository(db)
 	providers := ai.BuildProviders(cfg)
 	llmService := ai.NewProviderRegistry(configRepo, sessionRepo, providers, cfg)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
 	// Connector dispatchers (whatsapp, discord) are registered here when connectors are enabled.
+
+	// 3a. Initialize monitoring (metrics collector and structured logger).
+	metricsCollector := monitoring.NewCollector(db)
+	structuredLogger := monitoring.NewStructuredLogger(db)
 
 	// 4. Init Asynq client + server.
 	redisOpt := asynq.RedisClientOpt{Addr: cfg.Redis.Address}
@@ -94,14 +100,65 @@ func main() {
 		Queues:         map[string]int{"default": 1},
 	})
 
-	proc := worker.NewProcessor(sessionRepo, messageRepo, configRepo, llmService, dispatcherRegistry, cfg)
+	proc := worker.NewProcessor(
+		sessionRepo, messageRepo, configRepo, monitoringRepo,
+		llmService, dispatcherRegistry, metricsCollector, structuredLogger, cfg)
 	muxHandler := asynq.NewServeMux()
 	muxHandler.HandleFunc(worker.TaskProcessIncomingMessage, proc.HandleProcessIncomingMessageTask)
+	muxHandler.HandleFunc("monitoring:flush_metrics", proc.HandleFlushMetricsTask)
+	muxHandler.HandleFunc("monitoring:cleanup_logs", proc.HandleCleanupLogsTask)
 
 	go func() {
 		if err := asynqServer.Run(muxHandler); err != nil {
 			log.Printf("WARNING: asynq server stopped: %v", err)
 		}
+	}()
+
+	// Schedule periodic tasks
+	go func() {
+		// Give the asynq server a moment to start
+		time.Sleep(2 * time.Second)
+
+		// Enqueue FlushMetrics task to run every 60 seconds
+		go func() {
+			ticker := time.NewTicker(60 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				_, err := asynqClient.Enqueue(
+					asynq.NewTask("monitoring:flush_metrics", []byte("{}")),
+					asynq.Queue("default"),
+				)
+				if err != nil {
+					log.Printf("WARNING: failed to enqueue flush metrics task: %v", err)
+				}
+			}
+		}()
+
+		// Enqueue CleanupLogs task to run daily at 2am UTC
+		go func() {
+			ticker := time.NewTicker(24 * time.Hour)
+			defer ticker.Stop()
+
+			// Calculate time until next 2am UTC
+			now := time.Now().UTC()
+			nextCleanup := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, time.UTC)
+			if nextCleanup.Before(now) {
+				nextCleanup = nextCleanup.AddDate(0, 0, 1)
+			}
+
+			time.Sleep(nextCleanup.Sub(now))
+
+			for {
+				_, err := asynqClient.Enqueue(
+					asynq.NewTask("monitoring:cleanup_logs", []byte("{\"retention_days\": 30}")),
+					asynq.Queue("default"),
+				)
+				if err != nil {
+					log.Printf("WARNING: failed to enqueue cleanup logs task: %v", err)
+				}
+				<-ticker.C
+			}
+		}()
 	}()
 
 	// 4. Init HTTP server.
@@ -117,7 +174,9 @@ func main() {
 		ctx = context.WithValue(ctx, "sessionRepo", sessionRepo)
 		ctx = context.WithValue(ctx, "messageRepo", messageRepo)
 		ctx = context.WithValue(ctx, "configRepo", configRepo)
+		ctx = context.WithValue(ctx, "monitoringRepo", monitoringRepo)
 		ctx = context.WithValue(ctx, "dispatcherRegistry", dispatcherRegistry)
+		ctx = context.WithValue(ctx, "metricsCollector", metricsCollector)
 		router.ServeHTTP(w, r.WithContext(ctx))
 	})
 

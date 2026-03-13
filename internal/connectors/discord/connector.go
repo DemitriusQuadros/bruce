@@ -10,19 +10,27 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/hibiken/asynq"
 
+	"bruce/internal/monitoring"
 	"bruce/internal/worker"
 )
 
 // DiscordConnector connects to Discord via the discordgo SDK and implements worker.Dispatcher.
 type DiscordConnector struct {
-	session     *discordgo.Session
-	asynqClient *asynq.Client
-	botUserID   string // populated after READY event
+	session          *discordgo.Session
+	asynqClient      *asynq.Client
+	botUserID        string // populated after READY event
+	metricsCollector *monitoring.Collector
 }
 
 // New creates a new Discord connector with the given bot token.
 // Returns an error if the token is empty or discordgo initialization fails.
 func New(token string, asynqClient *asynq.Client) (*DiscordConnector, error) {
+	return NewWithMetrics(token, asynqClient, nil)
+}
+
+// NewWithMetrics creates a new Discord connector with the given bot token and metrics collector.
+// Returns an error if the token is empty or discordgo initialization fails.
+func NewWithMetrics(token string, asynqClient *asynq.Client, collector *monitoring.Collector) (*DiscordConnector, error) {
 	if token == "" {
 		return nil, fmt.Errorf("discord bot token is required")
 	}
@@ -37,8 +45,9 @@ func New(token string, asynqClient *asynq.Client) (*DiscordConnector, error) {
 		discordgo.IntentsDirectMessageReactions
 
 	return &DiscordConnector{
-		session:     dg,
-		asynqClient: asynqClient,
+		session:          dg,
+		asynqClient:      asynqClient,
+		metricsCollector: collector,
 	}, nil
 }
 
@@ -77,6 +86,12 @@ func (c *DiscordConnector) handleMessage(s *discordgo.Session, m *discordgo.Mess
 		return
 	}
 
+	if c.metricsCollector != nil {
+		c.metricsCollector.IncrementCounter("messages_received_total", map[string]string{
+			"connector": "discord",
+		})
+	}
+
 	// Phase 1: Direct Messages only
 	// A DM channel has Type == discordgo.ChannelTypeDM
 	channel, err := s.State.Channel(m.ChannelID)
@@ -112,10 +127,22 @@ func (c *DiscordConnector) handleMessage(s *discordgo.Session, m *discordgo.Mess
 	task, err := worker.NewProcessIncomingMessageTask(payload)
 	if err != nil {
 		log.Printf("ERROR: failed to create task: %v", err)
+		if c.metricsCollector != nil {
+			c.metricsCollector.IncrementCounter("message_processing_errors_total", map[string]string{
+				"connector": "discord",
+				"reason":    "task_creation_failed",
+			})
+		}
 		return
 	}
 	if _, err := c.asynqClient.Enqueue(task); err != nil {
 		log.Printf("ERROR: failed to enqueue from channel %s: %v", m.ChannelID, err)
+		if c.metricsCollector != nil {
+			c.metricsCollector.IncrementCounter("message_processing_errors_total", map[string]string{
+				"connector": "discord",
+				"reason":    "enqueue_failed",
+			})
+		}
 		return
 	}
 	log.Printf("DEBUG: task enqueued successfully - channel=%s", m.ChannelID)
@@ -132,6 +159,7 @@ func truncateForLog(s string, maxLen int) string {
 // Send implements worker.Dispatcher.
 // It sends a message to the Discord channel, chunking if necessary to respect the 2000 character limit.
 func (c *DiscordConnector) Send(channelID string, message string) error {
+	start := time.Now()
 	log.Printf("DEBUG: Discord Send called - channel=%s, message_len=%d", channelID, len(message))
 
 	// Discord message length limit: 2000 characters
@@ -149,12 +177,25 @@ func (c *DiscordConnector) Send(channelID string, message string) error {
 					// discordgo handles rate limits internally — this shouldn't happen
 					// but if it does, log and continue
 					log.Printf("WARN: discord rate limited on channel %s, retrying after 1s", channelID)
+					if c.metricsCollector != nil {
+						c.metricsCollector.IncrementCounter("discord_rate_limited_total", map[string]string{})
+					}
 					time.Sleep(1 * time.Second)
 					_, err = c.session.ChannelMessageSend(channelID, chunk)
 				}
 			}
 			if err != nil {
 				log.Printf("ERROR: failed to send chunk %d to Discord channel %s: %v", i+1, channelID, err)
+				if c.metricsCollector != nil {
+					c.metricsCollector.IncrementCounter("messages_sent_total", map[string]string{
+						"connector": "discord",
+						"status":    "error",
+					})
+					c.metricsCollector.RecordHistogram("message_send_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+						"connector": "discord",
+						"status":    "error",
+					})
+				}
 				return fmt.Errorf("discord send to %s: %w", channelID, err)
 			}
 			log.Printf("DEBUG: chunk %d sent successfully", i+1)
@@ -163,6 +204,16 @@ func (c *DiscordConnector) Send(channelID string, message string) error {
 		}
 	}
 	log.Printf("DEBUG: all chunks sent successfully to Discord channel %s", channelID)
+	if c.metricsCollector != nil {
+		c.metricsCollector.IncrementCounter("messages_sent_total", map[string]string{
+			"connector": "discord",
+			"status":    "success",
+		})
+		c.metricsCollector.RecordHistogram("message_send_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+			"connector": "discord",
+			"status":    "success",
+		})
+	}
 	return nil
 }
 

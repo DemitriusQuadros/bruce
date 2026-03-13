@@ -24,6 +24,27 @@ definitions:
       uptime_seconds:
         type: integer
     type: object
+  handlers.logEntryResponse:
+    properties:
+      context:
+        additionalProperties: true
+        type: object
+      level:
+        type: string
+      logger:
+        type: string
+      message:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  handlers.logsResponse:
+    properties:
+      logs:
+        items:
+          $ref: '#/definitions/handlers.logEntryResponse'
+        type: array
+    type: object
   handlers.messageResponse:
     properties:
       content:
@@ -36,6 +57,44 @@ definitions:
         type: string
       timestamp:
         type: string
+    type: object
+  handlers.metricDatapointResponse:
+    properties:
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      timestamp:
+        type: string
+      value:
+        type: number
+    type: object
+  handlers.metricGroupResponse:
+    properties:
+      datapoints:
+        items:
+          $ref: '#/definitions/handlers.metricDatapointResponse'
+        type: array
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  handlers.metricsResponse:
+    properties:
+      metrics:
+        items:
+          $ref: '#/definitions/handlers.metricGroupResponse'
+        type: array
+    type: object
+  handlers.monitoringConfigResponse:
+    properties:
+      log_enabled:
+        type: boolean
+      metrics_enabled:
+        type: boolean
+      retention_days:
+        type: integer
     type: object
   handlers.providerInfo:
     properties:
@@ -61,6 +120,8 @@ definitions:
       provider_override:
         type: string
       system_prompt:
+        type: string
+      title:
         type: string
       updated_at:
         type: string
@@ -116,6 +177,151 @@ paths:
       summary: Get connector status
       tags:
       - connectors
+  /api/v1/logs:
+    get:
+      description: Retrieve application logs with optional filtering by level, logger,
+        time range, and limit
+      parameters:
+      - description: Log level (e.g., INFO, DEBUG, ERROR)
+        in: query
+        name: level
+        type: string
+      - description: Logger name to filter by
+        in: query
+        name: logger
+        type: string
+      - description: Start time in ISO8601 format (e.g., 2024-01-01T00:00:00Z)
+        in: query
+        name: start_time
+        type: string
+      - description: End time in ISO8601 format (e.g., 2024-01-01T23:59:59Z)
+        in: query
+        name: end_time
+        type: string
+      - description: 'Maximum number of logs to return (default: no limit)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.logsResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get application logs
+      tags:
+      - monitoring
+  /api/v1/metrics:
+    get:
+      description: Retrieve application metrics with optional filtering by metric
+        name, time range, and aggregation window
+      parameters:
+      - description: Metric name to filter by (e.g., http_requests_total)
+        in: query
+        name: metric_name
+        type: string
+      - description: Start time in ISO8601 format (e.g., 2024-01-01T00:00:00Z)
+        in: query
+        name: start_time
+        type: string
+      - description: End time in ISO8601 format (e.g., 2024-01-01T23:59:59Z)
+        in: query
+        name: end_time
+        type: string
+      - description: Aggregation window in seconds for metric data
+        in: query
+        name: aggregation_window
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.metricsResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get application metrics
+      tags:
+      - monitoring
+  /api/v1/monitoring/config:
+    get:
+      description: Retrieve the current monitoring configuration settings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.monitoringConfigResponse'
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get monitoring configuration
+      tags:
+      - monitoring
+    patch:
+      consumes:
+      - application/json
+      description: Update monitoring configuration settings (admin-only, should be
+        protected by middleware)
+      parameters:
+      - description: Monitoring configuration to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.monitoringConfigResponse'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update monitoring configuration
+      tags:
+      - monitoring
   /api/v1/providers:
     get:
       description: Returns a list of LLM providers and their availability

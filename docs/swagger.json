@@ -76,6 +76,222 @@
                 }
             }
         },
+        "/api/v1/logs": {
+            "get": {
+                "description": "Retrieve application logs with optional filtering by level, logger, time range, and limit",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitoring"
+                ],
+                "summary": "Get application logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Log level (e.g., INFO, DEBUG, ERROR)",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Logger name to filter by",
+                        "name": "logger",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start time in ISO8601 format (e.g., 2024-01-01T00:00:00Z)",
+                        "name": "start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End time in ISO8601 format (e.g., 2024-01-01T23:59:59Z)",
+                        "name": "end_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of logs to return (default: no limit)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.logsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/metrics": {
+            "get": {
+                "description": "Retrieve application metrics with optional filtering by metric name, time range, and aggregation window",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitoring"
+                ],
+                "summary": "Get application metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Metric name to filter by (e.g., http_requests_total)",
+                        "name": "metric_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start time in ISO8601 format (e.g., 2024-01-01T00:00:00Z)",
+                        "name": "start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End time in ISO8601 format (e.g., 2024-01-01T23:59:59Z)",
+                        "name": "end_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Aggregation window in seconds for metric data",
+                        "name": "aggregation_window",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.metricsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/monitoring/config": {
+            "get": {
+                "description": "Retrieve the current monitoring configuration settings",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitoring"
+                ],
+                "summary": "Get monitoring configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.monitoringConfigResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Update monitoring configuration settings (admin-only, should be protected by middleware)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitoring"
+                ],
+                "summary": "Update monitoring configuration",
+                "parameters": [
+                    {
+                        "description": "Monitoring configuration to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.monitoringConfigResponse"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/providers": {
             "get": {
                 "description": "Returns a list of LLM providers and their availability",
@@ -248,6 +464,38 @@
                 }
             }
         },
+        "handlers.logEntryResponse": {
+            "type": "object",
+            "properties": {
+                "context": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "level": {
+                    "type": "string"
+                },
+                "logger": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.logsResponse": {
+            "type": "object",
+            "properties": {
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.logEntryResponse"
+                    }
+                }
+            }
+        },
         "handlers.messageResponse": {
             "type": "object",
             "properties": {
@@ -265,6 +513,65 @@
                 },
                 "timestamp": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.metricDatapointResponse": {
+            "type": "object",
+            "properties": {
+                "labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.metricGroupResponse": {
+            "type": "object",
+            "properties": {
+                "datapoints": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.metricDatapointResponse"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.metricsResponse": {
+            "type": "object",
+            "properties": {
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.metricGroupResponse"
+                    }
+                }
+            }
+        },
+        "handlers.monitoringConfigResponse": {
+            "type": "object",
+            "properties": {
+                "log_enabled": {
+                    "type": "boolean"
+                },
+                "metrics_enabled": {
+                    "type": "boolean"
+                },
+                "retention_days": {
+                    "type": "integer"
                 }
             }
         },
@@ -304,6 +611,9 @@
                     "type": "string"
                 },
                 "system_prompt": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 },
                 "updated_at": {
