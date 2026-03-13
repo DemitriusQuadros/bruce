@@ -1,95 +1,160 @@
-# Spec 26: GitHub Tool [BACKEND]
+# Spec 26: Git Local Tool [BACKEND]
 
 ## Overview
 
-Implement GitHub API tools: `github_list_branches`, `github_list_prs`, `github_list_issues`, `github_create_issue` for repository management. Uses GitHub REST API v3 with OAuth token (scope: `repo`, `read:user`). Supports single owner/repo or user-configured repository from config. Phase 2 adds reads; Phase 2+ adds writes. Issue creation requires approval (Spec 20).
+Implement `git_status`, `git_commit`, `git_push`, and `git_branch` tools for local Git repository operations. Tools work on the local filesystem (no GitHub API required, unlike Spec 25). Accept repo path (relative to home dir), validate with path restrictions. Useful for automating commits, branch management, and status checks during agent workflows.
 
 ## Phase
 
-**Phase 2** (Weeks 7–14)
+**Phase 1** (Weeks 1–6)
 
 ## Prerequisites
 
 - Tool registry exists (Spec 12)
-- GitHub OAuth flow (separate from Spec 13, but uses same pattern)
-- Confirmation system exists (Spec 20)
+- File I/O tool validation patterns exist (Spec 17)
+- Git CLI available in environment (git binary)
 
 ## Deliverables
 
 **Files to Create:**
-- `internal/tools/github/github.go` — Tool implementations
-- `internal/tools/github/client.go` — GitHub API wrapper
-- `internal/auth/github.go` — GitHub OAuth flow (similar to Spec 13)
+- `internal/tools/git_local/git.go` — Tool implementations (status, commit, push, branch)
+- `internal/tools/git_local/cmd.go` — subprocess wrapper for git CLI
 
 **Files to Modify:**
-- `internal/api/router.go` — add `/auth/github/start`, `/auth/github/callback` routes
-- `internal/tools/registry.go` — register GitHub tools at startup
-- `cmd/bruce/main.go` — instantiate GitHub tool with OAuth client
-- `config.example.yml` — document GitHub repository config and OAuth setup
-- `internal/database/schema.sql` — ensure `oauth_tokens` table supports GitHub provider
+- `internal/tools/registry.go` — register all four tools
+- `cmd/bruce/main.go` — instantiate Git tool
+- `config.example.yml` — document Git tool section (allowed repo paths)
 
 ## Acceptance Criteria
 
-- [ ] Tool `github_list_branches` accepts: `owner`, `repo`, `per_page` (optional); returns branch names and protection status
-- [ ] Tool `github_list_issues` accepts: `owner`, `repo`, `state` (open|closed|all), `per_page` (optional); returns issues with title, state, labels, number
-- [ ] Tool `github_list_prs` accepts: `owner`, `repo`, `state` (open|closed|all); returns PR title, state, base/head branches
-- [ ] Tool `github_create_issue` requires approval; accepts: `owner`, `repo`, `title`, `body` (optional), `labels` (optional array); returns issue number and URL
-- [ ] All tools handle 401 (expired token) by refreshing OAuth
-- [ ] All tools handle 404 (repo not found), 403 (permission denied) gracefully
-- [ ] Rate limit (429) errors include reset time in response
-- [ ] Latency: list ops <2s p95, create <3s p95
-- [ ] `owner` and `repo` can be omitted if set in config as defaults
+- [ ] Tool `git_status` accepts: `repo_path` (relative to home)
+- [ ] Tool `git_commit` accepts: `repo_path`, `message` (string)
+- [ ] Tool `git_push` accepts: `repo_path`, `branch` (optional, defaults to current)
+- [ ] Tool `git_branch` accepts: `repo_path`, `action` (list/create/delete), `branch_name`
+- [ ] `git_status` returns: branch name, staged/unstaged changes, untracked files
+- [ ] `git_commit` stages all changes and commits; returns commit hash
+- [ ] `git_push` pushes to remote; handles auth (assumes SSH keys configured)
+- [ ] `git_branch` creates/deletes/lists branches; validates branch names
+- [ ] Path validation: reject paths containing `..`, outside home dir, or symlinks
+- [ ] Command execution timeout: 30 seconds
+- [ ] Stdout/stderr from git commands are captured and returned in response
+- [ ] Handles git errors (merge conflicts, auth failures) with clear messages
+- [ ] All operations are logged (repo path, command, success/failure)
+- [ ] Latency: p95 <5s (varies by repo size)
 
 ## API / Component Contract
 
-**Tool Schemas**:
+**`git_status` Schema**:
 ```json
 {
-	"name": "github_list_branches",
+	"name": "git_status",
+	"description": "Show Git status of local repository",
 	"input_schema": {
 		"type": "object",
 		"properties": {
-			"owner": { "type": "string", "description": "Repository owner (optional if config default set)" },
-			"repo": { "type": "string", "description": "Repository name" },
-			"per_page": { "type": "integer", "minimum": 1, "maximum": 100 }
+			"repo_path": {
+				"type": "string",
+				"description": "Repository path relative to home directory"
+			}
 		},
-		"required": ["repo"]
+		"required": ["repo_path"]
 	}
-},
+}
+```
+
+**`git_commit` Schema**:
+```json
 {
-	"name": "github_list_issues",
+	"name": "git_commit",
+	"description": "Stage all changes and commit with message",
 	"input_schema": {
 		"type": "object",
 		"properties": {
-			"owner": { "type": "string" },
-			"repo": { "type": "string" },
-			"state": { "type": "string", "enum": ["open", "closed", "all"] },
-			"per_page": { "type": "integer" }
+			"repo_path": { "type": "string" },
+			"message": { "type": "string", "description": "Commit message" }
 		},
-		"required": ["repo"]
+		"required": ["repo_path", "message"]
 	}
-},
+}
+```
+
+**`git_push` Schema**:
+```json
 {
-	"name": "github_create_issue",
-	"description": "Create a new GitHub issue (requires approval)",
+	"name": "git_push",
+	"description": "Push commits to remote repository",
 	"input_schema": {
 		"type": "object",
 		"properties": {
-			"owner": { "type": "string" },
-			"repo": { "type": "string" },
-			"title": { "type": "string" },
-			"body": { "type": "string" },
-			"labels": { "type": "array", "items": { "type": "string" } }
+			"repo_path": { "type": "string" },
+			"branch": { "type": "string", "description": "Branch to push (default: current branch)" }
 		},
-		"required": ["repo", "title"]
+		"required": ["repo_path"]
 	}
+}
+```
+
+**`git_branch` Schema**:
+```json
+{
+	"name": "git_branch",
+	"description": "Manage Git branches (list, create, delete)",
+	"input_schema": {
+		"type": "object",
+		"properties": {
+			"repo_path": { "type": "string" },
+			"action": {
+				"type": "string",
+				"enum": ["list", "create", "delete"],
+				"description": "Branch operation"
+			},
+			"branch_name": {
+				"type": "string",
+				"description": "Branch name (required for create/delete)"
+			}
+		},
+		"required": ["repo_path", "action"]
+	}
+}
+```
+
+**Response Format**:
+```json
+{
+	"repo_path": "my-project",
+	"branch": "main",
+	"status": "On branch main\nnothing to commit, working tree clean",
+	"staged": [],
+	"unstaged": ["file.txt"],
+	"untracked": []
+}
+```
+
+**`internal/tools/git_local/cmd.go`**:
+```go
+type Commander struct {
+	repoPath string
+	timeout  time.Duration
+}
+
+func (c *Commander) Status(ctx context.Context) (*StatusResult, error)
+func (c *Commander) Commit(ctx context.Context, message string) (string, error) // returns commit hash
+func (c *Commander) Push(ctx context.Context, branch string) error
+func (c *Commander) Branch(ctx context.Context, action, name string) (interface{}, error)
+
+func (c *Commander) runGit(ctx context.Context, args ...string) (string, error) {
+	// Execute git CLI with args
+	// Timeout after c.timeout
+	// Return stdout or error
 }
 ```
 
 ## Out of Scope
 
-- Pull request creation (Phase 2+, write ops require maturation)
-- PR merge/approval (Phase 3+)
-- GitHub Actions workflow management
-- Branch protection rule modification
-- GitLab support (GitHub only for Phase 2)
+- Merge/rebase operations (too complex for Phase 1)
+- Cherry-pick or patch operations
+- Stash management
+- Submodule operations
+- GPG signing enforcement
+- GitHub-specific operations (see Spec 25 for API-based GitHub)
+

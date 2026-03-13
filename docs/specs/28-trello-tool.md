@@ -1,8 +1,8 @@
-# Spec 28: Notion Tool [BACKEND]
+# Spec 28: Trello Tool [BACKEND]
 
 ## Overview
 
-Implement Notion API tools: `notion_read` (query pages/databases), `notion_create` (create pages), `notion_update` (update page properties) using Notion's official REST API. Requires Notion integration token (from user's Notion workspace). Phase 2 adds read + basic write; write operations require approval (Spec 20). Supports querying databases by ID and creating/updating child pages.
+Implement `trello_board_list`, `trello_card_create`, `trello_card_move`, and `trello_card_get` tools that interact with Trello API. Requires OAuth via Spec 13 or Trello API key. Tools allow listing boards, creating cards with labels/due dates, moving cards between lists, and retrieving card details. Useful for task management workflows.
 
 ## Phase
 
@@ -11,83 +11,82 @@ Implement Notion API tools: `notion_read` (query pages/databases), `notion_creat
 ## Prerequisites
 
 - Tool registry exists (Spec 12)
-- Confirmation system exists (Spec 20)
-- Config system extended for Notion API key
+- OAuth flow or API key management (Spec 13 or Spec 22)
+- Trello API credentials configured
 
 ## Deliverables
 
 **Files to Create:**
-- `internal/tools/notion/notion.go` — Tool implementations (read, create, update)
-- `internal/tools/notion/client.go` — Notion API wrapper
+- `internal/tools/trello/trello.go` — Tool implementations
+- `internal/tools/trello/client.go` — Trello API wrapper
 
 **Files to Modify:**
-- `internal/tools/registry.go` — register Notion tools at startup
-- `cmd/bruce/main.go` — instantiate Notion tool with API token
-- `internal/config/config.go` — add `tools.notion.api_token`, `tools.notion.enabled`
-- `config.example.yml` — document Notion API token setup
-- `internal/database/schema.sql` — `oauth_tokens` table already supports arbitrary provider names
+- `internal/tools/registry.go` — register all tools
+- `cmd/bruce/main.go` — instantiate Trello tool
+- `config.example.yml` — document Trello API key configuration
 
 ## Acceptance Criteria
 
-- [ ] Tool `notion_read` accepts: `page_id` or `database_id`; returns page/block content or database records (paginated)
-- [ ] Tool `notion_create` accepts: `parent_id`, `title`, `properties` (optional JSON); creates child page; requires approval
-- [ ] Tool `notion_update` accepts: `page_id`, `properties` (JSON patch); updates page properties; requires approval
-- [ ] All tools handle 401 (invalid token), 404 (page not found), 429 (rate limit) gracefully
-- [ ] Read operations auto-retry on 429 with backoff (Spec 24)
-- [ ] Write operations are queued in confirmation system before execution
-- [ ] Latency: read <2s p95, write <3s p95
+- [ ] Tool `trello_board_list` returns: list of boards (id, name, description)
+- [ ] Tool `trello_card_create` accepts: `board_id`, `list_id`, `name`, optional: `description`, `due_date`, `labels`
+- [ ] Tool `trello_card_move` accepts: `card_id`, `list_id` (new list)
+- [ ] Tool `trello_card_get` accepts: `card_id`; returns: full card details (name, description, due date, labels, list, board)
+- [ ] Tool handles Trello API authentication (API key + token)
+- [ ] Tool validates board/list/card IDs before operations
+- [ ] Tool handles 401 (auth failure) with clear error
+- [ ] Tool handles 404 (not found) gracefully
+- [ ] Tool handles 429 (rate limit) with retry logic (Spec 23)
+- [ ] Latency: list <2s p95, create <3s p95, move <2s p95
 
 ## API / Component Contract
 
-**Config**:
-```yaml
-tools:
-  notion:
-    enabled: true
-    api_token: "secret_..."
-```
-
-**Tool Schemas**:
+**`trello_board_list` Schema**:
 ```json
 {
-	"name": "notion_read",
-	"description": "Query a Notion page or database",
+	"name": "trello_board_list",
+	"description": "List all Trello boards",
 	"input_schema": {
 		"type": "object",
-		"properties": {
-			"page_id": {
-				"type": "string",
-				"description": "Notion page or database ID (UUID format)"
-			},
-			"query": {
-				"type": "string",
-				"description": "Optional filter for database queries (Notion filter syntax)"
-			}
-		},
-		"required": ["page_id"]
+		"properties": {}
 	}
-},
+}
+```
+
+**`trello_card_create` Schema**:
+```json
 {
-	"name": "notion_create",
-	"description": "Create a new Notion page (requires approval)",
+	"name": "trello_card_create",
+	"description": "Create a new card in a Trello list",
 	"input_schema": {
 		"type": "object",
 		"properties": {
-			"parent_id": { "type": "string", "description": "Parent page or database ID" },
-			"title": { "type": "string", "description": "Page title" },
-			"properties": {
-				"type": "object",
-				"description": "Page properties (database-specific schema)"
-			}
+			"board_id": { "type": "string" },
+			"list_id": { "type": "string" },
+			"name": { "type": "string" },
+			"description": { "type": "string" },
+			"due_date": { "type": "string", "format": "date" },
+			"labels": { "type": "array", "items": { "type": "string" } }
 		},
-		"required": ["parent_id", "title"]
+		"required": ["board_id", "list_id", "name"]
 	}
+}
+```
+
+**Response** (for card_create):
+```json
+{
+	"card_id": "abc123def456",
+	"url": "https://trello.com/c/abc123def456",
+	"created_at": "2024-03-13T14:02:00Z"
 }
 ```
 
 ## Out of Scope
 
-- Advanced Notion filtering (complex queries beyond simple equals/contains)
-- Workspace-level operations (only page/database level)
-- Notion Synced Databases
-- Bulk operations (single page CRUD only)
+- Checklist management
+- Comment operations
+- Attachment operations
+- Board/list creation
+- Custom field support
+- Power-up integration
+

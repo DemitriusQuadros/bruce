@@ -1,8 +1,8 @@
-# Spec 33: Tools Log UI [FRONTEND]
+# Spec 32: Enhanced Confirmations UI [FRONTEND]
 
 ## Overview
 
-Add a "Tools" subtab inside the Logs view that displays a detailed log of all tool executions. Show tool name, parameters (preview), result (success/error), latency, and timestamp. Sortable by date, tool, or status. Filter by tool name or status (success/failed/pending). Updates dynamically as tools are executed during active chat. Helps users debug and understand what actions Claude took.
+Extend the Confirmations tab (Spec 22) with rich visualization and approval workflows. Show tool details (name, description, risk level), parameter validation, side-by-side diffs (if applicable), and suggested alternatives. Allow bulk approvals and conditional approvals ("approve for this session only"). Integrate with tool registry to display full tool metadata and help text.
 
 ## Phase
 
@@ -10,117 +10,126 @@ Add a "Tools" subtab inside the Logs view that displays a detailed log of all to
 
 ## Prerequisites
 
-- Logs tab exists (`web/public/js/modules/logs.js`)
-- Tool execution logging exists in backend (Spec 11, 12)
-- API endpoint to fetch tool execution history
+- Confirmation API exists (Spec 20)
+- Confirmations tab exists (Spec 22)
+- Tool registry provides rich metadata (Spec 12)
 
 ## Deliverables
 
-**Files to Modify:**
-- `web/public/js/modules/logs.js` — add tools subtab and logic
-- `web/public/css/components/logs.css` — styling for tools log table
-
 **Files to Create:**
-- (Update existing logs module; no new files strictly required)
+- `web/public/js/modules/confirmations_enhanced.js` — Enhanced confirmation logic
+- `web/public/css/components/confirmation_detailed.css` — Rich detail card styling
+- `web/public/js/components/tool_info.js` — Reusable tool info component
 
-**Backend Changes** (Minimal):
-- Add API endpoint `GET /api/v1/sessions/{id}/tool-executions` to fetch log entries
+**Files to Modify:**
+- `web/public/js/modules/confirmations.js` — integrate enhanced UI
+- `internal/api/handlers/confirmations.go` — expose tool metadata in confirmation response
 
 ## Acceptance Criteria
 
-- [ ] Logs tab has new "Tools" subtab alongside existing subtabs (Messages, etc.)
-- [ ] Tools subtab displays table: Tool Name | Parameters | Result | Latency | Timestamp
-- [ ] Parameters column shows JSON preview (truncated to 100 chars, expandable)
-- [ ] Result column shows "Success", "Error: [message]", "Pending" with color coding
-- [ ] Latency column shows time in ms (e.g., "234ms", "1.2s")
-- [ ] Timestamp shows relative time (e.g., "2 minutes ago") with tooltip for exact time
-- [ ] Table is sortable by any column (click header)
-- [ ] Filter dropdown: by tool name, by status (all/success/failed)
-- [ ] "Expand" link on each row shows full parameters and result JSON
-- [ ] Subtab auto-updates as new tools execute (polls API every 2–3s during active session)
-- [ ] Responsive: table is readable on mobile (horizontal scroll or collapsing columns)
+- [ ] Confirmation cards display: tool icon/badge, name, risk level (low/medium/high)
+- [ ] Clicking card expands to show: tool description, parameter details, expected output hints
+- [ ] Parameter details show: name, type, description, current value (truncated with copy button)
+- [ ] Risk indicators show colored badges: "Safe" (green), "Caution" (yellow), "High Risk" (red)
+- [ ] High-risk tools (file_write, email_send) show warning banner with confirmation text
+- [ ] "Approve All" button for batch approval of similar tools (with confirmation modal)
+- [ ] "Approve Once" button to approve single execution; "Approve Always" to disable future prompts
+- [ ] Suggested alternatives displayed (e.g., "Try calendar_read instead of email_search")
+- [ ] Parameter diffs shown (old value → new value) for update-style operations
+- [ ] Toast notifications on approval/denial with undo option (5s timeout)
+- [ ] Confirmations older than 1 hour show expiry countdown timer
+- [ ] Mobile responsive (cards stack, modals adapt)
 
 ## Component Contract
 
-**API Endpoint**:
-```
-GET /api/v1/sessions/{id}/tool-executions?limit=100&offset=0
-  Returns: {
-    executions: [
-      {
-        id: "uuid",
-        tool_name: "gmail_read",
-        input: { action: "list", max_results: 5 },
-        output: { messages: [...] },
-        status: "success",
-        latency_ms: 1234,
-        created_at: "2026-03-12T15:30:00Z"
-      },
-      ...
-    ],
-    total: 42
-  }
-```
-
-**`web/public/js/modules/logs.js`** additions:
+**`web/public/js/modules/confirmations_enhanced.js`**:
 ```javascript
-function initToolsSubtab() {
-	// Register tools subtab
-	// Fetch and render tool executions
-	// Set up polling for updates
+export function init() {
+	// Enhanced initialization with tool metadata
+	setupToolCards();
+	setupRiskIndicators();
+	setupBulkApproval();
+	setupToolSuggestions();
 }
 
-async function fetchToolExecutions(sessionId, limit, offset, filter) {
-	// Fetch from API with optional filter
+function renderToolCard(confirmation, toolMetadata) {
+	// Display rich tool info card
+	// Include icon, description, risk badge
+	// Expandable details section
 }
 
-function renderToolsTable(executions) {
-	// Render table with sortable headers
-	// Format timestamps, latency, status
+async function bulkApprove(toolNames, scope) {
+	// scope: "once", "always", "session"
+	// POST to approve multiple confirmations
+}
+```
+
+**Confirmation Response (Enhanced)**:
+```json
+{
+	"id": "conf_abc123",
+	"session_id": "sess_xyz",
+	"tool": {
+		"name": "email_send",
+		"description": "Send an email message",
+		"risk_level": "high",
+		"icon": "📧",
+		"parameters": [
+			{ "name": "to", "type": "array", "description": "Recipients", "value": ["user@example.com"] },
+			{ "name": "subject", "type": "string", "value": "Meeting Notes" },
+			{ "name": "body", "type": "string", "value": "..." }
+		]
+	},
+	"suggested_alternatives": ["email_search"],
+	"created_at": "2024-03-13T14:02:00Z",
+	"expires_at": "2024-03-13T15:02:00Z"
 }
 ```
 
 **HTML Structure**:
 ```html
-<div id="tools-subtab">
-	<div class="tools-toolbar">
-		<label>Filter by tool:
-			<select id="tool-filter">
-				<option value="">All Tools</option>
-				<option value="gmail_read">Gmail</option>
-				<option value="calendar_read">Calendar</option>
-				<!-- ... -->
-			</select>
-		</label>
-		<label>Status:
-			<select id="status-filter">
-				<option value="">All</option>
-				<option value="success">Success</option>
-				<option value="failed">Failed</option>
-			</select>
-		</label>
+<div class="confirmation-card expanded">
+	<div class="card-header">
+		<div class="tool-badge">
+			<span class="icon">📧</span>
+			<div class="tool-info">
+				<h3>Email Send</h3>
+				<span class="risk-badge risk-high">High Risk</span>
+			</div>
+		</div>
 	</div>
-	<table id="tools-log">
-		<thead>
-			<tr>
-				<th>Tool Name</th>
-				<th>Parameters</th>
-				<th>Result</th>
-				<th>Latency</th>
-				<th>Timestamp</th>
-				<th>Actions</th>
-			</tr>
-		</thead>
-		<tbody>
-			<!-- Dynamically populated -->
-		</tbody>
-	</table>
+	<div class="card-body">
+		<p class="tool-description">Send an email message</p>
+		<div class="parameters">
+			<h4>Parameters</h4>
+			<div class="param">
+				<label>to:</label>
+				<code>["user@example.com"]</code>
+			</div>
+			<div class="param">
+				<label>subject:</label>
+				<code>"Meeting Notes"</code>
+			</div>
+		</div>
+		<div class="alternatives">
+			<h4>Suggested Alternatives</h4>
+			<p>Consider using email_search if you want to check existing emails first.</p>
+		</div>
+	</div>
+	<div class="card-actions">
+		<button class="btn btn-approve-once">Approve Once</button>
+		<button class="btn btn-approve-always">Approve Always</button>
+		<button class="btn btn-deny">Deny</button>
+	</div>
 </div>
 ```
 
 ## Out of Scope
 
-- Tool execution replay/re-run
-- Execution timeline visualization
-- Integration with analytics/metrics dashboard
-- Tool execution comparison across sessions
+- Approval workflows with multiple users/roles
+- Conditional approval logic (e.g., "approve if recipient is in whitelist")
+- Tool-specific approval rules (custom approval per tool)
+- Approval audit trail or detailed logging
+- Export confirmations history
+- API key masking in parameter display (handle with care)
+
