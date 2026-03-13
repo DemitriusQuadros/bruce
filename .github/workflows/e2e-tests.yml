@@ -1,0 +1,55 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Install CGO dependencies
+        run: sudo apt-get install -y gcc libsqlite3-dev
+
+      - name: Start API server
+        run: |
+          CGO_ENABLED=1 go run cmd/bruce/main.go &
+          sleep 3
+        env:
+          BRUCE_BASE_URL: http://localhost:8080
+
+      - name: Create test-results directory
+        run: mkdir -p test-results
+
+      - name: Run E2E tests
+        run: CGO_ENABLED=1 go test -v -timeout 120s ./tests/e2e/ 2>&1 | tee test-results/e2e-test-output.txt
+        env:
+          BRUCE_BASE_URL: http://localhost:8080
+          REDIS_ADDRESS: localhost:6379
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: ./test-results/
