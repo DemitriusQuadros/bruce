@@ -7,6 +7,7 @@ import (
 
 	"bruce/internal/config"
 	"bruce/internal/domain"
+	"bruce/internal/logging"
 	"bruce/internal/repository"
 )
 
@@ -27,6 +28,13 @@ func NewProviderRegistry(
 	providers map[ProviderName]LLMService,
 	cfg *config.Config,
 ) *ProviderRegistry {
+	// Log initialization details for debugging
+	availableProviders := make([]string, 0, len(providers))
+	for name := range providers {
+		availableProviders = append(availableProviders, string(name))
+	}
+	logging.Infof("ProviderRegistry initialized: available=%v, config_default=%q", availableProviders, cfg.LLM.Provider)
+
 	return &ProviderRegistry{
 		providers:   providers,
 		configRepo:  configRepo,
@@ -59,13 +67,27 @@ func (r *ProviderRegistry) resolveProvider(ctx context.Context) (LLMService, err
 			p, ok := r.providers[name]
 			r.mu.RUnlock()
 			if ok {
+				logging.Infof("resolveProvider: using session override: %s", session.ProviderOverride)
 				return p, nil
 			}
 		}
 	}
 
-	// 2. Fall back to global config default
-	globalDefault, _ := r.configRepo.Get("llm.provider") // e.g. "claude"
+	// 2. Check global default from database (runtime override)
+	globalDefault, dbErr := r.configRepo.Get("llm.provider")
+	if dbErr == nil && globalDefault != "" {
+		name := ProviderName(globalDefault)
+		r.mu.RLock()
+		p, ok := r.providers[name]
+		r.mu.RUnlock()
+		if ok {
+			logging.Infof("resolveProvider: using database config: %s", globalDefault)
+			return p, nil
+		}
+	}
+
+	// 3. Fall back to static config file default
+	globalDefault = r.cfg.LLM.Provider
 	if globalDefault == "" {
 		globalDefault = string(ProviderClaude) // hardcoded fallback
 	}
@@ -76,8 +98,16 @@ func (r *ProviderRegistry) resolveProvider(ctx context.Context) (LLMService, err
 	r.mu.RUnlock()
 
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrUnknownProvider, name)
+		logging.Warnf("resolveProvider: unknown provider: %s, falling back to %s", globalDefault, ProviderClaude)
+		// Try Claude as last resort
+		p, ok := r.providers[ProviderClaude]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s (no fallback available)", ErrUnknownProvider, name)
+		}
+		return p, nil
 	}
+
+	logging.Infof("resolveProvider: using static config: %s", globalDefault)
 	return p, nil
 }
 
