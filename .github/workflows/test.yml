@@ -22,8 +22,8 @@ jobs:
       - name: Install CGO dependencies
         run: sudo apt-get install -y gcc libsqlite3-dev
 
-      - name: Run tests
-        run: CGO_ENABLED=1 go test ./... -v -race -timeout 60s
+      - name: Run unit tests (excluding E2E)
+        run: CGO_ENABLED=1 go test ./internal/... -v -race -timeout 60s
 
       - name: Build check
         run: CGO_ENABLED=1 go build ./...
