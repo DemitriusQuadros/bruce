@@ -159,9 +159,10 @@ func (r *ProviderRegistry) ListProviders() []ProviderInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	// Always return both providers, showing availability status
+	// Always return all providers, showing availability status
 	_, claudeAvailable := r.providers[ProviderClaude]
 	_, geminiAvailable := r.providers[ProviderGemini]
+	_, openaiAvailable := r.providers[ProviderOpenAI]
 
 	result := []ProviderInfo{
 		{
@@ -173,6 +174,11 @@ func (r *ProviderRegistry) ListProviders() []ProviderInfo {
 			Name:      string(ProviderGemini),
 			Available: geminiAvailable,
 			Model:     r.cfg.Gemini.Model,
+		},
+		{
+			Name:      string(ProviderOpenAI),
+			Available: openaiAvailable,
+			Model:     r.cfg.OpenAI.Model,
 		},
 	}
 	return result

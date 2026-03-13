@@ -20,8 +20,13 @@ func BuildProviders(cfg *config.Config) map[ProviderName]LLMService {
 		logging.Infof("ai: registered provider %s (model: %s)", ProviderGemini, cfg.Gemini.Model)
 	}
 
+	if cfg.OpenAI.APIKey != "" {
+		providers[ProviderOpenAI] = NewOpenAIProvider(cfg.OpenAI)
+		logging.Infof("ai: registered provider %s (model: %s)", ProviderOpenAI, cfg.OpenAI.Model)
+	}
+
 	if len(providers) == 0 {
-		logging.Warn("no LLM providers configured. Set claude.api_key or gemini.api_key in config.")
+		logging.Warn("no LLM providers configured. Set claude.api_key, gemini.api_key, or openai.api_key in config.")
 	}
 
 	return providers

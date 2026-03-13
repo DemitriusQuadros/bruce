@@ -39,9 +39,16 @@ type GeminiConfig struct {
 	MaxTokens int    `mapstructure:"max_tokens"`
 }
 
+// OpenAIConfig holds OpenAI API settings.
+type OpenAIConfig struct {
+	APIKey    string `mapstructure:"api_key"`
+	Model     string `mapstructure:"model"`
+	MaxTokens int    `mapstructure:"max_tokens"`
+}
+
 // LLMConfig holds LLM provider selection settings.
 type LLMConfig struct {
-	Provider string `mapstructure:"provider"` // "claude" | "gemini"
+	Provider string `mapstructure:"provider"` // "claude" | "gemini" | "openai"
 }
 
 // WhatsAppConfig holds WhatsApp connector settings.
@@ -74,6 +81,7 @@ type Config struct {
 	SQLite     SQLiteConfig     `mapstructure:"sqlite"`
 	Claude     ClaudeConfig     `mapstructure:"claude"`
 	Gemini     GeminiConfig     `mapstructure:"gemini"`
+	OpenAI     OpenAIConfig     `mapstructure:"openai"`
 	LLM        LLMConfig        `mapstructure:"llm"`
 	Connectors ConnectorsConfig `mapstructure:"connectors"`
 	UI         UIConfig         `mapstructure:"ui"`
@@ -101,8 +109,8 @@ func Load() *Config {
 		log.Printf("WARNING: could not unmarshal config: %v — using defaults", err)
 	}
 
-	if cfg.Claude.APIKey == "" && cfg.Gemini.APIKey == "" {
-		log.Printf("WARNING: no LLM providers configured — set claude.api_key or gemini.api_key in config")
+	if cfg.Claude.APIKey == "" && cfg.Gemini.APIKey == "" && cfg.OpenAI.APIKey == "" {
+		log.Printf("WARNING: no LLM providers configured — set claude.api_key, gemini.api_key, or openai.api_key in config")
 	}
 
 	return &cfg
