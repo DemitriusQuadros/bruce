@@ -1,8 +1,8 @@
-# Spec 20: Confirmation API [BACKEND]
+# Spec 20: File Delivery Dispatcher [BACKEND]
 
 ## Overview
 
-Implement REST API endpoints to manage pending tool execution approvals. Add `confirmations` SQLite table schema to track pending, approved, and denied actions. Expose `GET /api/v1/confirmations` (list pending), `POST /api/v1/confirmations/{id}/approve` (approve), `POST /api/v1/confirmations/{id}/deny` (deny). Worker pauses before executing tools with `confirmed: false` and waits for approval. UI polls endpoint to show pending actions (Spec 22).
+Implement a system to deliver generated files (PDFs, exports, etc.) to users via email, WhatsApp, Discord, or direct download. Creates `file_deliveries` table to track dispatch status. Adds `POST /api/v1/files/{file_id}/deliver` endpoint that accepts delivery method and recipient. Works with tools that generate files (Spec 18, etc.) and connectors (WhatsApp, Discord, Telegram).
 
 ## Phase
 
@@ -10,88 +10,104 @@ Implement REST API endpoints to manage pending tool execution approvals. Add `co
 
 ## Prerequisites
 
-- Tool execution engine exists (Spec 11)
-- HTTP router and handlers exist (`internal/api/handlers/`)
-- SQLite schema can be extended
-- Message/tool domain models exist
+- File storage system exists (temp files from Spec 18 or similar)
+- Email capability (Gmail tool from Spec 14)
+- Connectors exist: WhatsApp, Discord, Telegram (Specs 33–34)
 
 ## Deliverables
 
 **Files to Create:**
-- `internal/api/handlers/confirmations.go` — HTTP handlers for approval endpoints
-- `internal/database/migrations/002_confirmations.sql` — schema for `confirmations` table
+- `internal/api/handlers/files.go` — file delivery endpoints
+- `internal/domain/file_delivery.go` — FileDelivery model
+- `internal/worker/delivery_task.go` — delivery worker task payload and handler
 
 **Files to Modify:**
-- `internal/database/schema.sql` — add or link `confirmations` table
-- `internal/api/router.go` — register confirmation routes
-- `internal/worker/processor.go` — add approval check before tool execution
-- `internal/domain/confirmation.go` — add Confirmation model
+- `internal/database/schema.sql` — add `file_deliveries` table
+- `internal/api/router.go` — register file delivery routes
+- `internal/worker/processor.go` — dispatch delivery tasks
+- `config.example.yml` — document delivery methods
 
 ## Acceptance Criteria
 
-- [ ] `confirmations` table schema: `id`, `session_id`, `tool_call` (JSON), `status` (enum: pending/approved/denied), `created_at`, `expires_at`
-- [ ] `GET /api/v1/confirmations` returns list of pending confirmations with: id, session_id, tool_name, tool_input (preview), created_at
-- [ ] `POST /api/v1/confirmations/{id}/approve` marks as approved, returns success
-- [ ] `POST /api/v1/confirmations/{id}/deny` marks as denied, returns success
-- [ ] Worker checks status before executing tool; if denied, returns error to Claude (Spec 11)
-- [ ] Confirmations older than 1 hour auto-expire and are treated as denied
-- [ ] Approvals are idempotent (approving twice has no side effect)
-- [ ] UI polls endpoint every 2–3 seconds to show pending confirmations (Spec 22)
-- [ ] Latency: approve/deny <500ms p95
+- [ ] `POST /api/v1/files/{file_id}/deliver` accepts: `method` (email/whatsapp/discord/download), `recipient` (email or phone/user ID)
+- [ ] `GET /api/v1/files/{file_id}/download` returns file with correct Content-Type and Content-Disposition headers
+- [ ] Email delivery sends file as attachment via Gmail tool (Spec 14)
+- [ ] WhatsApp delivery sends file to contact (uses Spec 33 connector)
+- [ ] Discord delivery sends file to channel/DM (uses connector)
+- [ ] `file_deliveries` table tracks: file_id, method, recipient, status (pending/sent/failed), created_at, sent_at, error_message
+- [ ] Delivery tasks are queued via Asynq and processed asynchronously
+- [ ] Failed deliveries retry up to 3 times with exponential backoff (Spec 23)
+- [ ] Download links are valid for 24 hours; after expiry, file is cleaned up
+- [ ] Latency: delivery endpoint response <100ms, actual delivery <10s
+- [ ] Large files (>50MB) are handled with streaming or chunking (if applicable)
 
 ## API / Component Contract
 
 **Endpoints**:
 
 ```
-GET /api/v1/confirmations
-  Returns: [{ id, session_id, tool_name, tool_input, created_at }]
+POST /api/v1/files/{file_id}/deliver
+  Body: { "method": "email|whatsapp|discord", "recipient": "user@example.com or phone/channel_id" }
+  Returns: { file_id, delivery_id, status: "pending", method, recipient }
 
-POST /api/v1/confirmations/{id}/approve
-  Body: {}
-  Returns: { status: "approved" }
+GET /api/v1/files/{file_id}/download
+  Returns: binary file with headers (Content-Type, Content-Disposition, Content-Length)
 
-POST /api/v1/confirmations/{id}/deny
-  Body: { reason?: string }
-  Returns: { status: "denied" }
+GET /api/v1/files/{file_id}/status
+  Returns: { file_id, filename, size_bytes, created_at, deliveries: [...] }
 ```
 
-**`confirmations` Table**:
+**`file_deliveries` Table**:
 ```sql
-CREATE TABLE confirmations (
+CREATE TABLE file_deliveries (
 	id TEXT PRIMARY KEY,
-	session_id TEXT NOT NULL REFERENCES sessions(id),
-	tool_call TEXT NOT NULL, -- JSON: { name, input }
-	status TEXT NOT NULL DEFAULT 'pending', -- pending, approved, denied
+	file_id TEXT NOT NULL REFERENCES files(id),
+	method TEXT NOT NULL, -- 'email', 'whatsapp', 'discord', 'telegram'
+	recipient TEXT NOT NULL, -- email, phone number, or channel ID
+	status TEXT NOT NULL DEFAULT 'pending', -- pending, sent, failed
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	expires_at DATETIME NOT NULL, -- 1 hour from created_at
-	approved_at DATETIME,
-	denied_at DATETIME
+	sent_at DATETIME,
+	error_message TEXT,
+	retry_count INTEGER DEFAULT 0
 );
 ```
 
-**`internal/domain/confirmation.go`**:
+**`internal/domain/file_delivery.go`**:
 ```go
-type Confirmation struct {
-	ID        string
-	SessionID string
-	ToolCall  ToolCall
-	Status    string // pending, approved, denied
-	CreatedAt time.Time
-	ExpiresAt time.Time
+type FileDelivery struct {
+	ID           string
+	FileID       string
+	Method       string // email, whatsapp, discord
+	Recipient    string
+	Status       string // pending, sent, failed
+	CreatedAt    time.Time
+	SentAt       *time.Time
+	ErrorMessage string
+	RetryCount   int
+}
+```
+
+**`internal/worker/delivery_task.go`**:
+```go
+type DeliveryTaskPayload struct {
+	DeliveryID string
+	FileID     string
+	Method     string
+	Recipient  string
 }
 
-// Worker checks before executing
-func (w *Worker) shouldExecuteTool(ctx context.Context, tool *ToolCall) (bool, error) {
-	// Check if confirmation exists and is approved
-	// If pending and expired, deny
-	// If pending and not expired, wait or return error
+func ProcessDeliveryTask(ctx context.Context, payload *DeliveryTaskPayload) error {
+	// Dispatch file based on method
+	// Update delivery status in DB
+	// Retry on failure (Spec 23)
 }
 ```
 
 ## Out of Scope
 
-- Multi-level approvals (only user approval for Phase 1)
-- Role-based approval (single-user MVP)
-- Audit trail details (approval logged but minimal)
-- Notification on expiry (logged silently)
+- Cloud storage integration (local temp files only)
+- File encryption or password protection
+- Delivery scheduling (send immediately)
+- Delivery notifications to user
+- File versioning or history
+

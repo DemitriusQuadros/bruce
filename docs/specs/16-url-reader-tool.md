@@ -1,8 +1,8 @@
-# Spec 15: Google Calendar Tool [BACKEND]
+# Spec 16: URL Reader Tool [BACKEND]
 
 ## Overview
 
-Implement `calendar_read` and `calendar_create` tools that list events within a date range and create new events. Uses Google Calendar API v3 with stored OAuth token (from Spec 13). `calendar_read` accepts `start_date`, `end_date`; `calendar_create` accepts title, start time, end time, description, attendees. Both tools update the primary calendar.
+Implement a `url_read` tool that fetches and parses web page content. Accepts a URL, follows redirects (max 3), extracts main content (body text, headings, links) and strips boilerplate (navigation, ads, scripts). Returns normalized markdown. Implements safeguards: timeouts (10s), robots.txt respect, and rejects private IP ranges.
 
 ## Phase
 
@@ -11,109 +11,94 @@ Implement `calendar_read` and `calendar_create` tools that list events within a 
 ## Prerequisites
 
 - Tool registry exists (Spec 12)
-- Google OAuth flow complete (Spec 13)
-- Google Calendar API enabled in OAuth scopes
+- No external dependencies required beyond stdlib
 
 ## Deliverables
 
 **Files to Create:**
-- `internal/tools/calendar/calendar.go` — Tool implementations (read + create as separate methods)
-- `internal/tools/calendar/client.go` — Google Calendar API wrapper
+- `internal/tools/url/reader.go` — URL fetching and parsing
+- `internal/tools/url/content_extractor.go` — HTML content extraction logic
 
 **Files to Modify:**
-- `internal/tools/registry.go` — register both tools at startup
-- `cmd/bruce/main.go` — instantiate Calendar tool with OAuth client
-- `config.example.yml` — document Calendar tool section
+- `internal/tools/registry.go` — register URL reader tool
+- `cmd/bruce/main.go` — instantiate URL reader tool
+- `config.example.yml` — document URL reader section (optional config for timeout)
 
 ## Acceptance Criteria
 
-- [ ] Tool name `calendar_read` exists; schema includes: `start_date` (RFC3339), `end_date` (RFC3339), `calendar_id` (optional, defaults to "primary")
-- [ ] Tool name `calendar_create` exists; schema includes: `title`, `start_time` (RFC3339), `end_time` (RFC3339), `description`, `attendees` (array of emails, optional)
-- [ ] `calendar_read` returns list of events with: title, start time, end time, location, attendees, description
-- [ ] `calendar_create` creates event and returns event ID + confirmation
-- [ ] Tool handles 401 (expired token) by refreshing via Spec 13
-- [ ] Tool handles 429 (rate limit) gracefully
-- [ ] Tool handles invalid date formats with clear error message
-- [ ] Create event is atomic (transaction-like) or idempotent
-- [ ] Latency: read <2s p95, create <3s p95
+- [ ] Tool `url_read` accepts: `url` (string)
+- [ ] Follows HTTP redirects up to 3 hops (301, 302, 307, 308)
+- [ ] Returns extracted content: main text, headings, links (URL + anchor text), image alt text
+- [ ] Respects `robots.txt` and `User-Agent` rules
+- [ ] Rejects requests to private IPs (127.0.0.1, 10.*, 172.16-31.*, 192.168.*)
+- [ ] HTTP request timeout: 10 seconds total
+- [ ] Maximum response size: 10 MB
+- [ ] Returned content is formatted as markdown (headings → `#`, bold → `**`, links → `[text](url)`)
+- [ ] Strips scripts, styles, and tracking pixels
+- [ ] Returns error with clear message for invalid URLs, timeouts, or blocked content
+- [ ] Latency: p95 <5s (varies by page size)
 
 ## API / Component Contract
 
-**`calendar_read` Schema**:
+**`url_read` Schema**:
 ```json
 {
-	"name": "calendar_read",
-	"description": "List calendar events within a date range",
+	"name": "url_read",
+	"description": "Fetch and extract main content from a web page",
 	"input_schema": {
 		"type": "object",
 		"properties": {
-			"start_date": {
+			"url": {
 				"type": "string",
-				"format": "date-time",
-				"description": "Start of date range (RFC3339)"
-			},
-			"end_date": {
-				"type": "string",
-				"format": "date-time",
-				"description": "End of date range (RFC3339)"
-			},
-			"calendar_id": {
-				"type": "string",
-				"description": "Calendar ID; defaults to 'primary'"
+				"description": "Full URL (must start with http:// or https://)"
 			}
 		},
-		"required": ["start_date", "end_date"]
+		"required": ["url"]
 	}
 }
 ```
 
-**`calendar_create` Schema**:
-```json
-{
-	"name": "calendar_create",
-	"description": "Create a new calendar event",
-	"input_schema": {
-		"type": "object",
-		"properties": {
-			"title": { "type": "string", "description": "Event title" },
-			"start_time": { "type": "string", "format": "date-time" },
-			"end_time": { "type": "string", "format": "date-time" },
-			"description": { "type": "string", "description": "Event description (optional)" },
-			"attendees": {
-				"type": "array",
-				"items": { "type": "string" },
-				"description": "List of attendee emails (optional)"
-			}
-		},
-		"required": ["title", "start_time", "end_time"]
-	}
-}
+**Response Format** (as markdown string):
+```
+# Page Title
+
+Main heading content here.
+
+## Section 1
+Paragraph text extracted from page.
+
+- List item 1
+- [Link text](https://example.com)
+
+## Section 2
+More content...
 ```
 
-**`internal/tools/calendar/client.go`**:
+**`internal/tools/url/reader.go`**:
 ```go
 type Client struct {
-	svc   *calendar.Service
-	token *oauth2.Token
+	timeout    time.Duration
+	maxSize    int64
+	maxRetries int
 }
 
-func (c *Client) ListEvents(ctx context.Context, calendarID string, start, end time.Time) ([]Event, error)
-func (c *Client) CreateEvent(ctx context.Context, calendarID string, event *EventCreateRequest) (string, error)
-
-type Event struct {
-	ID          string
-	Title       string
-	StartTime   time.Time
-	EndTime     time.Time
-	Location    string
-	Description string
-	Attendees   []string
+func (c *Client) FetchAndParse(ctx context.Context, url string) (string, error) {
+	// Fetch URL with timeout
+	// Follow redirects (max 3)
+	// Check robots.txt
+	// Extract main content
+	// Return as markdown
 }
+
+func (c *Client) isPrivateIP(host string) bool { /* ... */ }
+func (c *Client) htmlToMarkdown(body string) string { /* ... */ }
 ```
 
 ## Out of Scope
 
-- Calendar write (update/delete existing events — Phase 2+)
-- Attendee RSVP status tracking
-- Recurring events (simple event creation for Phase 1)
-- Calendar notifications/reminders
+- JavaScript execution (static content only)
+- Form submission or interaction
+- Authentication/cookies (public pages only)
+- PDF or binary file handling
+- Dynamic content (AJAX-loaded data)
+

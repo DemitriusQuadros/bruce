@@ -2,7 +2,7 @@
 
 ## Overview
 
-Create `internal/tools/` package with a centralized `Tool` interface and registry. Each tool implements `Name()`, `Schema()`, and `Execute()`. The registry stores all tools by name, isolates errors per tool (one tool failure doesn't crash others), enforces timeouts, and provides introspection (list all available tools + their parameters for Claude). Tools are registered at startup in `cmd/bruce/main.go`.
+Create `internal/tools/` package with a centralized `Tool` interface and registry. Each tool implements `Name()`, `Definition()`, and `Execute()`. The registry stores all tools by name, isolates errors per tool (one tool failure doesn't crash others), enforces timeouts, and provides introspection (list all available tools + their parameters in a provider-agnostic format). The tool definitions are normalized for any LLM provider (Claude, Gemini, etc.) via the `ai.ToolDefinition` struct. Tools are registered at startup in `cmd/bruce/main.go`.
 
 ## Phase
 
@@ -25,23 +25,34 @@ Create `internal/tools/` package with a centralized `Tool` interface and registr
 
 ## Acceptance Criteria
 
-- [ ] `Tool` interface has methods: `Name()`, `Schema()`, `Execute(ctx context.Context, input map[string]interface{}) (interface{}, error)`
-- [ ] `Tool.Schema()` returns JSON Schema of tool parameters (for Claude introspection)
-- [ ] Registry has `Register(tool Tool)`, `Get(name string) Tool`, `List() []ToolMetadata` methods
+- [ ] `Tool` interface has methods: `Name()`, `Definition() ToolDefinition`, `Execute(ctx context.Context, input map[string]interface{}) (interface{}, error)`
+- [ ] `Tool.Definition()` returns provider-agnostic schema (via `ai.ToolDefinition`)
+- [ ] `ai.ToolDefinition` struct contains: name, description, input schema (JSON Schema compatible with all providers)
+- [ ] Registry has `Register(tool Tool)`, `Get(name string) Tool`, `List() []ToolMetadata`, `GetDefinitions() []ToolDefinition` methods
 - [ ] Registry is thread-safe (uses `sync.RWMutex`)
 - [ ] `Execute` method wraps tool call in timeout (5s default, configurable per tool)
 - [ ] If tool times out, returns error `"Tool execution timed out"` without panic
 - [ ] If tool panics, recovers and returns error `"Tool panicked: [details]"`
-- [ ] All tool executions are logged to SQLite (Spec 11) with: name, input, output, latency, success/failure
+- [ ] All tool executions are logged to SQLite with: name, input, output, latency, success/failure, provider
 - [ ] Registry is populated by `main.go` at startup; tools can be enabled/disabled via config
+- [ ] `GetDefinitions()` returns tool definitions normalized for the current LLM provider
 
 ## API / Component Contract
+
+**`internal/ai/definition.go` (provider-agnostic)**:
+```go
+type ToolDefinition struct {
+	Name        string                 // Tool name
+	Description string                 // Human-readable description
+	InputSchema map[string]interface{} // JSON Schema (provider-agnostic)
+}
+```
 
 **`internal/tools/tool.go`**:
 ```go
 type Tool interface {
 	Name() string
-	Schema() map[string]interface{} // JSON Schema
+	Definition() ai.ToolDefinition // Returns provider-agnostic definition
 	Execute(ctx context.Context, input map[string]interface{}) (interface{}, error)
 }
 
@@ -65,6 +76,7 @@ func (r *Registry) Execute(ctx context.Context, name string, input map[string]in
 	// timeout, panic recovery, logging
 }
 func (r *Registry) List() []ToolMetadata { /* ... */ }
+func (r *Registry) GetDefinitions() []ai.ToolDefinition { /* ... */ }
 ```
 
 **`cmd/bruce/main.go`** (startup):

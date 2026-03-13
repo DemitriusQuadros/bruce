@@ -1,102 +1,107 @@
-# Spec 30: Local Database Connector [BACKEND]
+# Spec 30: Provider Selector UI [FRONTEND]
 
 ## Overview
 
-Implement `db_query` tool that executes read-only SQL queries against user-configured local databases (SQLite, PostgreSQL, MySQL). Tool accepts SQL string, validates for safety (only SELECT allowed, no DDL), parameterizes input, and returns result set as JSON. Supports time-range queries for analytics (e.g., "users created in last 7 days"). Phase 2 read-only; Phase 3+ can support write with explicit confirmation.
+Add a provider selector dropdown/toggle in the web UI to switch between active LLM providers (Claude, Gemini, etc.). Placed in the header or settings tab. When a provider is selected, the UI saves the choice (localStorage + backend config), and all subsequent API calls use that provider. Displays provider name, model version, and brief description. Part of the multi-provider LLM abstraction (Spec 7).
 
 ## Phase
 
-**Phase 2** (Weeks 7–14)
+**Phase 1** (Weeks 1–6)
 
 ## Prerequisites
 
-- Tool registry exists (Spec 12)
-- Config system supports database connection strings
-- Driver packages for SQLite, PostgreSQL, MySQL are vendored
+- Multi-provider LLM abstraction exists (Spec 7)
+- Settings API exists (Spec 22)
+- Header/navigation component exists
 
 ## Deliverables
 
-**Files to Create:**
-- `internal/tools/database/db.go` — Database query tool implementation
-- `internal/tools/database/validator.go` — SQL safety validation (SELECT-only, no DDL)
-- `internal/tools/database/parser.go` — Query result formatter (JSON)
+**Files to Create/Modify:**
+- `web/public/js/modules/provider_selector.js` — Provider selector logic and UI
+- `web/public/css/components/provider_selector.css` — Styling for dropdown/toggle
+- `web/public/js/main.js` — import provider selector module
 
 **Files to Modify:**
-- `internal/tools/registry.go` — register database tool at startup
-- `cmd/bruce/main.go` — instantiate database tool with connection pool
-- `internal/config/config.go` — add `tools.database.connections` (map of name to DSN)
-- `config.example.yml` — document database connection string format
+- `web/public/index.html` — add provider selector to header
+- `web/public/js/store.js` — add provider state management
+- `internal/api/handlers/config.go` — expose current provider + available providers
 
 ## Acceptance Criteria
 
-- [ ] Tool `db_query` accepts: `database` (friendly name from config), `query` (SQL string), `params` (optional JSON values for placeholders)
-- [ ] Tool validates query: only SELECT, FROM, WHERE, JOIN, GROUP BY, ORDER BY, LIMIT allowed; no INSERT, UPDATE, DELETE, DROP, CREATE, ALTER
-- [ ] Tool rejects parameterless queries to prevent SQL injection (or uses regex allowlist of safe patterns)
-- [ ] Query results are returned as JSON array of objects (column: value pairs)
-- [ ] Large result sets are truncated (max 1000 rows, 100KB JSON) to prevent memory explosion
-- [ ] Tool handles connection errors, SQL syntax errors, permission denied gracefully
-- [ ] Query timeout is 30s (database-specific, e.g., `SET STATEMENT_TIMEOUT` for PostgreSQL)
-- [ ] Latency: <2s p95 for typical queries (mocked)
-- [ ] Log all executed queries (sanitized) to tool_executions table for audit
+- [ ] Header displays current provider (e.g., "Claude Opus 4.6")
+- [ ] Clicking provider name opens dropdown listing available providers
+- [ ] Each provider option shows: name, model version, status (available/unavailable)
+- [ ] Selecting a provider calls `POST /api/v1/config/update` with new provider
+- [ ] On success, UI updates header and shows confirmation toast
+- [ ] Current provider selection is saved to localStorage for persistence
+- [ ] On page load, UI restores previous provider selection
+- [ ] Provider selector works across all tabs (selection is global)
+- [ ] Disabled/unavailable providers show grayed out with tooltip explanation
+- [ ] Mobile responsive (dropdown adapts to screen size)
 
-## API / Component Contract
+## Component Contract
 
-**Config**:
-```yaml
-tools:
-  database:
-    connections:
-      production:
-        dsn: "user=postgres password=... host=localhost dbname=prod"
-        driver: "postgres"
-      analytics:
-        dsn: "./data/analytics.db"
-        driver: "sqlite"
-```
+**`web/public/js/modules/provider_selector.js`**:
+```javascript
+export function init() {
+	// Load available providers from /api/v1/config
+	// Restore provider from localStorage
+	// Setup click handlers for dropdown
+	// Subscribe to store changes (if provider changes elsewhere)
+}
 
-**Tool Schema**:
-```json
-{
-	"name": "db_query",
-	"description": "Execute a read-only SQL query against a local database",
-	"input_schema": {
-		"type": "object",
-		"properties": {
-			"database": {
-				"type": "string",
-				"description": "Database name from config (e.g., 'production', 'analytics')"
-			},
-			"query": {
-				"type": "string",
-				"description": "SQL SELECT query"
-			},
-			"params": {
-				"type": "array",
-				"description": "Optional query parameter values (for ? or $1 placeholders)",
-				"items": {}
-			}
-		},
-		"required": ["database", "query"]
-	}
+async function loadAvailableProviders() {
+	// GET /api/v1/config/providers
+	// Returns: [{ id, name, model, status, description }]
+}
+
+async function selectProvider(providerId) {
+	// POST /api/v1/config/update { llm_provider: providerId }
+	// Update localStorage
+	// Update store
+	// Show toast
 }
 ```
 
-**SQL Validation** (pseudo-code):
-```go
-func ValidateQuery(sql string) error {
-	// Tokenize SQL
-	// Check first keyword is SELECT
-	// Reject: INSERT, UPDATE, DELETE, DROP, CREATE, ALTER, TRUNCATE
-	// Reject: `INTO`, `VALUES` (unless in WHERE clause for pattern matching)
-	// Allow: SELECT, FROM, WHERE, JOIN, GROUP BY, HAVING, ORDER BY, LIMIT, OFFSET
-	// Return error if invalid
-}
+**HTML Structure**:
+```html
+<div id="provider-selector" class="header-control">
+	<button class="provider-button">
+		<span class="provider-name">Claude Opus 4.6</span>
+		<span class="dropdown-icon">▼</span>
+	</button>
+	<div class="provider-dropdown" style="display: none;">
+		<div class="provider-option" data-provider="claude">
+			<h4>Claude Opus 4.6</h4>
+			<p>Anthropic's latest large model</p>
+		</div>
+		<div class="provider-option" data-provider="gemini">
+			<h4>Gemini Pro</h4>
+			<p>Google's large language model</p>
+		</div>
+		<!-- More providers as they're added -->
+	</div>
+</div>
+```
+
+**Backend Endpoints**:
+```
+GET /api/v1/config/providers
+  Returns: [
+	  { id: "claude", name: "Claude", model: "claude-opus-4-6", status: "available", description: "..." },
+	  { id: "gemini", name: "Gemini", model: "gemini-pro", status: "available", description: "..." }
+  ]
+
+POST /api/v1/config/update
+  Body: { llm_provider: "gemini" }
+  Returns: { status: "updated", current_provider: "gemini" }
 ```
 
 ## Out of Scope
 
-- Write queries (INSERT, UPDATE, DELETE — Phase 3+ with approval)
-- Stored procedures / functions
-- Schema introspection (list tables, columns)
-- Query optimization suggestions
-- Query history / saved queries
+- Provider-specific UI customization (same UI for all)
+- Provider capability comparison matrix
+- Automatic provider failover
+- Cost tracking per provider
+- Usage statistics per provider
+
