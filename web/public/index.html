@@ -102,6 +102,7 @@
         <section id="tab-settings" class="tab-section" hidden>
             <h2>Settings</h2>
             <form id="settings-form">
+                <h3>Anthropic</h3>
                 <div class="form-group">
                     <label>API Key</label>
                     <input type="password" name="claude.api_key" />
@@ -122,6 +123,45 @@
                     <label>Context Window</label>
                     <input type="number" name="claude.context_window" />
                 </div>
+                <h3>Gemini</h3>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" name="gemini.api_key" />
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select name="gemini.model">
+                        <option>gemini-2.0-flash</option>
+                        <option>gemini-2.5-pro-preview-06-05</option>
+                        <option>gemini-2.5-flash-preview-05-20</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Max Tokens</label>
+                    <input type="number" name="gemini.max_tokens" />
+                </div>
+
+                <h3>OpenAI</h3>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" name="openai.api_key" />
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select name="openai.model">
+                        <option>gpt-4o</option>
+                        <option>gpt-4o-mini</option>
+                        <option>gpt-4-turbo</option>
+                        <option>o1</option>
+                        <option>o3-mini</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Max Tokens</label>
+                    <input type="number" name="openai.max_tokens" />
+                </div>
+
+                <h3>General</h3>
                 <div class="form-group">
                     <label>Default System Prompt</label>
                     <textarea name="ui.default_system_prompt" rows="6"></textarea>

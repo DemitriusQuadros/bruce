@@ -19,6 +19,11 @@ gemini:
   model: "gemini-2.0-flash"
   max_tokens: 1024
 
+openai:
+  api_key: ""
+  model: "gpt-4o"
+  max_tokens: 1024
+
 llm:
   provider: "claude"
 
