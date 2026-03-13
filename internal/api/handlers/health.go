@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"bruce/internal/monitoring"
 )
 
 // healthResponse is the JSON body returned by the /health endpoint.
@@ -22,6 +24,26 @@ type healthResponse struct {
 // @Router       /health [get]
 func HealthHandler(startTime time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		collector, ok := r.Context().Value("metricsCollector").(*monitoring.Collector)
+		if !ok {
+			collector = nil
+		}
+
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/health",
+				"status":   "200",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/health",
+				"status":   "200",
+			})
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(healthResponse{

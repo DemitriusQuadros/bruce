@@ -3,10 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 
 	"bruce/internal/domain"
+	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 )
 
@@ -34,10 +36,16 @@ type sessionResponse struct {
 // @Router       /api/v1/sessions/{id} [patch]
 func SessionsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		repo, ok := r.Context().Value("sessionRepo").(repository.SessionRepository)
 		if !ok {
 			writeError(w, http.StatusInternalServerError, "session repository not initialized")
 			return
+		}
+
+		collector, ok := r.Context().Value("metricsCollector").(*monitoring.Collector)
+		if !ok {
+			collector = nil
 		}
 
 		vars := mux.Vars(r)
@@ -46,12 +54,12 @@ func SessionsHandler() http.HandlerFunc {
 		switch r.Method {
 		case http.MethodGet:
 			if id == "" {
-				handleListSessions(w, r, repo)
+				handleListSessions(w, r, repo, collector, start)
 			} else {
-				handleGetSession(w, r, repo, id)
+				handleGetSession(w, r, repo, collector, id, start)
 			}
 		case http.MethodPatch:
-			handlePatchSession(w, r, repo, id)
+			handlePatchSession(w, r, repo, collector, id, start)
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
@@ -59,9 +67,21 @@ func SessionsHandler() http.HandlerFunc {
 }
 
 // handleListSessions returns all sessions ordered by updated_at DESC.
-func handleListSessions(w http.ResponseWriter, r *http.Request, repo repository.SessionRepository) {
+func handleListSessions(w http.ResponseWriter, r *http.Request, repo repository.SessionRepository, collector *monitoring.Collector, start time.Time) {
 	sessions, err := repo.GetAll()
 	if err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions",
+				"status":   "500",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions",
+				"status":   "500",
+			})
+		}
 		writeError(w, http.StatusInternalServerError, "failed to fetch sessions")
 		return
 	}
@@ -75,22 +95,60 @@ func handleListSessions(w http.ResponseWriter, r *http.Request, repo repository.
 		result[i] = sessionToResponse(s)
 	}
 
+	if collector != nil {
+		collector.IncrementCounter("http_requests_total", map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions",
+			"status":   "200",
+		})
+		collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions",
+			"status":   "200",
+		})
+	}
+
 	writeJSON(w, http.StatusOK, result)
 }
 
 // handleGetSession returns a single session by ID.
-func handleGetSession(w http.ResponseWriter, r *http.Request, repo repository.SessionRepository, id string) {
+func handleGetSession(w http.ResponseWriter, r *http.Request, repo repository.SessionRepository, collector *monitoring.Collector, id string, start time.Time) {
 	s, err := repo.GetByID(id)
 	if err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "404",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "404",
+			})
+		}
 		writeError(w, http.StatusNotFound, "session not found")
 		return
+	}
+
+	if collector != nil {
+		collector.IncrementCounter("http_requests_total", map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions/{id}",
+			"status":   "200",
+		})
+		collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions/{id}",
+			"status":   "200",
+		})
 	}
 
 	writeJSON(w, http.StatusOK, sessionToResponse(s))
 }
 
 // handlePatchSession partially updates a session.
-func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.SessionRepository, id string) {
+func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.SessionRepository, collector *monitoring.Collector, id string, start time.Time) {
 	var req struct {
 		SystemPrompt     *string `json:"system_prompt"`
 		IsActive         *bool   `json:"is_active"`
@@ -98,6 +156,18 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "400",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "400",
+			})
+		}
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -105,6 +175,18 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 	// Check that the session exists first.
 	s, err := repo.GetByID(id)
 	if err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "404",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "404",
+			})
+		}
 		writeError(w, http.StatusNotFound, "session not found")
 		return
 	}
@@ -112,6 +194,18 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 	// Apply partial updates.
 	if req.SystemPrompt != nil {
 		if err := repo.UpdateSystemPrompt(id, *req.SystemPrompt); err != nil {
+			if collector != nil {
+				collector.IncrementCounter("http_requests_total", map[string]string{
+					"method":   r.Method,
+					"endpoint": "/api/v1/sessions/{id}",
+					"status":   "500",
+				})
+				collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+					"method":   r.Method,
+					"endpoint": "/api/v1/sessions/{id}",
+					"status":   "500",
+				})
+			}
 			writeError(w, http.StatusInternalServerError, "failed to update system prompt")
 			return
 		}
@@ -120,6 +214,18 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 
 	if req.IsActive != nil {
 		if err := repo.SetActive(id, *req.IsActive); err != nil {
+			if collector != nil {
+				collector.IncrementCounter("http_requests_total", map[string]string{
+					"method":   r.Method,
+					"endpoint": "/api/v1/sessions/{id}",
+					"status":   "500",
+				})
+				collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+					"method":   r.Method,
+					"endpoint": "/api/v1/sessions/{id}",
+					"status":   "500",
+				})
+			}
 			writeError(w, http.StatusInternalServerError, "failed to update active status")
 			return
 		}
@@ -128,6 +234,18 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 
 	if req.ProviderOverride != nil {
 		if err := repo.UpdateProviderOverride(id, *req.ProviderOverride); err != nil {
+			if collector != nil {
+				collector.IncrementCounter("http_requests_total", map[string]string{
+					"method":   r.Method,
+					"endpoint": "/api/v1/sessions/{id}",
+					"status":   "500",
+				})
+				collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+					"method":   r.Method,
+					"endpoint": "/api/v1/sessions/{id}",
+					"status":   "500",
+				})
+			}
 			writeError(w, http.StatusInternalServerError, "failed to update provider override")
 			return
 		}
@@ -137,8 +255,33 @@ func handlePatchSession(w http.ResponseWriter, r *http.Request, repo repository.
 	// Update the updated_at timestamp (fetch fresh).
 	s, err = repo.GetByID(id)
 	if err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "500",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/sessions/{id}",
+				"status":   "500",
+			})
+		}
 		writeError(w, http.StatusInternalServerError, "failed to fetch updated session")
 		return
+	}
+
+	if collector != nil {
+		collector.IncrementCounter("http_requests_total", map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions/{id}",
+			"status":   "200",
+		})
+		collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/sessions/{id}",
+			"status":   "200",
+		})
 	}
 
 	writeJSON(w, http.StatusOK, sessionToResponse(s))

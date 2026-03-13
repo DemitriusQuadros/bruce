@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"bruce/internal/config"
+	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 )
 
@@ -28,13 +30,19 @@ func ConfigHandler() http.HandlerFunc {
 	// Initialize the config repository (in a real app, this would be injected).
 	// For now, we create it on each request — not ideal, but acceptable for Phase 1.
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		w.Header().Set("Content-Type", "application/json")
+
+		collector, ok := r.Context().Value("metricsCollector").(*monitoring.Collector)
+		if !ok {
+			collector = nil
+		}
 
 		switch r.Method {
 		case http.MethodGet:
-			handleGetConfig(w, r)
+			handleGetConfig(w, r, collector, start)
 		case http.MethodPut:
-			handlePutConfig(w, r)
+			handlePutConfig(w, r, collector, start)
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
@@ -42,13 +50,25 @@ func ConfigHandler() http.HandlerFunc {
 }
 
 // handleGetConfig returns the merged config (DB values override YAML defaults).
-func handleGetConfig(w http.ResponseWriter, r *http.Request) {
+func handleGetConfig(w http.ResponseWriter, r *http.Request, collector *monitoring.Collector, start time.Time) {
 	// Get the database connection from the request context if available.
 	// For now, we'll need to pass the config repo through.
 	// This is a limitation of the current architecture — see main.go for the dependency injection pattern.
 	// We'll store it in the request context in main.go.
 	repo, ok := r.Context().Value("configRepo").(repository.ConfigRepository)
 	if !ok {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+		}
 		writeError(w, http.StatusInternalServerError, "config repository not initialized")
 		return
 	}
@@ -74,6 +94,18 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	// Get all DB values.
 	dbEntries, err := repo.GetAll()
 	if err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+		}
 		writeError(w, http.StatusInternalServerError, "failed to read config")
 		return
 	}
@@ -100,22 +132,59 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request) {
 		result = append(result, configEntry{Key: key, Value: value})
 	}
 
+	if collector != nil {
+		collector.IncrementCounter("http_requests_total", map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/config",
+			"status":   "200",
+		})
+		collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/config",
+			"status":   "200",
+		})
+	}
+
 	writeJSON(w, http.StatusOK, result)
 }
 
 // handlePutConfig updates a config entry.
-func handlePutConfig(w http.ResponseWriter, r *http.Request) {
+func handlePutConfig(w http.ResponseWriter, r *http.Request, collector *monitoring.Collector, start time.Time) {
 	var req struct {
 		Key   string `json:"key"`
 		Value string `json:"value"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "400",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "400",
+			})
+		}
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.Key == "" || req.Value == "" {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "400",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "400",
+			})
+		}
 		writeError(w, http.StatusBadRequest, "missing key or value")
 		return
 	}
@@ -136,19 +205,68 @@ func handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		"connectors.discord.bot_token",
 	}
 	if !contains(knownKeys, req.Key) {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "422",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "422",
+			})
+		}
 		writeError(w, http.StatusUnprocessableEntity, "unknown config key")
 		return
 	}
 
 	repo, ok := r.Context().Value("configRepo").(repository.ConfigRepository)
 	if !ok {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+		}
 		writeError(w, http.StatusInternalServerError, "config repository not initialized")
 		return
 	}
 
 	if err := repo.Upsert(req.Key, req.Value); err != nil {
+		if collector != nil {
+			collector.IncrementCounter("http_requests_total", map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+			collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+				"method":   r.Method,
+				"endpoint": "/api/v1/config",
+				"status":   "500",
+			})
+		}
 		writeError(w, http.StatusInternalServerError, "failed to update config")
 		return
+	}
+
+	if collector != nil {
+		collector.IncrementCounter("http_requests_total", map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/config",
+			"status":   "200",
+		})
+		collector.RecordHistogram("http_request_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
+			"method":   r.Method,
+			"endpoint": "/api/v1/config",
+			"status":   "200",
+		})
 	}
 
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})

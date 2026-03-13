@@ -16,6 +16,7 @@ import (
 	"bruce/internal/config"
 	"bruce/internal/database"
 	"bruce/internal/domain"
+	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 )
 
@@ -25,7 +26,7 @@ func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:?_foreign_keys=ON")
 	require.NoError(t, err)
-	_, err = db.Exec(database.Schema)
+	err = database.RunMigrations(db)
 	require.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
 	return db
@@ -39,6 +40,25 @@ func testConfig() *config.Config {
 			ContextWindow: 15,
 		},
 	}
+}
+
+func newTestProcessor(t *testing.T, db *sql.DB, llm ai.LLMService, cfg ...*config.Config) *Processor {
+	t.Helper()
+	sessRepo := repository.NewSessionRepository(db)
+	msgRepo := repository.NewMessageRepository(db)
+	cfgRepo := repository.NewConfigRepository(db)
+	monitoringRepo := repository.NewMonitoringRepository(db)
+	metricsCollector := monitoring.NewCollector(db)
+	structuredLogger := monitoring.NewStructuredLogger(db)
+	registry := NewDispatcherRegistry()
+
+	config := testConfig()
+	if len(cfg) > 0 && cfg[0] != nil {
+		config = cfg[0]
+	}
+
+	return NewProcessor(sessRepo, msgRepo, cfgRepo, monitoringRepo, llm, registry,
+		metricsCollector, structuredLogger, config)
 }
 
 func makeTask(t *testing.T, p ProcessIncomingMessagePayload) *asynq.Task {
@@ -80,16 +100,14 @@ func TestProcessor_SkipsInactiveSession(t *testing.T) {
 	db := openTestDB(t)
 	sessRepo := repository.NewSessionRepository(db)
 	msgRepo := repository.NewMessageRepository(db)
-	cfgRepo := repository.NewConfigRepository(db)
 	llm := &mockLLM{response: "hello"}
-	registry := NewDispatcherRegistry()
 
 	// Create session and immediately deactivate it.
 	sess, err := sessRepo.FindOrCreate("whatsapp", "+5511999990000")
 	require.NoError(t, err)
 	require.NoError(t, sessRepo.SetActive(sess.ID, false))
 
-	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, testConfig())
+	proc := newTestProcessor(t, db, llm)
 	task := makeTask(t, ProcessIncomingMessagePayload{
 		ConnectorType: "whatsapp",
 		ChannelID:     "+5511999990000",
@@ -110,13 +128,13 @@ func TestProcessor_InsertsUserAndAssistantMessages(t *testing.T) {
 	db := openTestDB(t)
 	sessRepo := repository.NewSessionRepository(db)
 	msgRepo := repository.NewMessageRepository(db)
-	cfgRepo := repository.NewConfigRepository(db)
 	llm := &mockLLM{response: "I am your assistant"}
 	disp := &mockDispatcher{}
-	registry := NewDispatcherRegistry()
-	registry.Register("discord", disp)
 
-	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, testConfig())
+	// Create processor and register dispatcher
+	proc := newTestProcessor(t, db, llm)
+	proc.dispatcher.Register("discord", disp)
+
 	task := makeTask(t, ProcessIncomingMessagePayload{
 		ConnectorType: "discord",
 		ChannelID:     "channel-123",
@@ -153,7 +171,6 @@ func TestProcessor_InsertsUserAndAssistantMessages(t *testing.T) {
 func TestProcessor_UsesSessionSystemPromptOverDefault(t *testing.T) {
 	db := openTestDB(t)
 	sessRepo := repository.NewSessionRepository(db)
-	msgRepo := repository.NewMessageRepository(db)
 	cfgRepo := repository.NewConfigRepository(db)
 
 	// Store a default system prompt in config.
@@ -165,8 +182,7 @@ func TestProcessor_UsesSessionSystemPromptOverDefault(t *testing.T) {
 	require.NoError(t, sessRepo.UpdateSystemPrompt(sess.ID, "session-specific prompt"))
 
 	llm := &mockLLM{response: "ok"}
-	registry := NewDispatcherRegistry()
-	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, testConfig())
+	proc := newTestProcessor(t, db, llm)
 
 	task := makeTask(t, ProcessIncomingMessagePayload{
 		ConnectorType: "whatsapp",
@@ -180,16 +196,13 @@ func TestProcessor_UsesSessionSystemPromptOverDefault(t *testing.T) {
 
 func TestProcessor_UsesDBSystemPromptWhenNoSessionPrompt(t *testing.T) {
 	db := openTestDB(t)
-	sessRepo := repository.NewSessionRepository(db)
-	msgRepo := repository.NewMessageRepository(db)
 	cfgRepo := repository.NewConfigRepository(db)
 
 	// Store a default system prompt in config database only.
 	require.NoError(t, cfgRepo.Upsert("ui.default_system_prompt", "database default prompt"))
 
 	llm := &mockLLM{response: "ok"}
-	registry := NewDispatcherRegistry()
-	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, testConfig())
+	proc := newTestProcessor(t, db, llm)
 
 	task := makeTask(t, ProcessIncomingMessagePayload{
 		ConnectorType: "discord",
@@ -203,18 +216,13 @@ func TestProcessor_UsesDBSystemPromptWhenNoSessionPrompt(t *testing.T) {
 
 func TestProcessor_UsesYAMLSystemPromptWhenNotInDB(t *testing.T) {
 	db := openTestDB(t)
-	sessRepo := repository.NewSessionRepository(db)
-	msgRepo := repository.NewMessageRepository(db)
-	cfgRepo := repository.NewConfigRepository(db)
 
 	// Do NOT store a system prompt in config database.
 	// The processor should fall back to the YAML config.
+	llm := &mockLLM{response: "ok"}
 	cfg := testConfig()
 	cfg.UI.DefaultSystemPrompt = "yaml default prompt"
-
-	llm := &mockLLM{response: "ok"}
-	registry := NewDispatcherRegistry()
-	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, cfg)
+	proc := newTestProcessor(t, db, llm, cfg)
 
 	task := makeTask(t, ProcessIncomingMessagePayload{
 		ConnectorType: "discord",
@@ -228,13 +236,9 @@ func TestProcessor_UsesYAMLSystemPromptWhenNotInDB(t *testing.T) {
 
 func TestProcessor_RateLimitedErrorReturnsForRetry(t *testing.T) {
 	db := openTestDB(t)
-	sessRepo := repository.NewSessionRepository(db)
-	msgRepo := repository.NewMessageRepository(db)
-	cfgRepo := repository.NewConfigRepository(db)
 	llm := &mockLLM{err: ai.ErrRateLimited}
-	registry := NewDispatcherRegistry()
 
-	proc := NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, testConfig())
+	proc := newTestProcessor(t, db, llm)
 	task := makeTask(t, ProcessIncomingMessagePayload{
 		ConnectorType: "discord",
 		ChannelID:     "chan-xyz",
