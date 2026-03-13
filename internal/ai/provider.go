@@ -28,6 +28,7 @@ type ProviderName string
 const (
 	ProviderClaude ProviderName = "claude"
 	ProviderGemini ProviderName = "gemini"
+	ProviderOpenAI ProviderName = "openai"
 )
 
 // contextKey type for session ID propagation

@@ -74,7 +74,7 @@ function setupSubmitHandler() {
                     let configValue = value;
 
                     // Convert and validate number fields
-                    if (key === 'claude.max_tokens' || key === 'claude.context_window') {
+                    if (key === 'claude.max_tokens' || key === 'claude.context_window' || key === 'gemini.max_tokens' || key === 'openai.max_tokens') {
                         const num = parseInt(value, 10);
                         if (isNaN(num) || num <= 0) {
                             continue;  // Skip invalid numbers
