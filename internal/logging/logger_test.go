@@ -13,8 +13,8 @@ import (
 
 func TestParseLevel(t *testing.T) {
 	tests := map[string]struct {
-		env   string
-		want  Level
+		env  string
+		want Level
 	}{
 		"development": {env: "development", want: DebugLevel},
 		"dev":         {env: "dev", want: DebugLevel},

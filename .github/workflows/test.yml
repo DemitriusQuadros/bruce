@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Install CGO dependencies
+        run: sudo apt-get install -y gcc libsqlite3-dev
+
+      - name: Run tests
+        run: CGO_ENABLED=1 go test ./... -v -race -timeout 60s
+
+      - name: Build check
+        run: CGO_ENABLED=1 go build ./...

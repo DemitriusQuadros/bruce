@@ -1,7 +1,7 @@
 FROM golang:1.23-alpine AS builder
 
-# gcc and musl-dev are required for CGO (mattn/go-sqlite3).
-RUN apk add --no-cache gcc musl-dev
+# build-base and sqlite-dev are required for CGO (mattn/go-sqlite3).
+RUN apk add --no-cache build-base sqlite-dev
 
 WORKDIR /app
 
@@ -10,11 +10,13 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 GOOS=linux go build -o /bin/bruce ./cmd/bruce
+RUN CGO_ENABLED=1 GOOS=linux go build \
+  -ldflags="-s -w -extldflags '-static'" \
+  -o /bin/bruce ./cmd/bruce
 
-FROM alpine:latest
+FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
@@ -23,4 +25,6 @@ RUN mkdir -p /app/data
 
 COPY --from=builder /bin/bruce .
 
-CMD ["./bruce"]
+EXPOSE 8080
+
+ENTRYPOINT ["./bruce"]

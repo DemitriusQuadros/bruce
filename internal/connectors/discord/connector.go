@@ -175,12 +175,20 @@ func chunkMessage(msg string, maxLen int) []string {
 	var chunks []string
 	for len(msg) > maxLen {
 		split := maxLen
-		// Walk back to find a space (checking position before split)
-		for split > 0 && msg[split-1] != ' ' {
+		// Only back up if we're cutting in the middle of a word
+		if split < len(msg) && msg[split] != ' ' {
+			// Look back for a space
+			for split > 0 && msg[split-1] != ' ' {
+				split--
+			}
+		}
+		// If we found a space, exclude it from this chunk (it becomes leading space for next chunk)
+		if split > 0 && msg[split-1] == ' ' {
 			split--
 		}
+		// If we found no space (split == 0), hard cut at maxLen
 		if split == 0 {
-			split = maxLen // No space found, hard cut
+			split = maxLen
 		}
 		chunks = append(chunks, msg[:split])
 		msg = msg[split:]

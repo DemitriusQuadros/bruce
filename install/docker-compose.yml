@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 32mb
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - bruce
+
+  bruce:
+    image: ghcr.io/demitriusquadros/bruce:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./config.yml:/app/config.yml:ro
+    environment:
+      CONFIG_PATH: /app/config.yml
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - bruce
+
+networks:
+  bruce:
+    driver: bridge

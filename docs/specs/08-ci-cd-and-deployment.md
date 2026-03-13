@@ -51,7 +51,7 @@ COPY . .
 # -ldflags "-s -w" strips debug symbols → reduces binary size ~30%
 RUN CGO_ENABLED=1 GOOS=linux go build \
     -ldflags="-s -w -extldflags '-static'" \
-    -o bruce ./cmd/bruce/main.go
+    -o bruce ./cmd/bruce/master.go
 
 # ─── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM alpine:3.21
@@ -154,16 +154,16 @@ module download and Docker layer caches between runs.
 
 ## 4. CI Workflow for Tests (`.github/workflows/test.yml`)
 
-Separate from the Docker build — runs on every PR and push to `main`:
+Separate from the Docker build — runs on every PR and push to `master`:
 
 ```yaml
 name: Test
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   test:
@@ -273,10 +273,10 @@ mkdir -p bruce && cd bruce
 mkdir -p data
 
 # Download install files
-curl -fsSL "https://raw.githubusercontent.com/DemitriusQuadros/bruce/main/install/docker-compose.yml" \
+curl -fsSL "https://raw.githubusercontent.com/DemitriusQuadros/bruce/master/install/docker-compose.yml" \
     -o docker-compose.yml
 
-curl -fsSL "https://raw.githubusercontent.com/DemitriusQuadros/bruce/main/install/config.yml" \
+curl -fsSL "https://raw.githubusercontent.com/DemitriusQuadros/bruce/master/install/config.yml" \
     -o config.yml
 
 echo ""
@@ -339,7 +339,7 @@ Tag format: `git tag v0.1.0 && git push origin v0.1.0` → triggers Docker build
 
 ```bash
 # First-time user on any Linux machine or Raspberry Pi:
-curl -fsSL https://raw.githubusercontent.com/DemitriusQuadros/bruce/main/install/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/DemitriusQuadros/bruce/master/install/install.sh | sh
 cd bruce
 # Edit config.yml with Claude API key
 docker compose up -d

@@ -155,7 +155,6 @@ func main() {
 	// db.Close() handled by defer above.
 }
 
-
 // resolveDiscordToken fetches the Discord bot token from the database (if configured)
 // or falls back to the config file. Database config takes precedence.
 func resolveDiscordToken(cfg *config.Config, repo repository.ConfigRepository) (string, error) {
