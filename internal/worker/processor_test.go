@@ -83,6 +83,15 @@ func (m *mockLLM) GenerateResponse(_ context.Context, systemPrompt string, _ []d
 	return m.response, m.err
 }
 
+func (m *mockLLM) GenerateWithTools(_ context.Context, systemPrompt string, _ []domain.Message, _ []ai.ToolDefinition) (*ai.ToolCallResponse, error) {
+	m.called = true
+	m.capturedPrompt = systemPrompt
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &ai.ToolCallResponse{Text: m.response, Complete: true}, nil
+}
+
 // --- mock dispatcher ---
 
 type mockDispatcher struct {

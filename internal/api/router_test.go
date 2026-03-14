@@ -217,6 +217,10 @@ func (m *mockLLMService) GenerateResponse(ctx context.Context, systemPrompt stri
 	return "test response", nil
 }
 
+func (m *mockLLMService) GenerateWithTools(ctx context.Context, systemPrompt string, messages []domain.Message, tools []ai.ToolDefinition) (*ai.ToolCallResponse, error) {
+	return &ai.ToolCallResponse{Text: "test response", Complete: true}, nil
+}
+
 // mockProviderRegistry creates a mock ProviderRegistry for testing.
 func mockProviderRegistry() *ai.ProviderRegistry {
 	cfg := &config.Config{

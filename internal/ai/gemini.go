@@ -121,6 +121,16 @@ func (g *geminiProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 	return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 }
 
+// GenerateWithTools is a graceful fallback for Gemini (Phase 1 — native tool calling out of scope).
+func (g *geminiProvider) GenerateWithTools(ctx context.Context, systemPrompt string, messages []domain.Message, tools []ToolDefinition) (*ToolCallResponse, error) {
+	// Filter to only text messages for the fallback path
+	text, err := g.GenerateResponse(ctx, systemPrompt, messages)
+	if err != nil {
+		return nil, err
+	}
+	return &ToolCallResponse{Text: text, Complete: true}, nil
+}
+
 // mapToGeminiContents converts domain.Message slice to Gemini contents.
 // Maps "assistant" role → "model" (Gemini's term).
 func mapToGeminiContents(messages []domain.Message) []geminiContent {

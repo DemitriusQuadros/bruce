@@ -118,3 +118,13 @@ func (o *openaiProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 	}
 	return apiResp.Choices[0].Message.Content, nil
 }
+
+// GenerateWithTools is a graceful fallback for OpenAI (Phase 1 — native tool calling out of scope).
+func (o *openaiProvider) GenerateWithTools(ctx context.Context, systemPrompt string, messages []domain.Message, tools []ToolDefinition) (*ToolCallResponse, error) {
+	// Filter to only text messages for the fallback path
+	text, err := o.GenerateResponse(ctx, systemPrompt, messages)
+	if err != nil {
+		return nil, err
+	}
+	return &ToolCallResponse{Text: text, Complete: true}, nil
+}
