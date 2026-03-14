@@ -141,11 +141,29 @@ func (c *claudeProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 func (c *claudeProvider) GenerateWithTools(ctx context.Context, systemPrompt string, messages []domain.Message, tools []ToolDefinition) (*ToolCallResponse, error) {
 	cleaned := sanitizeHistory(messages)
 
-	// Build message array, handling tool results specially
+	// Build message array, handling tool_use and tool_result specially.
 	msgs := make([]anthropicMessage, len(cleaned))
 	for i, m := range cleaned {
-		if m.Type == "tool_result" && m.ToolResult != nil {
-			// Tool results must be sent as content arrays
+		switch {
+		case m.Type == "tool_call" && len(m.ToolCalls) > 0:
+			// Reconstruct the assistant tool_use content blocks Claude requires.
+			// Each tool_use block must match a tool_result block in the next user message.
+			parts := make([]anthropicContent, 0, len(m.ToolCalls)+1)
+			if m.Content != "" {
+				parts = append(parts, anthropicContent{Type: "text", Text: m.Content})
+			}
+			for _, tc := range m.ToolCalls {
+				parts = append(parts, anthropicContent{
+					Type:  "tool_use",
+					ID:    tc.ID,
+					Name:  tc.Name,
+					Input: tc.Input,
+				})
+			}
+			msgs[i] = anthropicMessage{Role: m.Role, Content: parts}
+
+		case m.Type == "tool_result" && m.ToolResult != nil:
+			// Tool results must be sent as content arrays with matching tool_use_id.
 			msgs[i] = anthropicMessage{
 				Role: m.Role,
 				Content: []anthropicContent{
@@ -157,12 +175,9 @@ func (c *claudeProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 					},
 				},
 			}
-		} else {
-			// Regular text messages
-			msgs[i] = anthropicMessage{
-				Role:    m.Role,
-				Content: m.Content,
-			}
+
+		default:
+			msgs[i] = anthropicMessage{Role: m.Role, Content: m.Content}
 		}
 	}
 

@@ -46,12 +46,18 @@ func RunAgentLoop(
 			return resp.Text, nil
 		}
 
-		// Append assistant's tool_use turn to messages (for API continuity)
-		// This tracks that the assistant requested these tools
+		// Append assistant's tool_use turn to messages.
+		// Providers like Claude require the exact tool_use blocks in the assistant message
+		// to match the tool_use_ids in the subsequent tool_result messages.
+		domainCalls := make([]domain.ToolCall, len(resp.ToolCalls))
+		for i, c := range resp.ToolCalls {
+			domainCalls[i] = domain.ToolCall{ID: c.ID, Name: c.Name, Input: c.Input}
+		}
 		toolUseMsg := domain.Message{
-			Role:    "assistant",
-			Type:    "tool_call",
-			Content: "", // Tool calls don't have text content in tool_call type
+			Role:      "assistant",
+			Type:      "tool_call",
+			Content:   resp.Text, // may carry partial text alongside tool calls
+			ToolCalls: domainCalls,
 		}
 		currentMessages = append(currentMessages, toolUseMsg)
 
