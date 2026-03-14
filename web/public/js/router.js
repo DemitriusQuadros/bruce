@@ -1,12 +1,17 @@
 /* Hash-based router for tab navigation */
 
 const tabCallbacks = {};
+const cleanupCallbacks = {};
+let previousTab = null;
 
 /**
- * Register a tab's activation callback
+ * Register a tab's activation callback and optional cleanup callback
  */
-export function registerTab(name, onActivate) {
+export function registerTab(name, onActivate, onCleanup = null) {
     tabCallbacks[name] = onActivate;
+    if (onCleanup) {
+        cleanupCallbacks[name] = onCleanup;
+    }
 }
 
 /**
@@ -28,6 +33,11 @@ export function navigate(name) {
  * Activate a tab and hide others
  */
 function activateTab(name) {
+    // Call cleanup for previous tab if it exists
+    if (previousTab && cleanupCallbacks[previousTab]) {
+        cleanupCallbacks[previousTab]();
+    }
+
     // Hide all sections
     document.querySelectorAll('.tab-section').forEach(section => {
         section.hidden = true;
@@ -54,6 +64,9 @@ function activateTab(name) {
     if (tabCallbacks[name]) {
         tabCallbacks[name]();
     }
+
+    // Update previous tab tracker
+    previousTab = name;
 }
 
 /**

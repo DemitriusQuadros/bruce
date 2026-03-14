@@ -1,0 +1,295 @@
+/* Monitoring Dashboard Component Styles */
+
+.monitoring-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 16px;
+}
+
+.monitoring-metrics {
+    width: 100%;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.metric-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.metric-card:hover {
+    background-color: var(--bg-hover);
+}
+
+.metric-card-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-card-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text);
+    font-family: var(--font);
+}
+
+.metric-card-unit {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.metric-card.status-ok .metric-card-value {
+    color: var(--green);
+}
+
+.metric-card.status-warning .metric-card-value {
+    color: var(--orange);
+}
+
+.metric-card.status-error .metric-card-value {
+    color: var(--red);
+}
+
+.monitoring-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+}
+
+.monitoring-section h3 {
+    margin: 0;
+    color: var(--text);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.logs-filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.logs-filter-select {
+    flex: 1;
+    min-width: 150px;
+    padding: 8px;
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.logs-filter-select:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent);
+}
+
+.logs-filter-select:focus {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-color: var(--accent);
+}
+
+.logs-table-container {
+    overflow-x: auto;
+    margin-top: 12px;
+    border: 1px solid rgba(45, 49, 72, 0.5);
+    border-radius: var(--radius);
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--bg);
+    font-size: 0.875rem;
+}
+
+.logs-table thead {
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+}
+
+.logs-table th {
+    padding: 12px;
+    text-align: left;
+    color: var(--text);
+    font-weight: 600;
+    border-right: 1px solid rgba(45, 49, 72, 0.5);
+}
+
+.logs-table th:last-child {
+    border-right: none;
+}
+
+.logs-table td {
+    padding: 10px 12px;
+    color: var(--text);
+    border-bottom: 1px solid rgba(45, 49, 72, 0.5);
+    border-right: 1px solid rgba(45, 49, 72, 0.5);
+}
+
+.logs-table td:last-child {
+    border-right: none;
+}
+
+.logs-table tbody tr:hover {
+    background-color: var(--bg-hover);
+}
+
+.log-timestamp {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-family: var(--font);
+}
+
+.log-level {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    display: inline-block;
+}
+
+.log-level-info {
+    background-color: rgba(0, 212, 255, 0.2);
+    color: var(--accent);
+}
+
+.log-level-warn {
+    background-color: rgba(255, 179, 71, 0.2);
+    color: var(--orange);
+}
+
+.log-level-error {
+    background-color: rgba(255, 77, 109, 0.2);
+    color: var(--red);
+}
+
+.log-level-debug {
+    background-color: rgba(107, 114, 128, 0.2);
+    color: var(--text-muted);
+}
+
+.log-message {
+    color: var(--text);
+    word-break: break-word;
+    font-family: var(--font);
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+#logs-page-info {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.config-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-input {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.toggle-label span {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.toggle-label:hover span {
+    color: var(--accent);
+}
+
+/* Empty state for logs */
+.logs-empty-state {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.logs-empty-state i {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+    }
+
+    .logs-filter-bar {
+        flex-direction: column;
+    }
+
+    .logs-filter-select {
+        min-width: auto;
+    }
+
+    .pagination-controls {
+        flex-wrap: wrap;
+    }
+
+    .metric-card-value {
+        font-size: 1.5rem;
+    }
+
+    .logs-table {
+        font-size: 0.75rem;
+    }
+
+    .logs-table th,
+    .logs-table td {
+        padding: 8px;
+    }
+}
