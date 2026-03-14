@@ -246,3 +246,11 @@ func (m *MockLLMService) GenerateResponse(ctx context.Context, systemPrompt stri
 	args := m.Called(ctx, systemPrompt, history)
 	return args.String(0), args.Error(1)
 }
+
+func (m *MockLLMService) GenerateWithTools(ctx context.Context, systemPrompt string, messages []domain.Message, tools []ToolDefinition) (*ToolCallResponse, error) {
+	args := m.Called(ctx, systemPrompt, messages, tools)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ToolCallResponse), args.Error(1)
+}

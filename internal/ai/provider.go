@@ -7,18 +7,40 @@ import (
 	"bruce/internal/domain"
 )
 
+// ToolDefinition describes a tool that an LLM can use.
+type ToolDefinition struct {
+	Name        string                 // Tool name (must match what registry exposes)
+	Description string                 // Human-readable description for the LLM
+	InputSchema map[string]interface{} // JSON Schema describing parameters
+}
+
+// ToolCall represents a tool invocation requested by the LLM.
+type ToolCall struct {
+	ID    string                 // Unique ID assigned by LLM provider
+	Name  string                 // Tool name to invoke
+	Input map[string]interface{} // Parsed tool arguments
+}
+
+// ToolCallResponse is returned by GenerateWithTools.
+type ToolCallResponse struct {
+	Text      string     // Final text (non-empty when Complete == true)
+	ToolCalls []ToolCall // Tool calls requested by LLM (non-empty when not Complete)
+	Complete  bool       // true when no more tool calls are expected
+}
+
 // LLMService is the abstraction over any LLM provider.
-// The interface is unchanged from Spec 03; all complexity is hidden behind implementations.
 type LLMService interface {
 	GenerateResponse(ctx context.Context, systemPrompt string, history []domain.Message) (string, error)
+	GenerateWithTools(ctx context.Context, systemPrompt string, messages []domain.Message, tools []ToolDefinition) (*ToolCallResponse, error)
 }
 
 // Sentinel errors — provider-agnostic, used by the worker for retry decisions.
 var (
-	ErrRateLimited     = errors.New("ai: rate limited")         // 429 from any provider
-	ErrProviderDown    = errors.New("ai: provider unavailable") // 5xx from any provider
-	ErrBadRequest      = errors.New("ai: bad request")          // 4xx non-auth (don't retry)
-	ErrUnknownProvider = errors.New("ai: unknown provider")
+	ErrRateLimited       = errors.New("ai: rate limited")         // 429 from any provider
+	ErrProviderDown      = errors.New("ai: provider unavailable") // 5xx from any provider
+	ErrBadRequest        = errors.New("ai: bad request")          // 4xx non-auth (don't retry)
+	ErrUnknownProvider   = errors.New("ai: unknown provider")
+	ErrMaxRetriesExceeded = errors.New("ai: agent loop max retries exceeded")
 )
 
 // ProviderName is the canonical string key for each provider.

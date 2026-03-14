@@ -28,6 +28,7 @@ type Processor struct {
 	configRepo        repository.ConfigRepository
 	monitoringRepo    *repository.MonitoringRepository
 	llm               ai.LLMService
+	toolRegistry      ai.ToolRegistry
 	dispatcher        *DispatcherRegistry
 	metricsCollector  *monitoring.Collector
 	structuredLogger  *monitoring.StructuredLogger
@@ -52,11 +53,18 @@ func NewProcessor(
 		configRepo:       configRepo,
 		monitoringRepo:   monitoringRepo,
 		llm:              llm,
+		toolRegistry:     nil, // Spec 12 will wire this
 		dispatcher:       dispatcher,
 		metricsCollector: metricsCollector,
 		structuredLogger: structuredLogger,
 		cfg:              cfg,
 	}
+}
+
+// SetToolRegistry sets the tool registry for agentic loop execution.
+// Called by main.go after Spec 12 ships.
+func (p *Processor) SetToolRegistry(registry ai.ToolRegistry) {
+	p.toolRegistry = registry
 }
 
 // HandleProcessIncomingMessageTask is the Asynq handler for message:process tasks.
@@ -178,11 +186,20 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 			i, msg.Role, len(msg.Content), truncateForLog(msg.Content, 80))
 	}
 
-	// 6. Call LLM — inject session ID into context for provider resolution.
+	// 6. Call LLM — choose execution path based on tool registry availability.
 	logging.Debug("calling LLM")
 	ctx = ai.WithSessionID(ctx, session.ID)
 	llmStart := time.Now()
-	response, err := p.llm.GenerateResponse(ctx, systemPrompt, history)
+
+	var response string
+	if p.toolRegistry != nil {
+		// Use agentic loop when tool registry is wired (Spec 12+)
+		response, err = ai.RunAgentLoop(ctx, p.llm, p.toolRegistry, systemPrompt, history, 10, p.structuredLogger)
+	} else {
+		// Fallback to simple generation when no tool registry
+		response, err = p.llm.GenerateResponse(ctx, systemPrompt, history)
+	}
+
 	if err != nil {
 		if p.metricsCollector != nil {
 			p.metricsCollector.IncrementCounter("llm_calls_total", map[string]string{

@@ -57,6 +57,20 @@ func (r *ProviderRegistry) GenerateResponse(
 	return provider.GenerateResponse(ctx, systemPrompt, history)
 }
 
+// GenerateWithTools resolves the provider for this call and delegates.
+func (r *ProviderRegistry) GenerateWithTools(
+	ctx context.Context,
+	systemPrompt string,
+	messages []domain.Message,
+	tools []ToolDefinition,
+) (*ToolCallResponse, error) {
+	provider, err := r.resolveProvider(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return provider.GenerateWithTools(ctx, systemPrompt, messages, tools)
+}
+
 func (r *ProviderRegistry) resolveProvider(ctx context.Context) (LLMService, error) {
 	// 1. Check session-level override (set via web UI per session)
 	if sessionID, ok := sessionIDFromContext(ctx); ok {

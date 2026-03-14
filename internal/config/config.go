@@ -74,6 +74,12 @@ type UIConfig struct {
 	DefaultSystemPrompt string `mapstructure:"default_system_prompt"`
 }
 
+// ToolsConfig gates individual tool integrations.
+// Specific tool fields (GmailEnabled, CalendarEnabled, etc.) are added per-spec (13–31).
+type ToolsConfig struct {
+	// placeholder — filled by Specs 13–31
+}
+
 // Config is the top-level application configuration.
 type Config struct {
 	Server     ServerConfig     `mapstructure:"server"`
@@ -84,6 +90,7 @@ type Config struct {
 	OpenAI     OpenAIConfig     `mapstructure:"openai"`
 	LLM        LLMConfig        `mapstructure:"llm"`
 	Connectors ConnectorsConfig `mapstructure:"connectors"`
+	Tools      ToolsConfig      `mapstructure:"tools"`
 	UI         UIConfig         `mapstructure:"ui"`
 }
 

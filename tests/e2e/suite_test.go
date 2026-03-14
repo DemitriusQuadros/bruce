@@ -44,6 +44,10 @@ func (s *stubLLMService) GenerateResponse(_ context.Context, _ string, _ []domai
 	return "Hello from test stub", nil
 }
 
+func (s *stubLLMService) GenerateWithTools(_ context.Context, _ string, _ []domain.Message, _ []ai.ToolDefinition) (*ai.ToolCallResponse, error) {
+	return &ai.ToolCallResponse{Text: "Hello from test stub", Complete: true}, nil
+}
+
 // compile-time check: stubLLMService satisfies ai.LLMService.
 var _ ai.LLMService = (*stubLLMService)(nil)
 

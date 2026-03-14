@@ -60,3 +60,14 @@ CREATE TABLE IF NOT EXISTS monitoring_config (
     value TEXT NOT NULL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS tool_executions (
+    id          TEXT     PRIMARY KEY,
+    tool_name   TEXT     NOT NULL,
+    input       TEXT     NOT NULL DEFAULT '{}',
+    output      TEXT     NOT NULL DEFAULT '',
+    latency_ms  INTEGER  NOT NULL DEFAULT 0,
+    success     INTEGER  NOT NULL DEFAULT 1,
+    error_msg   TEXT     NOT NULL DEFAULT '',
+    executed_at DATETIME NOT NULL DEFAULT (datetime('now'))
+);

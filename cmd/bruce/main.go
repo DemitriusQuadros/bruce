@@ -30,6 +30,7 @@ import (
 	"bruce/internal/logging"
 	"bruce/internal/monitoring"
 	"bruce/internal/repository"
+	"bruce/internal/tools"
 	"bruce/internal/worker"
 )
 
@@ -103,6 +104,11 @@ func main() {
 	proc := worker.NewProcessor(
 		sessionRepo, messageRepo, configRepo, monitoringRepo,
 		llmService, dispatcherRegistry, metricsCollector, structuredLogger, cfg)
+
+	// Spec 12: wire tool registry (no tools registered yet — Specs 13–31 will add them)
+	toolRegistry := tools.NewRegistry(db)
+	proc.SetToolRegistry(toolRegistry)
+
 	muxHandler := asynq.NewServeMux()
 	muxHandler.HandleFunc(worker.TaskProcessIncomingMessage, proc.HandleProcessIncomingMessageTask)
 	muxHandler.HandleFunc("monitoring:flush_metrics", proc.HandleFlushMetricsTask)
