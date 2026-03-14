@@ -24,6 +24,7 @@ import (
 	_ "bruce/docs"
 	"bruce/internal/ai"
 	bruceapi "bruce/internal/api"
+	"bruce/internal/auth"
 	"bruce/internal/config"
 	"bruce/internal/connectors/discord"
 	"bruce/internal/database"
@@ -31,6 +32,7 @@ import (
 	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 	"bruce/internal/tools"
+	"bruce/internal/tools/bash"
 	"bruce/internal/worker"
 )
 
@@ -56,6 +58,17 @@ func main() {
 
 	if err := database.RunMigrations(db); err != nil {
 		log.Fatalf("FATAL: run migrations: %v", err)
+	}
+
+	// Spec 13: Google OAuth handler (nil if credentials not set).
+	var googleAuth *auth.GoogleHandler
+	if cfg.Google.OAuthClientID != "" {
+		googleAuth = auth.NewGoogleHandler(
+			cfg.Google.OAuthClientID,
+			cfg.Google.OAuthClientSecret,
+			cfg.Google.OAuthRedirectURI,
+			db,
+		)
 	}
 
 	// 3. Wire repositories, LLM providers and registry, and dispatcher.
@@ -107,6 +120,15 @@ func main() {
 
 	// Spec 12: wire tool registry (no tools registered yet — Specs 13–31 will add them)
 	toolRegistry := tools.NewRegistry(db)
+
+	// Spec 16: Register bash execution tool if enabled.
+	if cfg.Tools.Bash.Enabled {
+		bashTool := bash.New(cfg.Tools.Bash)
+		if err := toolRegistry.Register(bashTool); err != nil {
+			log.Fatalf("FATAL: register bash tool: %v", err)
+		}
+	}
+
 	proc.SetToolRegistry(toolRegistry)
 
 	muxHandler := asynq.NewServeMux()
@@ -172,7 +194,7 @@ func main() {
 		RootPath:     "/monitor",
 		RedisConnOpt: redisOpt,
 	})
-	router := bruceapi.NewRouter(startTime, mon, llmService, cfg)
+	router := bruceapi.NewRouter(startTime, mon, llmService, cfg, googleAuth)
 
 	// Wrap router with middleware to inject dependencies into request context.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

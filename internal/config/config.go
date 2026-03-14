@@ -74,10 +74,26 @@ type UIConfig struct {
 	DefaultSystemPrompt string `mapstructure:"default_system_prompt"`
 }
 
+// GoogleConfig holds Google OAuth 2.0 credentials.
+type GoogleConfig struct {
+	OAuthClientID     string `mapstructure:"oauth_client_id"`
+	OAuthClientSecret string `mapstructure:"oauth_client_secret"`
+	OAuthRedirectURI  string `mapstructure:"oauth_redirect_uri"`
+}
+
+// BashConfig holds configuration for the bash execution tool.
+type BashConfig struct {
+	Enabled         bool     `mapstructure:"enabled"`
+	AllowedCommands []string `mapstructure:"allowed_commands"`
+	WorkingDir      string   `mapstructure:"working_dir"`
+	MaxOutputBytes  int      `mapstructure:"max_output_bytes"`
+	TimeoutSeconds  int      `mapstructure:"timeout_seconds"`
+}
+
 // ToolsConfig gates individual tool integrations.
 // Specific tool fields (GmailEnabled, CalendarEnabled, etc.) are added per-spec (13–31).
 type ToolsConfig struct {
-	// placeholder — filled by Specs 13–31
+	Bash BashConfig `mapstructure:"bash"`
 }
 
 // Config is the top-level application configuration.
@@ -92,6 +108,7 @@ type Config struct {
 	Connectors ConnectorsConfig `mapstructure:"connectors"`
 	Tools      ToolsConfig      `mapstructure:"tools"`
 	UI         UIConfig         `mapstructure:"ui"`
+	Google     GoogleConfig     `mapstructure:"google"`
 }
 
 // Load reads configuration from CONFIG_PATH env var (defaults to "config.yml").

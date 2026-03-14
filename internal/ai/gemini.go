@@ -37,6 +37,7 @@ type geminiRequest struct {
 	SystemInstruction *geminiContent  `json:"system_instruction,omitempty"`
 	Contents          []geminiContent `json:"contents"`
 	GenerationConfig  geminiGenConfig `json:"generation_config"`
+	Tools             []geminiTool    `json:"tools,omitempty"`
 }
 
 type geminiContent struct {
@@ -45,12 +46,34 @@ type geminiContent struct {
 }
 
 type geminiPart struct {
-	Text string `json:"text"`
+	Text             string                  `json:"text,omitempty"`
+	FunctionCall     *geminiFunctionCall     `json:"functionCall,omitempty"`
+	FunctionResponse *geminiFunctionResponse `json:"functionResponse,omitempty"`
+}
+
+type geminiFunctionCall struct {
+	Name string                 `json:"name"`
+	Args map[string]interface{} `json:"args"`
+}
+
+type geminiFunctionResponse struct {
+	Name     string                 `json:"name"`
+	Response map[string]interface{} `json:"response"` // Must be a JSON object (Struct), not a plain string
 }
 
 type geminiGenConfig struct {
 	MaxOutputTokens int     `json:"maxOutputTokens"`
 	Temperature     float32 `json:"temperature,omitempty"`
+}
+
+type geminiTool struct {
+	FunctionDeclarations []geminiFunctionDecl `json:"functionDeclarations"`
+}
+
+type geminiFunctionDecl struct {
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Parameters  interface{} `json:"parameters"`
 }
 
 // Gemini API response shape
@@ -121,14 +144,142 @@ func (g *geminiProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 	return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 }
 
-// GenerateWithTools is a graceful fallback for Gemini (Phase 1 — native tool calling out of scope).
+// GenerateWithTools calls Gemini API with tool definitions and handles function calls.
 func (g *geminiProvider) GenerateWithTools(ctx context.Context, systemPrompt string, messages []domain.Message, tools []ToolDefinition) (*ToolCallResponse, error) {
-	// Filter to only text messages for the fallback path
-	text, err := g.GenerateResponse(ctx, systemPrompt, messages)
-	if err != nil {
-		return nil, err
+	sanitized := sanitizeHistory(messages)
+
+	// Convert tools to Gemini format
+	geminiTools := make([]geminiTool, 0)
+	if len(tools) > 0 {
+		funcs := make([]geminiFunctionDecl, len(tools))
+		for i, tool := range tools {
+			funcs[i] = geminiFunctionDecl{
+				Name:        tool.Name,
+				Description: tool.Description,
+				Parameters:  tool.InputSchema,
+			}
+		}
+		geminiTools = append(geminiTools, geminiTool{FunctionDeclarations: funcs})
 	}
-	return &ToolCallResponse{Text: text, Complete: true}, nil
+
+	// Convert messages to Gemini format
+	contents := make([]geminiContent, 0)
+	for _, m := range sanitized {
+		role := m.Role
+		if role == "assistant" {
+			role = "model"
+		}
+		if role == "system" {
+			continue // handled via system_instruction
+		}
+		// Skip empty tool_call placeholders added by the agent loop for Claude compatibility.
+		// Gemini rejects Parts with no initialized data field.
+		if m.Type == "tool_call" && m.Content == "" {
+			continue
+		}
+
+		// Handle tool results — Gemini requires response to be a JSON object (Struct)
+		if m.Type == "tool_result" && m.ToolResult != nil {
+			contents = append(contents, geminiContent{
+				Role: role,
+				Parts: []geminiPart{
+					{
+						FunctionResponse: &geminiFunctionResponse{
+							Name:     m.ToolResult.ID,
+							Response: map[string]interface{}{"output": m.ToolResult.Content},
+						},
+					},
+				},
+			})
+		} else {
+			contents = append(contents, geminiContent{
+				Role:  role,
+				Parts: []geminiPart{{Text: m.Content}},
+			})
+		}
+	}
+
+	reqBody := geminiRequest{
+		GenerationConfig: geminiGenConfig{MaxOutputTokens: g.maxTokens},
+		Contents:         contents,
+		Tools:            geminiTools,
+	}
+
+	if systemPrompt != "" {
+		reqBody.SystemInstruction = &geminiContent{
+			Parts: []geminiPart{{Text: systemPrompt}},
+		}
+	}
+
+	url := fmt.Sprintf("%s/%s:generateContent?key=%s", g.baseURL, g.model, g.apiKey)
+
+	data, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrProviderDown, err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	// Error handling
+	switch resp.StatusCode {
+	case 429:
+		return nil, ErrRateLimited
+	case 500, 502, 503:
+		return nil, ErrProviderDown
+	case 400:
+		return nil, fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+	}
+
+	var geminiResp geminiResponse
+	if err := json.Unmarshal(body, &geminiResp); err != nil {
+		return nil, fmt.Errorf("gemini: decode response: %w", err)
+	}
+
+	// Safety filter check
+	if geminiResp.PromptFeedback != nil && geminiResp.PromptFeedback.BlockReason != "" {
+		return nil, fmt.Errorf("%w: content blocked by Gemini safety filter (%s)",
+			ErrBadRequest, geminiResp.PromptFeedback.BlockReason)
+	}
+
+	if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("gemini: empty response")
+	}
+
+	// Parse response for text or function calls
+	respParts := geminiResp.Candidates[0].Content.Parts
+	var text string
+	var toolCalls []ToolCall
+
+	for _, part := range respParts {
+		if part.Text != "" {
+			text += part.Text
+		}
+		if part.FunctionCall != nil {
+			toolCalls = append(toolCalls, ToolCall{
+				ID:    part.FunctionCall.Name, // Use function name as ID
+				Name:  part.FunctionCall.Name,
+				Input: part.FunctionCall.Args,
+			})
+		}
+	}
+
+	// Return based on what was called
+	if len(toolCalls) > 0 {
+		return &ToolCallResponse{
+			ToolCalls: toolCalls,
+			Text:      text,
+			Complete:  false,
+		}, nil
+	}
+
+	return &ToolCallResponse{
+		Text:     text,
+		Complete: true,
+	}, nil
 }
 
 // mapToGeminiContents converts domain.Message slice to Gemini contents.

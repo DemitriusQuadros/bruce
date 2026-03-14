@@ -1,8 +1,6 @@
 module bruce
 
-go 1.23.2
-
-toolchain go1.23.8
+go 1.25.0
 
 require (
 	github.com/gizak/termui/v3 v3.1.0
@@ -18,6 +16,7 @@ require (
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/bwmarrin/discordgo v0.28.1 // indirect
 	github.com/cucumber/gherkin/go/v26 v26.2.0 // indirect
@@ -39,6 +38,7 @@ require (
 	github.com/swaggo/swag v1.16.6 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
