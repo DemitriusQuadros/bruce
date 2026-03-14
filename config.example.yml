@@ -45,3 +45,15 @@ google:
 
 ui:
   default_system_prompt: "You are Bruce, a personal AI assistant."
+
+tools:
+  bash:
+    enabled: false
+    # If empty, all commands allowed (except blocklist). If non-empty, only these binaries allowed.
+    allowed_commands: []
+    # Base directory for relative working_dir paths
+    working_dir: "/tmp/bruce"
+    # Truncate combined stdout+stderr at this size (bytes)
+    max_output_bytes: 65536
+    # Default command timeout in seconds (capped at 60s hard max)
+    timeout_seconds: 30

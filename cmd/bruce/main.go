@@ -32,6 +32,7 @@ import (
 	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 	"bruce/internal/tools"
+	"bruce/internal/tools/bash"
 	"bruce/internal/worker"
 )
 
@@ -119,6 +120,15 @@ func main() {
 
 	// Spec 12: wire tool registry (no tools registered yet — Specs 13–31 will add them)
 	toolRegistry := tools.NewRegistry(db)
+
+	// Spec 16: Register bash execution tool if enabled.
+	if cfg.Tools.Bash.Enabled {
+		bashTool := bash.New(cfg.Tools.Bash)
+		if err := toolRegistry.Register(bashTool); err != nil {
+			log.Fatalf("FATAL: register bash tool: %v", err)
+		}
+	}
+
 	proc.SetToolRegistry(toolRegistry)
 
 	muxHandler := asynq.NewServeMux()

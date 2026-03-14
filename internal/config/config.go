@@ -81,10 +81,19 @@ type GoogleConfig struct {
 	OAuthRedirectURI  string `mapstructure:"oauth_redirect_uri"`
 }
 
+// BashConfig holds configuration for the bash execution tool.
+type BashConfig struct {
+	Enabled         bool     `mapstructure:"enabled"`
+	AllowedCommands []string `mapstructure:"allowed_commands"`
+	WorkingDir      string   `mapstructure:"working_dir"`
+	MaxOutputBytes  int      `mapstructure:"max_output_bytes"`
+	TimeoutSeconds  int      `mapstructure:"timeout_seconds"`
+}
+
 // ToolsConfig gates individual tool integrations.
 // Specific tool fields (GmailEnabled, CalendarEnabled, etc.) are added per-spec (13–31).
 type ToolsConfig struct {
-	// placeholder — filled by Specs 13–31
+	Bash BashConfig `mapstructure:"bash"`
 }
 
 // Config is the top-level application configuration.
