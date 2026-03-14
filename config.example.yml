@@ -57,3 +57,7 @@ tools:
     max_output_bytes: 65536
     # Default command timeout in seconds (capped at 60s hard max)
     timeout_seconds: 30
+  gmail:
+    enabled: false   # requires google.oauth_client_id to be set
+  calendar:
+    enabled: false   # requires google.oauth_client_id to be set

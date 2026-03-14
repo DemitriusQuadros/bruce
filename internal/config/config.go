@@ -90,10 +90,21 @@ type BashConfig struct {
 	TimeoutSeconds  int      `mapstructure:"timeout_seconds"`
 }
 
+// GmailConfig gates the Gmail tool (Spec 14).
+type GmailConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
+// CalendarConfig gates the Google Calendar tool (Spec 15).
+type CalendarConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
 // ToolsConfig gates individual tool integrations.
-// Specific tool fields (GmailEnabled, CalendarEnabled, etc.) are added per-spec (13–31).
 type ToolsConfig struct {
-	Bash BashConfig `mapstructure:"bash"`
+	Bash     BashConfig     `mapstructure:"bash"`
+	Gmail    GmailConfig    `mapstructure:"gmail"`
+	Calendar CalendarConfig `mapstructure:"calendar"`
 }
 
 // Config is the top-level application configuration.

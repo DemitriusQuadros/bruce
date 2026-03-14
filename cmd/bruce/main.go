@@ -33,6 +33,8 @@ import (
 	"bruce/internal/repository"
 	"bruce/internal/tools"
 	"bruce/internal/tools/bash"
+	calendar "bruce/internal/tools/calendar"
+	gmail "bruce/internal/tools/gmail"
 	"bruce/internal/worker"
 )
 
@@ -126,6 +128,27 @@ func main() {
 		bashTool := bash.New(cfg.Tools.Bash)
 		if err := toolRegistry.Register(bashTool); err != nil {
 			log.Fatalf("FATAL: register bash tool: %v", err)
+		}
+	}
+
+	// Spec 14: Gmail tools (requires Google OAuth).
+	if cfg.Tools.Gmail.Enabled {
+		if googleAuth == nil {
+			log.Printf("WARNING: tools.gmail.enabled=true but google OAuth not configured — skipping")
+		} else {
+			toolRegistry.Register(gmail.NewReadTool(googleAuth))   //nolint:errcheck
+			toolRegistry.Register(gmail.NewSearchTool(googleAuth)) //nolint:errcheck
+			toolRegistry.Register(gmail.NewSendTool(googleAuth))   //nolint:errcheck
+		}
+	}
+
+	// Spec 15: Calendar tools (requires Google OAuth).
+	if cfg.Tools.Calendar.Enabled {
+		if googleAuth == nil {
+			log.Printf("WARNING: tools.calendar.enabled=true but google OAuth not configured — skipping")
+		} else {
+			toolRegistry.Register(calendar.NewReadTool(googleAuth))    //nolint:errcheck
+			toolRegistry.Register(calendar.NewCreateTool(googleAuth))  //nolint:errcheck
 		}
 	}
 

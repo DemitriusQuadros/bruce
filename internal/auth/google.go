@@ -129,6 +129,12 @@ func (h *GoogleHandler) CallbackHandler() http.HandlerFunc {
 	}
 }
 
+// OAuthConfig returns the underlying oauth2.Config used by this handler.
+// Tool implementations use this to build a TokenSource for Google API clients.
+func (h *GoogleHandler) OAuthConfig() *oauth2.Config {
+	return h.config
+}
+
 // GetToken retrieves the token for the given userID and provider from the database,
 // and refreshes it if expired.
 func (h *GoogleHandler) GetToken(ctx context.Context, userID string) (*oauth2.Token, error) {
