@@ -71,3 +71,15 @@ CREATE TABLE IF NOT EXISTS tool_executions (
     error_msg   TEXT     NOT NULL DEFAULT '',
     executed_at DATETIME NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    id           INTEGER  PRIMARY KEY AUTOINCREMENT,
+    user_id      TEXT     NOT NULL,
+    provider     TEXT     NOT NULL,
+    access_token TEXT     NOT NULL,
+    refresh_token TEXT,
+    expires_at   INTEGER,
+    created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, provider)
+);

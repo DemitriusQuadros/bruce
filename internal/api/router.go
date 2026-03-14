@@ -14,6 +14,7 @@ import (
 	_ "bruce/docs"
 	"bruce/internal/ai"
 	"bruce/internal/api/handlers"
+	"bruce/internal/auth"
 	"bruce/internal/config"
 	"bruce/web"
 )
@@ -22,8 +23,8 @@ import (
 // startTime is used to calculate uptime for the /health endpoint.
 // asynqmonHandler is the Asynqmon dashboard handler mounted at /monitor.
 // registry is the LLM provider registry for the /api/v1/providers endpoint.
-// metricsCollector is optional and used to record metrics if provided.
-func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry, cfg *config.Config) *mux.Router {
+// googleAuth is the Google OAuth handler (nil if not configured).
+func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry, cfg *config.Config, googleAuth *auth.GoogleHandler) *mux.Router {
 	r := mux.NewRouter()
 
 	// Apply middleware stack (innermost to outermost).
@@ -54,6 +55,12 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/metrics", handlers.MetricsHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/monitoring/config", handlers.MonitoringConfigGetHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/monitoring/config", handlers.MonitoringConfigPatchHandler()).Methods(http.MethodPatch)
+
+	// Google OAuth routes (registered only when OAuth is configured).
+	if googleAuth != nil {
+		r.HandleFunc("/auth/google/start", googleAuth.StartHandler()).Methods(http.MethodGet)
+		r.HandleFunc("/auth/google/callback", googleAuth.CallbackHandler()).Methods(http.MethodGet)
+	}
 
 	// Asynqmon dashboard — must be before the SPA catch-all.
 	r.PathPrefix("/monitor").Handler(asynqmonHandler)

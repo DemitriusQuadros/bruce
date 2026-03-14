@@ -74,6 +74,13 @@ type UIConfig struct {
 	DefaultSystemPrompt string `mapstructure:"default_system_prompt"`
 }
 
+// GoogleConfig holds Google OAuth 2.0 credentials.
+type GoogleConfig struct {
+	OAuthClientID     string `mapstructure:"oauth_client_id"`
+	OAuthClientSecret string `mapstructure:"oauth_client_secret"`
+	OAuthRedirectURI  string `mapstructure:"oauth_redirect_uri"`
+}
+
 // ToolsConfig gates individual tool integrations.
 // Specific tool fields (GmailEnabled, CalendarEnabled, etc.) are added per-spec (13–31).
 type ToolsConfig struct {
@@ -92,6 +99,7 @@ type Config struct {
 	Connectors ConnectorsConfig `mapstructure:"connectors"`
 	Tools      ToolsConfig      `mapstructure:"tools"`
 	UI         UIConfig         `mapstructure:"ui"`
+	Google     GoogleConfig     `mapstructure:"google"`
 }
 
 // Load reads configuration from CONFIG_PATH env var (defaults to "config.yml").

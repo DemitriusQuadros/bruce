@@ -35,5 +35,13 @@ connectors:
     enabled: false
     bot_token: ""
 
+google:
+  # OAuth 2.0 credentials from https://console.cloud.google.com/
+  # Create a "Web application" credential, set redirect URI to:
+  #   http://localhost:8080/auth/google/callback
+  oauth_client_id: ""
+  oauth_client_secret: ""
+  oauth_redirect_uri: "http://localhost:8080/auth/google/callback"
+
 ui:
   default_system_prompt: "You are Bruce, a personal AI assistant."

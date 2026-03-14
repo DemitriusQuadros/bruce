@@ -24,6 +24,7 @@ import (
 	_ "bruce/docs"
 	"bruce/internal/ai"
 	bruceapi "bruce/internal/api"
+	"bruce/internal/auth"
 	"bruce/internal/config"
 	"bruce/internal/connectors/discord"
 	"bruce/internal/database"
@@ -56,6 +57,17 @@ func main() {
 
 	if err := database.RunMigrations(db); err != nil {
 		log.Fatalf("FATAL: run migrations: %v", err)
+	}
+
+	// Spec 13: Google OAuth handler (nil if credentials not set).
+	var googleAuth *auth.GoogleHandler
+	if cfg.Google.OAuthClientID != "" {
+		googleAuth = auth.NewGoogleHandler(
+			cfg.Google.OAuthClientID,
+			cfg.Google.OAuthClientSecret,
+			cfg.Google.OAuthRedirectURI,
+			db,
+		)
 	}
 
 	// 3. Wire repositories, LLM providers and registry, and dispatcher.
@@ -172,7 +184,7 @@ func main() {
 		RootPath:     "/monitor",
 		RedisConnOpt: redisOpt,
 	})
-	router := bruceapi.NewRouter(startTime, mon, llmService, cfg)
+	router := bruceapi.NewRouter(startTime, mon, llmService, cfg, googleAuth)
 
 	// Wrap router with middleware to inject dependencies into request context.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
