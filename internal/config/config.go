@@ -100,11 +100,19 @@ type CalendarConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+// FilesConfig holds configuration for the file I/O tools (Spec 17).
+type FilesConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`
+	HomeDir     string `mapstructure:"home_dir"`
+	MaxFileSize int    `mapstructure:"max_file_size"` // bytes
+}
+
 // ToolsConfig gates individual tool integrations.
 type ToolsConfig struct {
 	Bash     BashConfig     `mapstructure:"bash"`
 	Gmail    GmailConfig    `mapstructure:"gmail"`
 	Calendar CalendarConfig `mapstructure:"calendar"`
+	Files    FilesConfig    `mapstructure:"files"`
 }
 
 // Config is the top-level application configuration.

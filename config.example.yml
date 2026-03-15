@@ -61,3 +61,7 @@ tools:
     enabled: false   # requires google.oauth_client_id to be set
   calendar:
     enabled: false   # requires google.oauth_client_id to be set
+  files:
+    enabled: false
+    home_dir: ""           # defaults to $HOME if empty
+    max_file_size: 102400  # 100KB
