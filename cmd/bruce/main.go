@@ -34,6 +34,7 @@ import (
 	"bruce/internal/tools"
 	"bruce/internal/tools/bash"
 	calendar "bruce/internal/tools/calendar"
+	"bruce/internal/tools/files"
 	gmail "bruce/internal/tools/gmail"
 	"bruce/internal/worker"
 )
@@ -147,8 +148,21 @@ func main() {
 		if googleAuth == nil {
 			log.Printf("WARNING: tools.calendar.enabled=true but google OAuth not configured — skipping")
 		} else {
-			toolRegistry.Register(calendar.NewReadTool(googleAuth))    //nolint:errcheck
-			toolRegistry.Register(calendar.NewCreateTool(googleAuth))  //nolint:errcheck
+			toolRegistry.Register(calendar.NewReadTool(googleAuth))   //nolint:errcheck
+			toolRegistry.Register(calendar.NewCreateTool(googleAuth)) //nolint:errcheck
+		}
+	}
+
+	// Spec 17: File I/O tools.
+	if cfg.Tools.Files.Enabled {
+		if cfg.Tools.Files.HomeDir == "" {
+			cfg.Tools.Files.HomeDir = os.Getenv("HOME")
+		}
+		if err := toolRegistry.Register(files.NewFileReadTool(cfg.Tools.Files)); err != nil {
+			log.Fatalf("FATAL: register file_read tool: %v", err)
+		}
+		if err := toolRegistry.Register(files.NewFileWriteTool(cfg.Tools.Files)); err != nil {
+			log.Fatalf("FATAL: register file_write tool: %v", err)
 		}
 	}
 
