@@ -34,6 +34,7 @@ import (
 	"bruce/internal/tools"
 	"bruce/internal/tools/bash"
 	calendar "bruce/internal/tools/calendar"
+	"bruce/internal/tools/docs"
 	"bruce/internal/tools/files"
 	gmail "bruce/internal/tools/gmail"
 	"bruce/internal/worker"
@@ -150,6 +151,17 @@ func main() {
 		} else {
 			toolRegistry.Register(calendar.NewReadTool(googleAuth))   //nolint:errcheck
 			toolRegistry.Register(calendar.NewCreateTool(googleAuth)) //nolint:errcheck
+		}
+	}
+
+	// Spec 18: Google Docs tools (requires Google OAuth).
+	if cfg.Tools.Docs.Enabled {
+		if googleAuth == nil {
+			log.Printf("WARNING: tools.docs.enabled=true but google OAuth not configured — skipping")
+		} else {
+			toolRegistry.Register(docs.NewReadTool(googleAuth))   //nolint:errcheck
+			toolRegistry.Register(docs.NewCreateTool(googleAuth)) //nolint:errcheck
+			toolRegistry.Register(docs.NewAppendTool(googleAuth)) //nolint:errcheck
 		}
 	}
 
