@@ -1,11 +1,9 @@
-version: "3.8"
-
 services:
   redis:
     image: redis:7-alpine
     container_name: bruce-redis
     restart: unless-stopped
-    command: >
+    command: 
       redis-server
       --maxmemory 32mb
       --maxmemory-policy allkeys-lru
@@ -25,7 +23,7 @@ services:
     container_name: bruce
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "9090:9090"
     volumes:
       - ./data:/app/data
       - ./config.yml:/app/config.yml:ro
@@ -36,7 +34,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/health"]
       interval: 15s
       timeout: 5s
       retries: 3
