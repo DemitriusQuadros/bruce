@@ -63,6 +63,9 @@ tools:
     enabled: false   # requires google.oauth_client_id to be set
   docs:
     enabled: false   # Requires google.oauth_client_id with documents scope
+  notion:
+    enabled: false
+    api_token: ""   # Notion integration token (secret_...)
   files:
     enabled: false
     home_dir: ""           # defaults to $HOME if empty

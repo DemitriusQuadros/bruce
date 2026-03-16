@@ -105,6 +105,12 @@ type DocsConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+// NotionConfig gates the Notion tool (Spec 19).
+type NotionConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	APIToken string `mapstructure:"api_token"`
+}
+
 // FilesConfig holds configuration for the file I/O tools (Spec 17).
 type FilesConfig struct {
 	Enabled     bool   `mapstructure:"enabled"`
@@ -119,6 +125,7 @@ type ToolsConfig struct {
 	Calendar CalendarConfig `mapstructure:"calendar"`
 	Files    FilesConfig    `mapstructure:"files"`
 	Docs     DocsConfig     `mapstructure:"docs"`
+	Notion   NotionConfig   `mapstructure:"notion"`
 }
 
 // Config is the top-level application configuration.

@@ -37,6 +37,7 @@ import (
 	"bruce/internal/tools/docs"
 	"bruce/internal/tools/files"
 	gmail "bruce/internal/tools/gmail"
+	"bruce/internal/tools/notion"
 	"bruce/internal/worker"
 )
 
@@ -162,6 +163,17 @@ func main() {
 			toolRegistry.Register(docs.NewReadTool(googleAuth))   //nolint:errcheck
 			toolRegistry.Register(docs.NewCreateTool(googleAuth)) //nolint:errcheck
 			toolRegistry.Register(docs.NewAppendTool(googleAuth)) //nolint:errcheck
+		}
+	}
+
+	// Spec 19: Notion tools.
+	if cfg.Tools.Notion.Enabled {
+		if cfg.Tools.Notion.APIToken == "" {
+			log.Printf("WARNING: tools.notion.enabled=true but api_token is empty — skipping")
+		} else {
+			toolRegistry.Register(notion.NewReadTool(cfg.Tools.Notion.APIToken))   //nolint:errcheck
+			toolRegistry.Register(notion.NewCreateTool(cfg.Tools.Notion.APIToken)) //nolint:errcheck
+			toolRegistry.Register(notion.NewUpdateTool(cfg.Tools.Notion.APIToken)) //nolint:errcheck
 		}
 	}
 
