@@ -100,6 +100,11 @@ type CalendarConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+// DocsConfig gates the Google Docs tool (Spec 18).
+type DocsConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
 // FilesConfig holds configuration for the file I/O tools (Spec 17).
 type FilesConfig struct {
 	Enabled     bool   `mapstructure:"enabled"`
@@ -113,6 +118,7 @@ type ToolsConfig struct {
 	Gmail    GmailConfig    `mapstructure:"gmail"`
 	Calendar CalendarConfig `mapstructure:"calendar"`
 	Files    FilesConfig    `mapstructure:"files"`
+	Docs     DocsConfig     `mapstructure:"docs"`
 }
 
 // Config is the top-level application configuration.
