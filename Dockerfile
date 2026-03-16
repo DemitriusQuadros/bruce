@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # build-base and sqlite-dev are required for CGO (mattn/go-sqlite3).
 RUN apk add --no-cache build-base sqlite-dev
@@ -25,6 +25,6 @@ RUN mkdir -p /app/data
 
 COPY --from=builder /bin/bruce .
 
-EXPOSE 8080
+EXPOSE 9090
 
 ENTRYPOINT ["./bruce"]
