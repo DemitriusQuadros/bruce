@@ -38,6 +38,7 @@ import (
 	"bruce/internal/tools/files"
 	gmail "bruce/internal/tools/gmail"
 	"bruce/internal/tools/notion"
+	"bruce/internal/tools/trello"
 	"bruce/internal/worker"
 )
 
@@ -174,6 +175,18 @@ func main() {
 			toolRegistry.Register(notion.NewReadTool(cfg.Tools.Notion.APIToken))   //nolint:errcheck
 			toolRegistry.Register(notion.NewCreateTool(cfg.Tools.Notion.APIToken)) //nolint:errcheck
 			toolRegistry.Register(notion.NewUpdateTool(cfg.Tools.Notion.APIToken)) //nolint:errcheck
+		}
+	}
+
+	// Spec 20: Trello tools.
+	if cfg.Tools.Trello.Enabled {
+		if cfg.Tools.Trello.APIKey == "" || cfg.Tools.Trello.APIToken == "" {
+			log.Printf("WARNING: tools.trello.enabled=true but api_key or api_token is empty — skipping")
+		} else {
+			toolRegistry.Register(trello.NewBoardListTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken)) //nolint:errcheck
+			toolRegistry.Register(trello.NewCardCreateTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken)) //nolint:errcheck
+			toolRegistry.Register(trello.NewCardMoveTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken))   //nolint:errcheck
+			toolRegistry.Register(trello.NewCardGetTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken))    //nolint:errcheck
 		}
 	}
 

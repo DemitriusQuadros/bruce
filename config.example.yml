@@ -66,6 +66,10 @@ tools:
   notion:
     enabled: false
     api_token: ""   # Notion integration token (secret_...)
+  trello:
+    enabled: false
+    api_key: ""    # Trello Power-Up API key
+    api_token: ""  # Trello user token
   files:
     enabled: false
     home_dir: ""           # defaults to $HOME if empty

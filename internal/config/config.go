@@ -111,6 +111,13 @@ type NotionConfig struct {
 	APIToken string `mapstructure:"api_token"`
 }
 
+// TrelloConfig gates the Trello tool (Spec 20).
+type TrelloConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	APIKey   string `mapstructure:"api_key"`
+	APIToken string `mapstructure:"api_token"`
+}
+
 // FilesConfig holds configuration for the file I/O tools (Spec 17).
 type FilesConfig struct {
 	Enabled     bool   `mapstructure:"enabled"`
@@ -126,6 +133,7 @@ type ToolsConfig struct {
 	Files    FilesConfig    `mapstructure:"files"`
 	Docs     DocsConfig     `mapstructure:"docs"`
 	Notion   NotionConfig   `mapstructure:"notion"`
+	Trello   TrelloConfig   `mapstructure:"trello"`
 }
 
 // Config is the top-level application configuration.
