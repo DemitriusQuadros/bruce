@@ -74,3 +74,14 @@ tools:
     enabled: false
     home_dir: ""           # defaults to $HOME if empty
     max_file_size: 102400  # 100KB
+
+  github:
+    enabled: false
+    token: ""              # GitHub personal access token (needs repo, read:user scopes)
+    default_owner: ""      # Default repository owner (user or org) when not provided in tool input
+    default_repo: ""       # Default repository name when not provided in tool input
+
+  git_local:
+    enabled: false
+    home_dir: ""           # Base directory for relative repo paths; defaults to $HOME if empty
+    timeout_seconds: 30    # Timeout for each git subprocess command

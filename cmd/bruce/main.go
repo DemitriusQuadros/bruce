@@ -36,6 +36,8 @@ import (
 	calendar "bruce/internal/tools/calendar"
 	"bruce/internal/tools/docs"
 	"bruce/internal/tools/files"
+	git_local "bruce/internal/tools/git_local"
+	"bruce/internal/tools/github"
 	gmail "bruce/internal/tools/gmail"
 	"bruce/internal/tools/notion"
 	"bruce/internal/tools/trello"
@@ -183,11 +185,38 @@ func main() {
 		if cfg.Tools.Trello.APIKey == "" || cfg.Tools.Trello.APIToken == "" {
 			log.Printf("WARNING: tools.trello.enabled=true but api_key or api_token is empty — skipping")
 		} else {
-			toolRegistry.Register(trello.NewBoardListTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken)) //nolint:errcheck
+			toolRegistry.Register(trello.NewBoardListTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken))  //nolint:errcheck
 			toolRegistry.Register(trello.NewCardCreateTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken)) //nolint:errcheck
 			toolRegistry.Register(trello.NewCardMoveTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken))   //nolint:errcheck
 			toolRegistry.Register(trello.NewCardGetTool(cfg.Tools.Trello.APIKey, cfg.Tools.Trello.APIToken))    //nolint:errcheck
 		}
+	}
+	// Spec 21: GitHub tools.
+	if cfg.Tools.Github.Enabled {
+		if cfg.Tools.Github.Token == "" {
+			log.Printf("WARNING: tools.github.enabled=true but token is empty — skipping")
+		} else {
+			toolRegistry.Register(github.NewListBranchesTool(cfg.Tools.Github.Token, cfg.Tools.Github.DefaultOwner, cfg.Tools.Github.DefaultRepo)) //nolint:errcheck
+			toolRegistry.Register(github.NewListIssuesTool(cfg.Tools.Github.Token, cfg.Tools.Github.DefaultOwner, cfg.Tools.Github.DefaultRepo))   //nolint:errcheck
+			toolRegistry.Register(github.NewListPRsTool(cfg.Tools.Github.Token, cfg.Tools.Github.DefaultOwner, cfg.Tools.Github.DefaultRepo))      //nolint:errcheck
+			toolRegistry.Register(github.NewCreateIssueTool(cfg.Tools.Github.Token, cfg.Tools.Github.DefaultOwner, cfg.Tools.Github.DefaultRepo))  //nolint:errcheck
+		}
+	}
+
+	// Spec 22: Git local tools.
+	if cfg.Tools.GitLocal.Enabled {
+		homeDir := cfg.Tools.GitLocal.HomeDir
+		if homeDir == "" {
+			homeDir = os.Getenv("HOME")
+		}
+		timeout := time.Duration(cfg.Tools.GitLocal.TimeoutSeconds) * time.Second
+		if timeout == 0 {
+			timeout = 30 * time.Second
+		}
+		toolRegistry.Register(git_local.NewStatusTool(homeDir, timeout)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewCommitTool(homeDir, timeout)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewPushTool(homeDir, timeout))   //nolint:errcheck
+		toolRegistry.Register(git_local.NewBranchTool(homeDir, timeout)) //nolint:errcheck
 	}
 
 	// Spec 17: File I/O tools.
@@ -268,7 +297,7 @@ func main() {
 		RootPath:     "/monitor",
 		RedisConnOpt: redisOpt,
 	})
-	router := bruceapi.NewRouter(startTime, mon, llmService, cfg, googleAuth)
+	router := bruceapi.NewRouter(startTime, mon, llmService, cfg, googleAuth, toolRegistry)
 
 	// Wrap router with middleware to inject dependencies into request context.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

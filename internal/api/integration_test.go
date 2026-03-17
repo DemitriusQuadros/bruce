@@ -29,7 +29,7 @@ func TestFullAPIWorkflow(t *testing.T) {
 	configRepo := repository.NewConfigRepository(db)
 	registry := worker.NewDispatcherRegistry()
 
-	router := NewRouter(time.Now().Add(-5*time.Second), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil)
+	router := NewRouter(time.Now().Add(-5*time.Second), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil, nil)
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -229,7 +229,7 @@ func TestAPIErrorResponses(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil)
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil, nil)
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -281,7 +281,7 @@ func TestAPICORSSupport(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil)
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil, nil)
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

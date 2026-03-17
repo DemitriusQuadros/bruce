@@ -24,7 +24,7 @@ import (
 // asynqmonHandler is the Asynqmon dashboard handler mounted at /monitor.
 // registry is the LLM provider registry for the /api/v1/providers endpoint.
 // googleAuth is the Google OAuth handler (nil if not configured).
-func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry, cfg *config.Config, googleAuth *auth.GoogleHandler) *mux.Router {
+func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.ProviderRegistry, cfg *config.Config, googleAuth *auth.GoogleHandler, toolRegistry ai.ToolRegistry) *mux.Router {
 	r := mux.NewRouter()
 
 	// Apply middleware stack (innermost to outermost).
@@ -45,7 +45,7 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/connectors", handlers.ConnectorsHandler()).Methods(http.MethodGet)
 
 	// Chat routes (web chat interface — synchronous LLM calls).
-	chatHandler := handlers.ChatHandler(registry, cfg)
+	chatHandler := handlers.ChatHandler(registry, cfg, toolRegistry)
 	api.HandleFunc("/chat/sessions", chatHandler).Methods("GET", "POST", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}", chatHandler).Methods("GET", "DELETE", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}/messages", chatHandler).Methods("GET", "POST", "OPTIONS")
