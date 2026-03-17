@@ -92,6 +92,36 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 		"connectors.whatsapp.enabled":  boolToString(cfg.Connectors.WhatsApp.Enabled),
 		"connectors.discord.enabled":   boolToString(cfg.Connectors.Discord.Enabled),
 		"connectors.discord.bot_token": cfg.Connectors.Discord.BotToken,
+		// Google OAuth
+		"google.oauth_client_id":          cfg.Google.OAuthClientID,
+		"google.oauth_client_secret":      cfg.Google.OAuthClientSecret,
+		"google.oauth_redirect_uri":       cfg.Google.OAuthRedirectURI,
+		// Notion
+		"tools.notion.enabled":   boolToString(cfg.Tools.Notion.Enabled),
+		"tools.notion.api_token": cfg.Tools.Notion.APIToken,
+		// Trello
+		"tools.trello.enabled":    boolToString(cfg.Tools.Trello.Enabled),
+		"tools.trello.api_key":    cfg.Tools.Trello.APIKey,
+		"tools.trello.api_token":  cfg.Tools.Trello.APIToken,
+		// GitHub
+		"tools.github.enabled":        boolToString(cfg.Tools.Github.Enabled),
+		"tools.github.token":          cfg.Tools.Github.Token,
+		"tools.github.default_owner":  cfg.Tools.Github.DefaultOwner,
+		"tools.github.default_repo":   cfg.Tools.Github.DefaultRepo,
+		// Git Local
+		"tools.git_local.enabled":          boolToString(cfg.Tools.GitLocal.Enabled),
+		"tools.git_local.home_dir":         cfg.Tools.GitLocal.HomeDir,
+		"tools.git_local.timeout_seconds":  intToString(cfg.Tools.GitLocal.TimeoutSeconds),
+		// Bash
+		"tools.bash.enabled": boolToString(cfg.Tools.Bash.Enabled),
+		// Google-gated tools
+		"tools.gmail.enabled":     boolToString(cfg.Tools.Gmail.Enabled),
+		"tools.calendar.enabled":  boolToString(cfg.Tools.Calendar.Enabled),
+		"tools.docs.enabled":      boolToString(cfg.Tools.Docs.Enabled),
+		// Files
+		"tools.files.enabled":        boolToString(cfg.Tools.Files.Enabled),
+		"tools.files.home_dir":       cfg.Tools.Files.HomeDir,
+		"tools.files.max_file_size":  intToString(cfg.Tools.Files.MaxFileSize),
 	}
 
 	// Get all DB values.
@@ -113,21 +143,25 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 		return
 	}
 
-	// Build map of DB values (DB wins over YAML).
+	// Index DB values by key.
 	dbValues := make(map[string]string)
 	for _, entry := range dbEntries {
 		dbValues[entry.Key] = entry.Value
 	}
 
-	// Merge: DB overrides YAML defaults.
+	// Only expose DB-stored values. YAML defaults are used by the app internally
+	// but are never surfaced to the UI — the user must explicitly save each field.
 	result := make([]configEntry, 0, len(knownKeys))
-	for key, yamlValue := range knownKeys {
-		value := yamlValue
-		if dbValue, exists := dbValues[key]; exists {
-			value = dbValue
+	for key := range knownKeys {
+		dbValue, inDB := dbValues[key]
+		if !inDB {
+			// Not saved yet — return empty so the UI shows "Not configured".
+			result = append(result, configEntry{Key: key, Value: ""})
+			continue
 		}
 
-		// Mask sensitive values.
+		value := dbValue
+		// Mask sensitive values so the stored secret is never transmitted.
 		if isSensitiveKey(key) {
 			value = "****"
 		}
@@ -209,6 +243,36 @@ func handlePutConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 		"connectors.whatsapp.enabled",
 		"connectors.discord.enabled",
 		"connectors.discord.bot_token",
+		// Google OAuth
+		"google.oauth_client_id",
+		"google.oauth_client_secret",
+		"google.oauth_redirect_uri",
+		// Notion
+		"tools.notion.enabled",
+		"tools.notion.api_token",
+		// Trello
+		"tools.trello.enabled",
+		"tools.trello.api_key",
+		"tools.trello.api_token",
+		// GitHub
+		"tools.github.enabled",
+		"tools.github.token",
+		"tools.github.default_owner",
+		"tools.github.default_repo",
+		// Git Local
+		"tools.git_local.enabled",
+		"tools.git_local.home_dir",
+		"tools.git_local.timeout_seconds",
+		// Bash
+		"tools.bash.enabled",
+		// Google-gated tools
+		"tools.gmail.enabled",
+		"tools.calendar.enabled",
+		"tools.docs.enabled",
+		// Files
+		"tools.files.enabled",
+		"tools.files.home_dir",
+		"tools.files.max_file_size",
 	}
 	if !contains(knownKeys, req.Key) {
 		if collector != nil {
