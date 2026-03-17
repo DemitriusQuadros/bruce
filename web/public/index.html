@@ -96,7 +96,53 @@
                 <select id="logs-session-select"></select>
                 <button id="logs-refresh" class="btn-secondary">Refresh</button>
             </div>
-            <div id="logs-messages"></div>
+
+            <!-- Subtabs -->
+            <div class="logs-subtabs">
+                <button class="logs-subtab-btn active" data-subtab="messages">Messages</button>
+                <button class="logs-subtab-btn" data-subtab="tools">Tools</button>
+            </div>
+
+            <!-- Messages subtab -->
+            <div id="logs-subtab-messages" class="logs-subtab-panel">
+                <div id="logs-messages"></div>
+            </div>
+
+            <!-- Tools subtab -->
+            <div id="logs-subtab-tools" class="logs-subtab-panel" hidden>
+                <div class="tools-toolbar">
+                    <label class="tools-filter-label">
+                        Tool
+                        <select id="tool-name-filter">
+                            <option value="">All Tools</option>
+                        </select>
+                    </label>
+                    <label class="tools-filter-label">
+                        Status
+                        <select id="tool-status-filter">
+                            <option value="">All</option>
+                            <option value="success">Success</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="tools-table-container">
+                    <table id="tools-log-table" class="tools-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-col="tool_name">Tool <span class="sort-icon"></span></th>
+                                <th>Parameters</th>
+                                <th class="sortable" data-col="status">Status <span class="sort-icon"></span></th>
+                                <th class="sortable" data-col="latency_ms">Latency <span class="sort-icon"></span></th>
+                                <th class="sortable" data-col="created_at">Timestamp <span class="sort-icon"></span></th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tools-log-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="tools-empty" class="tools-empty" hidden>No tool executions for this session.</div>
+            </div>
         </section>
 
         <!-- Tab: Settings -->

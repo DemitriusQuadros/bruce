@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS monitoring_config (
 
 CREATE TABLE IF NOT EXISTS tool_executions (
     id          TEXT     PRIMARY KEY,
+    session_id  TEXT     NOT NULL DEFAULT '',
     tool_name   TEXT     NOT NULL,
     input       TEXT     NOT NULL DEFAULT '{}',
     output      TEXT     NOT NULL DEFAULT '',

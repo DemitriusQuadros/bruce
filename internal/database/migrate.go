@@ -52,6 +52,25 @@ func RunMigrations(db *sql.DB) error {
 		log.Printf("migration: add_web_connector_type applied successfully")
 	}
 
+	// Migration: add session_id column to tool_executions.
+	if exists, err := columnExists(db, "tool_executions", "session_id"); err != nil {
+		return fmt.Errorf("check column exists: %w", err)
+	} else if !exists {
+		log.Printf("migration: applying add_session_id_to_tool_executions")
+		if _, err := db.Exec(`ALTER TABLE tool_executions ADD COLUMN session_id TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("migration add_session_id_to_tool_executions: %w", err)
+		}
+		if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_tool_executions_session ON tool_executions(session_id, executed_at DESC)`); err != nil {
+			return fmt.Errorf("migration add_session_id_to_tool_executions index: %w", err)
+		}
+		log.Printf("migration: add_session_id_to_tool_executions applied successfully")
+	}
+
+	// Ensure the session index exists (safe no-op if already present; column is guaranteed above).
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_tool_executions_session ON tool_executions(session_id, executed_at DESC)`); err != nil {
+		return fmt.Errorf("migration create_tool_executions_session_index: %w", err)
+	}
+
 	// Seed monitoring configuration with defaults.
 	if err := seedMonitoringConfig(db); err != nil {
 		return fmt.Errorf("seed monitoring_config: %w", err)
