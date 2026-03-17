@@ -1,118 +1,146 @@
-/* Settings module */
+/* Settings module — card-based load/save with per-card Save buttons */
 
 import { req } from '../api.js';
 import { showToast } from '../toast.js';
 import { registerTab } from '../router.js';
 
-async function loadSettings() {
-    try {
-        const config = await req('GET', '/api/v1/config');
-        populateSettings(config);
-    } catch (err) {
-        showToast(`Failed to load settings: ${err.message}`, 'error');
-    }
+async function loadConfig() {
+    const entries = await req('GET', '/api/v1/config');
+    const map = {};
+    for (const { key, value } of entries) map[key] = value;
+    return map;
 }
 
-function populateSettings(config) {
-    const form = document.getElementById('settings-form');
-
-    // Flatten nested config for form inputs
-    const flatConfig = flattenConfig(config);
-    for (const [key, value] of Object.entries(flatConfig)) {
-        const input = form.querySelector(`[name="${key}"]`);
-        if (input) {
-            input.value = value || '';
-        }
-    }
-}
-
-function flattenConfig(obj, prefix = '') {
-    const result = {};
-    for (const [key, value] of Object.entries(obj)) {
-        const fullKey = prefix ? `${prefix}.${key}` : key;
-        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-            Object.assign(result, flattenConfig(value, fullKey));
+function populateCard(cardEl, configMap) {
+    cardEl.querySelectorAll('[name]').forEach(input => {
+        const v = configMap[input.name];
+        if (v === undefined) return;
+        if (input.type === 'checkbox') {
+            input.checked = (v === 'true');
+        } else if (input.type === 'radio') {
+            input.checked = (input.value === v);
         } else {
-            result[fullKey] = value;
+            // Leave blank for masked values — placeholder signals "already set"
+            input.value = (v === '****') ? '' : (v || '');
         }
-    }
-    return result;
+    });
+    updateBadge(cardEl, configMap);
 }
 
-function unflattenConfig(flat) {
-    const result = {};
-    for (const [key, value] of Object.entries(flat)) {
-        const parts = key.split('.');
-        let current = result;
-        for (let i = 0; i < parts.length - 1; i++) {
-            if (!current[parts[i]]) {
-                current[parts[i]] = {};
-            }
-            current = current[parts[i]];
-        }
-        current[parts[parts.length - 1]] = value;
-    }
-    return result;
+function updateBadge(cardEl, configMap) {
+    const badge = cardEl.querySelector('[data-status]');
+    if (!badge) return;
+    const keys = [...cardEl.querySelectorAll('[name]')].map(el => el.name);
+    const ok = keys.some(k => {
+        const v = configMap[k];
+        // '****' = sensitive value stored in DB → counts as configured.
+        // 'false'/'0'/'' = not set or disabled → not configured.
+        return v && v !== '' && v !== 'false' && v !== '0';
+    });
+    badge.textContent = ok ? 'Configured' : 'Not configured';
+    badge.className = `badge ${ok ? 'badge--configured' : 'badge--empty'}`;
 }
 
-function setupSubmitHandler() {
-    const form = document.getElementById('settings-form');
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+async function saveCard(cardEl) {
+    const inputs = cardEl.querySelectorAll('[name]');
+    let saved = 0;
+    const errors = [];
 
+    for (const input of inputs) {
+        let value;
+        if (input.type === 'checkbox') {
+            value = input.checked ? 'true' : 'false';
+        } else if (input.type === 'radio') {
+            if (!input.checked) continue;
+            value = input.value;
+        } else {
+            value = input.value.trim();
+            if (!value) continue; // skip blanks
+        }
+
+        if (input.type === 'number') {
+            const n = parseInt(value, 10);
+            if (isNaN(n) || n <= 0) continue;
+            value = String(n);
+        }
+
+        try {
+            await req('PUT', '/api/v1/config', { key: input.name, value });
+            saved++;
+        } catch (err) {
+            errors.push(`${input.name}: ${err.message}`);
+        }
+    }
+
+    if (errors.length) {
+        showToast(`Errors: ${errors.join(', ')}`, 'error');
+    } else if (saved > 0) {
+        showToast('Saved', 'success');
+    } else {
+        showToast('No changes', 'info');
+    }
+}
+
+function setupEyeToggles() {
+    document.getElementById('tab-settings').addEventListener('click', e => {
+        const btn = e.target.closest('.btn-eye');
+        if (!btn) return;
+        const input = btn.closest('.field-password-wrap').querySelector('input');
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        btn.querySelector('i').className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+    });
+}
+
+function setupSaveButtons() {
+    document.getElementById('tab-settings').addEventListener('click', async e => {
+        const btn = e.target.closest('[data-save-btn]');
+        if (!btn) return;
+        const card = btn.closest('[data-connector]');
+        if (!card) return;
+        btn.disabled = true;
+        try {
+            await saveCard(card);
+            const map = await loadConfig();
+            document.querySelectorAll('[data-connector]').forEach(c => updateBadge(c, map));
+        } finally {
+            btn.disabled = false;
+        }
+    });
+}
+
+function setupProviderSelector(configMap) {
+    const current = configMap['llm.provider'] || 'claude';
+    document.querySelectorAll('input[name="llm.provider"]').forEach(radio => {
+        // Clone to clear any stale listeners from previous tab activations
+        const fresh = radio.cloneNode(true);
+        fresh.checked = (fresh.value === current);
+        radio.replaceWith(fresh);
+        fresh.addEventListener('change', async () => {
+            if (!fresh.checked) return;
             try {
-                const formData = new FormData(e.target);
-                const flat = Object.fromEntries(formData);
-
-                // API expects individual {key, value} objects sent separately
-                let savedCount = 0;
-                for (const [key, value] of Object.entries(flat)) {
-                    // Skip empty strings
-                    if (value === '') continue;
-
-                    let configValue = value;
-
-                    // Convert and validate number fields
-                    if (key === 'claude.max_tokens' || key === 'claude.context_window' || key === 'gemini.max_tokens' || key === 'openai.max_tokens') {
-                        const num = parseInt(value, 10);
-                        if (isNaN(num) || num <= 0) {
-                            continue;  // Skip invalid numbers
-                        }
-                        configValue = String(num);
-                    }
-
-                    // Send individual PUT request for each key
-                    // API expects: {"key": "...", "value": "..."}
-                    await req('PUT', '/api/v1/config', {
-                        key: key,
-                        value: configValue
-                    });
-                    savedCount++;
-                }
-
-                if (savedCount > 0) {
-                    showToast('Settings saved', 'success');
-                    await loadSettings();  // Reload to verify
-                } else {
-                    showToast('No changes to save', 'info');
-                }
+                await req('PUT', '/api/v1/config', { key: 'llm.provider', value: fresh.value });
+                showToast(`Active provider: ${fresh.value}`, 'success');
+                const map = await loadConfig();
+                document.querySelectorAll('[data-connector]').forEach(c => updateBadge(c, map));
             } catch (err) {
-                showToast(`Failed to save settings: ${err.message}`, 'error');
+                showToast(err.message, 'error');
             }
         });
-    }
+    });
 }
 
 export function init() {
-    // Load settings on init
-    loadSettings();
+    setupEyeToggles();
+    setupSaveButtons();
 
-    // Register tab activation callback
-    registerTab('settings', () => {
-        loadSettings();
+    registerTab('settings', async () => {
+        try {
+            const map = await loadConfig();
+            document.querySelectorAll('[data-connector]').forEach(c => populateCard(c, map));
+            setupProviderSelector(map);
+        } catch (err) {
+            showToast(`Failed to load settings: ${err.message}`, 'error');
+        }
     });
-
-    // Setup submit handler
-    setupSubmitHandler();
 }

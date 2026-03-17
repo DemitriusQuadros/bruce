@@ -1,0 +1,155 @@
+/* Settings card-based layout */
+
+.settings-section {
+    margin-bottom: 2.5rem;
+}
+
+.settings-section__title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.settings-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1rem;
+}
+
+/* Card */
+.settings-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+}
+
+.settings-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.settings-card__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.settings-card__title i {
+    color: var(--accent);
+    width: 1rem;
+    text-align: center;
+}
+
+.settings-card__title h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.settings-card__footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+/* Status badges */
+.badge--configured {
+    color: var(--green);
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+.badge--empty {
+    color: var(--grey);
+    background: rgba(107, 114, 128, 0.1);
+    border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+/* Password + eye toggle */
+.field-password-wrap {
+    position: relative;
+    display: flex;
+}
+
+.field-password-wrap input {
+    width: 100%;
+    padding-right: 2.5rem;
+}
+
+.btn-eye {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 2.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-eye:hover {
+    color: var(--accent);
+}
+
+/* Provider selector (radio → button strip) */
+.provider-selector {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.provider-selector label {
+    flex: 1;
+}
+
+.provider-selector input[type="radio"] {
+    display: none;
+}
+
+.provider-selector .provider-option {
+    display: block;
+    text-align: center;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    transition: background var(--transition), color var(--transition);
+}
+
+.provider-selector input[type="radio"]:checked + .provider-option {
+    color: var(--bg);
+    background: var(--accent);
+    font-weight: 600;
+}
+
+/* Enabled toggle row */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.toggle-row input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
