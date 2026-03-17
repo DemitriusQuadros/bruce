@@ -125,6 +125,21 @@ type FilesConfig struct {
 	MaxFileSize int    `mapstructure:"max_file_size"` // bytes
 }
 
+// GithubConfig gates the GitHub REST API tools (Spec 21).
+type GithubConfig struct {
+	Enabled      bool   `mapstructure:"enabled"`
+	Token        string `mapstructure:"token"`
+	DefaultOwner string `mapstructure:"default_owner"`
+	DefaultRepo  string `mapstructure:"default_repo"`
+}
+
+// GitLocalConfig gates the local Git CLI tools (Spec 22).
+type GitLocalConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	HomeDir        string `mapstructure:"home_dir"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
+}
+
 // ToolsConfig gates individual tool integrations.
 type ToolsConfig struct {
 	Bash     BashConfig     `mapstructure:"bash"`
@@ -134,6 +149,8 @@ type ToolsConfig struct {
 	Docs     DocsConfig     `mapstructure:"docs"`
 	Notion   NotionConfig   `mapstructure:"notion"`
 	Trello   TrelloConfig   `mapstructure:"trello"`
+	Github   GithubConfig   `mapstructure:"github"`
+	GitLocal GitLocalConfig `mapstructure:"git_local"`
 }
 
 // Config is the top-level application configuration.

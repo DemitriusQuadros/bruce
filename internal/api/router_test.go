@@ -38,7 +38,7 @@ func TestRouterMiddlewareStack(t *testing.T) {
 	registry := worker.NewDispatcherRegistry()
 	llmRegistry := mockProviderRegistry()
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, llmRegistry, mockConfig(), nil)
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, llmRegistry, mockConfig(), nil, nil)
 
 	// Wrap router with context injection.
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +67,7 @@ func TestRouterCORSHeaders(t *testing.T) {
 	sessionRepo := repository.NewSessionRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil)
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil, nil)
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -87,7 +87,7 @@ func TestRouterCORSHeaders(t *testing.T) {
 
 // TestRouterOPTIONSPreflight verifies CORS preflight requests work.
 func TestRouterOPTIONSPreflight(t *testing.T) {
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil)
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil, nil)
 
 	req, _ := http.NewRequest(http.MethodOptions, "/api/v1/config", nil)
 	w := httptest.NewRecorder()
@@ -100,7 +100,7 @@ func TestRouterOPTIONSPreflight(t *testing.T) {
 // TestRouterHealthEndpoint verifies /health is accessible without auth.
 func TestRouterHealthEndpoint(t *testing.T) {
 	startTime := time.Now().Add(-10 * time.Second) // Set start time 10 seconds ago.
-	router := NewRouter(startTime, &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil)
+	router := NewRouter(startTime, &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil, nil)
 
 	req, _ := http.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
@@ -127,7 +127,7 @@ func TestRouterAPIv1Routes(t *testing.T) {
 	configRepo := repository.NewConfigRepository(db)
 	registry := worker.NewDispatcherRegistry()
 
-	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil)
+	router := NewRouter(time.Now(), &mockAsynqmonHandler{}, mockProviderRegistry(), mockConfig(), nil, nil)
 
 	wrappedRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

@@ -17,7 +17,7 @@ import (
 
 // ChatHandler returns a handler for web chat endpoints.
 // It calls the LLM directly (no Asynq queue) since the web user is waiting synchronously.
-func ChatHandler(registry *ai.ProviderRegistry, cfg *config.Config) http.HandlerFunc {
+func ChatHandler(registry *ai.ProviderRegistry, cfg *config.Config, toolRegistry ai.ToolRegistry) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionRepo, ok := r.Context().Value("sessionRepo").(repository.SessionRepository)
 		if !ok {
@@ -48,7 +48,7 @@ func ChatHandler(registry *ai.ProviderRegistry, cfg *config.Config) http.Handler
 		case id != "" && msgs && r.Method == http.MethodGet:
 			handleGetChatMessages(w, sessionRepo, messageRepo, id)
 		case id != "" && msgs && r.Method == http.MethodPost:
-			handleSendChatMessage(w, r, sessionRepo, messageRepo, configRepo, registry, cfg, id)
+			handleSendChatMessage(w, r, sessionRepo, messageRepo, configRepo, registry, cfg, toolRegistry, id)
 		case id != "" && !msgs && r.Method == http.MethodGet:
 			handleGetChatSession(w, sessionRepo, messageRepo, id)
 		case id != "" && !msgs && r.Method == http.MethodDelete:
@@ -166,6 +166,7 @@ func handleSendChatMessage(
 	configRepo repository.ConfigRepository,
 	llm *ai.ProviderRegistry,
 	cfg *config.Config,
+	toolRegistry ai.ToolRegistry,
 	sessionID string,
 ) {
 	// 1. Validate session.
@@ -219,15 +220,21 @@ func handleSendChatMessage(
 		history[i] = *m
 	}
 
-	// 6. Call LLM.
+	// 6. Call LLM — use agent loop when tools are available, plain generation otherwise.
 	ctx := ai.WithSessionID(r.Context(), sessionID)
-	response, err := llm.GenerateResponse(ctx, systemPrompt, history)
-	if err != nil {
-		if errors.Is(err, ai.ErrRateLimited) {
+	var response string
+	var llmErr error
+	if toolRegistry != nil {
+		response, llmErr = ai.RunAgentLoop(ctx, llm, toolRegistry, systemPrompt, history, 10, nil)
+	} else {
+		response, llmErr = llm.GenerateResponse(ctx, systemPrompt, history)
+	}
+	if llmErr != nil {
+		if errors.Is(llmErr, ai.ErrRateLimited) {
 			writeError(w, http.StatusTooManyRequests, "rate limited — please try again")
 			return
 		}
-		if errors.Is(err, ai.ErrProviderDown) {
+		if errors.Is(llmErr, ai.ErrProviderDown) {
 			writeError(w, http.StatusServiceUnavailable, "AI provider unavailable")
 			return
 		}
