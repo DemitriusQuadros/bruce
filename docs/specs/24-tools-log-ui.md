@@ -1,3 +1,4 @@
+
 # Spec 33: Tools Log UI [FRONTEND]
 
 ## Overview
