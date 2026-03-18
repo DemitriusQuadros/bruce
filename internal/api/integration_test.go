@@ -202,9 +202,10 @@ func TestFullAPIWorkflow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		var connectors []map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &connectors)
-		assert.Equal(t, 2, len(connectors))
+		assert.Equal(t, 3, len(connectors))
 		assert.Equal(t, "whatsapp", connectors[0]["type"])
 		assert.Equal(t, "discord", connectors[1]["type"])
+		assert.Equal(t, "telegram", connectors[2]["type"])
 	})
 
 	// 11. Verify 404 for non-existent session.

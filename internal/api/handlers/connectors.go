@@ -28,6 +28,7 @@ func ConnectorsHandler() http.HandlerFunc {
 			result := []connectorResponse{
 				{Type: "whatsapp", Enabled: false, Status: "disabled"},
 				{Type: "discord", Enabled: false, Status: "disabled"},
+				{Type: "telegram", Enabled: false, Status: "disabled"},
 			}
 			writeJSON(w, http.StatusOK, result)
 			return
@@ -36,6 +37,7 @@ func ConnectorsHandler() http.HandlerFunc {
 		// Check which connectors are registered.
 		whatsappEnabled := registry.Get("whatsapp") != nil
 		discordEnabled := registry.Get("discord") != nil
+		telegramEnabled := registry.Get("telegram") != nil
 
 		result := []connectorResponse{
 			{
@@ -47,6 +49,11 @@ func ConnectorsHandler() http.HandlerFunc {
 				Type:    "discord",
 				Enabled: discordEnabled,
 				Status:  getStatus(discordEnabled),
+			},
+			{
+				Type:    "telegram",
+				Enabled: telegramEnabled,
+				Status:  getStatus(telegramEnabled),
 			},
 		}
 

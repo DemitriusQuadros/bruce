@@ -120,24 +120,28 @@ func main() {
 	}
 
 	// 4b. Init WhatsApp connector if enabled.
-	if cfg.Connectors.WhatsApp.Enabled {
+	if resolveConnectorEnabled("connectors.whatsapp.enabled", cfg.Connectors.WhatsApp.Enabled, configRepo) {
+		if cfg.Connectors.WhatsApp.DeviceStoreDSN == "" {
+			cfg.Connectors.WhatsApp.DeviceStoreDSN = "./data/whatsapp.db"
+		}
 		wa, err := whatsapp.New(cfg, asynqClient)
 		if err != nil {
-			log.Fatalf("whatsapp init: %v", err)
+			log.Printf("whatsapp: init failed: %v — connector disabled", err)
+		} else if err := wa.Connect(); err != nil {
+			log.Printf("whatsapp: connect failed: %v — connector disabled", err)
+		} else {
+			dispatcherRegistry.Register("whatsapp", wa)
+			defer wa.Disconnect()
 		}
-		if err := wa.Connect(); err != nil {
-			log.Fatalf("whatsapp connect: %v", err)
-		}
-		dispatcherRegistry.Register("whatsapp", wa)
-		defer wa.Disconnect()
 	}
 
 	// 4c. Init Telegram connector if enabled.
-	if cfg.Connectors.Telegram.Enabled {
-		if cfg.Connectors.Telegram.BotToken == "" {
+	if resolveConnectorEnabled("connectors.telegram.enabled", cfg.Connectors.Telegram.Enabled, configRepo) {
+		token, err := resolveTelegramToken(cfg, configRepo)
+		if err != nil || token == "" {
 			log.Printf("telegram: bot_token not configured — connector disabled")
 		} else {
-			tg := telegram.New(cfg.Connectors.Telegram.BotToken, asynqClient)
+			tg := telegram.New(token, asynqClient)
 			if err := tg.Start(context.Background()); err != nil {
 				log.Fatalf("telegram start: %v", err)
 			}
@@ -374,6 +378,29 @@ func main() {
 
 	asynqServer.Shutdown()
 	// db.Close() handled by defer above.
+}
+
+// resolveConnectorEnabled returns true if the DB value for key is "true",
+// falling back to the YAML default.
+func resolveConnectorEnabled(key string, yamlVal bool, repo repository.ConfigRepository) bool {
+	v, err := repo.Get(key)
+	if err != nil || v == "" {
+		return yamlVal
+	}
+	return v == "true"
+}
+
+// resolveTelegramToken fetches the Telegram bot token from DB first, then YAML.
+func resolveTelegramToken(cfg *config.Config, repo repository.ConfigRepository) (string, error) {
+	t, err := repo.Get("connectors.telegram.bot_token")
+	if err != nil {
+		logging.Debugf("resolveTelegramToken: DB lookup failed (falling back to config): %v", err)
+		return cfg.Connectors.Telegram.BotToken, nil
+	}
+	if t != "" {
+		return t, nil
+	}
+	return cfg.Connectors.Telegram.BotToken, nil
 }
 
 // resolveDiscordToken fetches the Discord bot token from the database (if configured)

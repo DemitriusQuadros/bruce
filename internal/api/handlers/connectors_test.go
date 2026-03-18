@@ -35,14 +35,17 @@ func TestConnectorsHandlerNoRegistry(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &result)
 	require.NoError(t, err)
 
-	// Should return both connectors as disabled.
-	assert.Equal(t, 2, len(result))
+	// Should return all three connectors as disabled.
+	assert.Equal(t, 3, len(result))
 	assert.Equal(t, "whatsapp", result[0].Type)
 	assert.False(t, result[0].Enabled)
 	assert.Equal(t, "disabled", result[0].Status)
 	assert.Equal(t, "discord", result[1].Type)
 	assert.False(t, result[1].Enabled)
 	assert.Equal(t, "disabled", result[1].Status)
+	assert.Equal(t, "telegram", result[2].Type)
+	assert.False(t, result[2].Enabled)
+	assert.Equal(t, "disabled", result[2].Status)
 }
 
 // TestConnectorsHandlerWithRegistry tests with active connectors.
@@ -65,7 +68,7 @@ func TestConnectorsHandlerWithRegistry(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &result)
 	require.NoError(t, err)
 
-	assert.Equal(t, 2, len(result))
+	assert.Equal(t, 3, len(result))
 
 	// WhatsApp should be enabled and connected.
 	assert.Equal(t, "whatsapp", result[0].Type)
@@ -76,15 +79,21 @@ func TestConnectorsHandlerWithRegistry(t *testing.T) {
 	assert.Equal(t, "discord", result[1].Type)
 	assert.False(t, result[1].Enabled)
 	assert.Equal(t, "disabled", result[1].Status)
+
+	// Telegram should be disabled.
+	assert.Equal(t, "telegram", result[2].Type)
+	assert.False(t, result[2].Enabled)
+	assert.Equal(t, "disabled", result[2].Status)
 }
 
 // TestConnectorsHandlerBothEnabled tests with both connectors enabled.
 func TestConnectorsHandlerBothEnabled(t *testing.T) {
 	registry := worker.NewDispatcherRegistry()
 
-	// Register both connectors.
+	// Register all three connectors.
 	registry.Register("whatsapp", &MockDispatcher{})
 	registry.Register("discord", &MockDispatcher{})
+	registry.Register("telegram", &MockDispatcher{})
 
 	handler := ConnectorsHandler()
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/connectors", nil)
@@ -99,9 +108,9 @@ func TestConnectorsHandlerBothEnabled(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &result)
 	require.NoError(t, err)
 
-	assert.Equal(t, 2, len(result))
+	assert.Equal(t, 3, len(result))
 
-	// Both should be enabled and connected.
+	// All three should be enabled and connected.
 	for _, c := range result {
 		assert.True(t, c.Enabled)
 		assert.Equal(t, "connected", c.Status)
