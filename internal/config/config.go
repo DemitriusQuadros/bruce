@@ -63,10 +63,17 @@ type DiscordConfig struct {
 	BotToken string `mapstructure:"bot_token"`
 }
 
+// TelegramConfig holds Telegram Bot connector settings.
+type TelegramConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	BotToken string `mapstructure:"bot_token"`
+}
+
 // ConnectorsConfig holds all connector settings.
 type ConnectorsConfig struct {
 	WhatsApp WhatsAppConfig `mapstructure:"whatsapp"`
 	Discord  DiscordConfig  `mapstructure:"discord"`
+	Telegram TelegramConfig `mapstructure:"telegram"`
 }
 
 // UIConfig holds web UI settings.

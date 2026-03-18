@@ -27,6 +27,8 @@ import (
 	"bruce/internal/auth"
 	"bruce/internal/config"
 	"bruce/internal/connectors/discord"
+	"bruce/internal/connectors/telegram"
+	"bruce/internal/connectors/whatsapp"
 	"bruce/internal/database"
 	"bruce/internal/logging"
 	"bruce/internal/monitoring"
@@ -114,6 +116,33 @@ func main() {
 			}
 			dispatcherRegistry.Register("discord", dc)
 			defer dc.Disconnect()
+		}
+	}
+
+	// 4b. Init WhatsApp connector if enabled.
+	if cfg.Connectors.WhatsApp.Enabled {
+		wa, err := whatsapp.New(cfg, asynqClient)
+		if err != nil {
+			log.Fatalf("whatsapp init: %v", err)
+		}
+		if err := wa.Connect(); err != nil {
+			log.Fatalf("whatsapp connect: %v", err)
+		}
+		dispatcherRegistry.Register("whatsapp", wa)
+		defer wa.Disconnect()
+	}
+
+	// 4c. Init Telegram connector if enabled.
+	if cfg.Connectors.Telegram.Enabled {
+		if cfg.Connectors.Telegram.BotToken == "" {
+			log.Printf("telegram: bot_token not configured — connector disabled")
+		} else {
+			tg := telegram.New(cfg.Connectors.Telegram.BotToken, asynqClient)
+			if err := tg.Start(context.Background()); err != nil {
+				log.Fatalf("telegram start: %v", err)
+			}
+			dispatcherRegistry.Register("telegram", tg)
+			defer tg.Stop() //nolint:errcheck
 		}
 	}
 
