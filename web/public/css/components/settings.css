@@ -153,3 +153,10 @@
     cursor: pointer;
     accent-color: var(--accent);
 }
+
+.settings-card__hint {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: 0 0 var(--space-sm);
+    line-height: 1.4;
+}

@@ -293,6 +293,85 @@
                 </div>
             </div>
 
+            <!-- Section 2b: Connectors -->
+            <div class="settings-section">
+                <div class="settings-section__title">Connectors</div>
+                <div class="settings-cards-grid">
+
+                    <!-- Discord -->
+                    <div class="settings-card" data-connector="discord">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fab fa-discord"></i>
+                                <h4>Discord</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="connectors.discord.enabled" id="discord-enabled" />
+                            <label for="discord-enabled">Enable Discord connector</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Bot Token</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="connectors.discord.bot_token" placeholder="Bot token from Discord Developer Portal" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <!-- WhatsApp -->
+                    <div class="settings-card" data-connector="whatsapp">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fab fa-whatsapp"></i>
+                                <h4>WhatsApp</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="connectors.whatsapp.enabled" id="whatsapp-enabled" />
+                            <label for="whatsapp-enabled">Enable WhatsApp connector</label>
+                        </div>
+                        <p class="settings-card__hint">
+                            On next restart a QR code will appear in the server logs — scan it with WhatsApp on your phone to pair the device.
+                        </p>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Telegram -->
+                    <div class="settings-card" data-connector="telegram">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fab fa-telegram"></i>
+                                <h4>Telegram</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="connectors.telegram.enabled" id="telegram-enabled" />
+                            <label for="telegram-enabled">Enable Telegram connector</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Bot Token</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="connectors.telegram.bot_token" placeholder="Obtain from @BotFather on Telegram" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
             <!-- Section 3: Google -->
             <div class="settings-section">
                 <div class="settings-section__title">Google</div>

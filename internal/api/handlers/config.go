@@ -89,9 +89,11 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 		"openai.max_tokens":            intToString(cfg.OpenAI.MaxTokens),
 		"llm.provider":                 cfg.LLM.Provider,
 		"ui.default_system_prompt":     cfg.UI.DefaultSystemPrompt,
-		"connectors.whatsapp.enabled":  boolToString(cfg.Connectors.WhatsApp.Enabled),
-		"connectors.discord.enabled":   boolToString(cfg.Connectors.Discord.Enabled),
-		"connectors.discord.bot_token": cfg.Connectors.Discord.BotToken,
+		"connectors.whatsapp.enabled":   boolToString(cfg.Connectors.WhatsApp.Enabled),
+		"connectors.discord.enabled":    boolToString(cfg.Connectors.Discord.Enabled),
+		"connectors.discord.bot_token":  cfg.Connectors.Discord.BotToken,
+		"connectors.telegram.enabled":   boolToString(cfg.Connectors.Telegram.Enabled),
+		"connectors.telegram.bot_token": cfg.Connectors.Telegram.BotToken,
 		// Google OAuth
 		"google.oauth_client_id":          cfg.Google.OAuthClientID,
 		"google.oauth_client_secret":      cfg.Google.OAuthClientSecret,
@@ -243,6 +245,8 @@ func handlePutConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 		"connectors.whatsapp.enabled",
 		"connectors.discord.enabled",
 		"connectors.discord.bot_token",
+		"connectors.telegram.enabled",
+		"connectors.telegram.bot_token",
 		// Google OAuth
 		"google.oauth_client_id",
 		"google.oauth_client_secret",
