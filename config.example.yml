@@ -88,3 +88,28 @@ tools:
     enabled: false
     home_dir: ""           # Base directory for relative repo paths; defaults to $HOME if empty
     timeout_seconds: 30    # Timeout for each git subprocess command
+
+  http_client:
+    enabled: true
+    max_timeout_seconds: 120
+    max_response_bytes: 524288   # 512 KB
+    follow_redirects: false
+    allow_private_networks: false
+
+  n8n:
+    enabled: false
+    base_url: "https://your-n8n.example.com"
+    webhook_timeout_seconds: 30
+    webhook_auth:
+      method: "none"          # none | basic | header
+      username: ""
+      password: ""
+      header_name: ""
+      header_value: ""
+    api_key: ""               # X-N8N-API-KEY for /api/v1/workflows/:id/run
+    mcp:
+      enabled: false
+      sse_url: "https://your-n8n.example.com/mcp"
+      bearer_token: ""
+      tool_name_prefix: "n8n_mcp_"
+      max_reconnect_attempts: 5

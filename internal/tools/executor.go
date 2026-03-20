@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-const defaultTimeout = 5 * time.Second
+const defaultTimeout = 150 * time.Second
 
 // executeWithTimeout runs a tool with a timeout, panic recovery, and execution logging.
 func executeWithTimeout(ctx context.Context, tool Tool, input map[string]interface{}, db *sql.DB) (string, error) {
@@ -56,7 +57,8 @@ func executeWithTimeout(ctx context.Context, tool Tool, input map[string]interfa
 
 	// Log the execution to the database.
 	latencyMs := int64(time.Since(startTime).Milliseconds())
-	inputJSON, _ := json.Marshal(input)
+	safeInput := scrubSecrets(input)
+	inputJSON, _ := json.Marshal(safeInput)
 	outputJSON := ""
 	if output != nil {
 		if b, err := json.Marshal(output); err == nil {
@@ -82,6 +84,33 @@ func executeWithTimeout(ctx context.Context, tool Tool, input map[string]interfa
 	}
 
 	return string(outJSON), nil
+}
+
+// scrubSecrets returns a shallow copy of input with sensitive header values redacted.
+// Keys matched case-insensitively: authorization, x-api-key, x-n8n-api-key.
+func scrubSecrets(input map[string]interface{}) map[string]interface{} {
+	sensitiveKeys := map[string]bool{
+		"authorization": true,
+		"x-api-key":     true,
+		"x-n8n-api-key": true,
+	}
+
+	out := make(map[string]interface{}, len(input))
+	for k, v := range input {
+		if sensitiveKeys[strings.ToLower(k)] {
+			if _, isStr := v.(string); isStr {
+				out[k] = "[REDACTED]"
+				continue
+			}
+		}
+		// Recursively scrub nested maps.
+		if nested, ok := v.(map[string]interface{}); ok {
+			out[k] = scrubSecrets(nested)
+		} else {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // logExecution logs a tool execution to the tool_executions table.

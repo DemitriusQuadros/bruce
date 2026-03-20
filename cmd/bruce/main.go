@@ -41,6 +41,8 @@ import (
 	git_local "bruce/internal/tools/git_local"
 	"bruce/internal/tools/github"
 	gmail "bruce/internal/tools/gmail"
+	"bruce/internal/tools/httpclient"
+	n8ntool "bruce/internal/tools/n8n"
 	"bruce/internal/tools/notion"
 	"bruce/internal/tools/trello"
 	"bruce/internal/worker"
@@ -251,6 +253,28 @@ func main() {
 		toolRegistry.Register(git_local.NewCommitTool(homeDir, timeout)) //nolint:errcheck
 		toolRegistry.Register(git_local.NewPushTool(homeDir, timeout))   //nolint:errcheck
 		toolRegistry.Register(git_local.NewBranchTool(homeDir, timeout)) //nolint:errcheck
+	}
+
+	// Spec 29: HTTP client tool.
+	if cfg.Tools.HTTPClient.Enabled {
+		toolRegistry.Register(httpclient.NewHTTPRequestTool(cfg.Tools.HTTPClient)) //nolint:errcheck
+	}
+
+	// Spec 29: n8n tools.
+	if cfg.Tools.N8n.Enabled {
+		if cfg.Tools.N8n.BaseURL == "" {
+			log.Printf("WARNING: tools.n8n.enabled=true but base_url is empty — skipping n8n tools")
+		} else {
+			n8nClient := n8ntool.NewN8nClient(cfg.Tools.N8n)
+			toolRegistry.Register(n8ntool.NewWebhookTool(n8nClient, cfg.Tools.N8n))    //nolint:errcheck
+			toolRegistry.Register(n8ntool.NewAPITriggerTool(n8nClient, cfg.Tools.N8n)) //nolint:errcheck
+
+			// MCP provider (non-fatal).
+			if cfg.Tools.N8n.MCP.Enabled {
+				mcpProvider := n8ntool.NewMCPProvider(cfg.Tools.N8n.MCP, toolRegistry)
+				mcpProvider.Start(context.Background())
+			}
+		}
 	}
 
 	// Spec 17: File I/O tools.
