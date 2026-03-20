@@ -147,17 +147,56 @@ type GitLocalConfig struct {
 	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 }
 
+// HTTPClientConfig holds configuration for the generic HTTP client tool (Spec 29).
+type HTTPClientConfig struct {
+	Enabled              bool `mapstructure:"enabled"`
+	MaxTimeoutSeconds    int  `mapstructure:"max_timeout_seconds"`    // default 120
+	MaxResponseBytes     int  `mapstructure:"max_response_bytes"`     // default 524288
+	FollowRedirects      bool `mapstructure:"follow_redirects"`       // default false
+	AllowPrivateNetworks bool `mapstructure:"allow_private_networks"` // default false
+}
+
+// WebhookAuthConfig holds auth credentials for n8n webhook calls (Spec 29).
+type WebhookAuthConfig struct {
+	Method      string `mapstructure:"method"` // none | basic | header
+	Username    string `mapstructure:"username"`
+	Password    string `mapstructure:"password"`
+	HeaderName  string `mapstructure:"header_name"`
+	HeaderValue string `mapstructure:"header_value"`
+}
+
+// MCPConfig holds MCP-over-SSE settings for the n8n integration (Spec 29).
+type MCPConfig struct {
+	Enabled              bool   `mapstructure:"enabled"`
+	SSEURL               string `mapstructure:"sse_url"`
+	BearerToken          string `mapstructure:"bearer_token"`
+	ToolNamePrefix       string `mapstructure:"tool_name_prefix"`       // default "n8n_mcp_"
+	MaxReconnectAttempts int    `mapstructure:"max_reconnect_attempts"` // default 5
+}
+
+// N8nConfig holds all n8n integration settings (Spec 29).
+type N8nConfig struct {
+	Enabled               bool              `mapstructure:"enabled"`
+	BaseURL               string            `mapstructure:"base_url"`
+	WebhookTimeoutSeconds int               `mapstructure:"webhook_timeout_seconds"` // default 30
+	WebhookAuth           WebhookAuthConfig `mapstructure:"webhook_auth"`
+	APIKey                string            `mapstructure:"api_key"`
+	MCP                   MCPConfig         `mapstructure:"mcp"`
+}
+
 // ToolsConfig gates individual tool integrations.
 type ToolsConfig struct {
-	Bash     BashConfig     `mapstructure:"bash"`
-	Gmail    GmailConfig    `mapstructure:"gmail"`
-	Calendar CalendarConfig `mapstructure:"calendar"`
-	Files    FilesConfig    `mapstructure:"files"`
-	Docs     DocsConfig     `mapstructure:"docs"`
-	Notion   NotionConfig   `mapstructure:"notion"`
-	Trello   TrelloConfig   `mapstructure:"trello"`
-	Github   GithubConfig   `mapstructure:"github"`
-	GitLocal GitLocalConfig `mapstructure:"git_local"`
+	Bash       BashConfig       `mapstructure:"bash"`
+	Gmail      GmailConfig      `mapstructure:"gmail"`
+	Calendar   CalendarConfig   `mapstructure:"calendar"`
+	Files      FilesConfig      `mapstructure:"files"`
+	Docs       DocsConfig       `mapstructure:"docs"`
+	Notion     NotionConfig     `mapstructure:"notion"`
+	Trello     TrelloConfig     `mapstructure:"trello"`
+	Github     GithubConfig     `mapstructure:"github"`
+	GitLocal   GitLocalConfig   `mapstructure:"git_local"`
+	HTTPClient HTTPClientConfig `mapstructure:"http_client"`
+	N8n        N8nConfig        `mapstructure:"n8n"`
 }
 
 // Config is the top-level application configuration.
