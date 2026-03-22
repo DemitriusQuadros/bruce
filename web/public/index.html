@@ -631,7 +631,129 @@
                 </div>
             </div>
 
-            <!-- Section 5: Interface -->
+            <!-- Section 5: n8n -->
+            <div class="settings-section">
+                <div class="settings-section__title">n8n</div>
+                <div class="settings-cards-grid">
+
+                    <!-- n8n Core -->
+                    <div class="settings-card" data-connector="n8n-core">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-project-diagram"></i>
+                                <h4>n8n Core</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="tools.n8n.enabled" id="n8n-enabled" />
+                            <label for="n8n-enabled">Enable n8n integration</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Base URL</label>
+                            <input type="text" name="tools.n8n.base_url" placeholder="https://your-n8n.example.com" />
+                        </div>
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="tools.n8n.api_key" placeholder="API key for workflow triggers" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <!-- n8n Webhooks -->
+                    <div class="settings-card" data-connector="n8n-webhooks">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-link"></i>
+                                <h4>n8n Webhooks</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="form-group">
+                            <label>Timeout (seconds)</label>
+                            <input type="number" name="tools.n8n.webhook_timeout_seconds" min="1" placeholder="30" />
+                        </div>
+                        <div class="form-group">
+                            <label>Auth Method</label>
+                            <select name="tools.n8n.webhook_auth.method">
+                                <option value="none">None</option>
+                                <option value="basic">Basic</option>
+                                <option value="header">Header</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" name="tools.n8n.webhook_auth.username" placeholder="username" />
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="tools.n8n.webhook_auth.password" placeholder="password" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Header Name</label>
+                            <input type="text" name="tools.n8n.webhook_auth.header_name" placeholder="X-Custom-Header" />
+                        </div>
+                        <div class="form-group">
+                            <label>Header Value</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="tools.n8n.webhook_auth.header_value" placeholder="header value" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <!-- n8n MCP -->
+                    <div class="settings-card" data-connector="n8n-mcp">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-plug"></i>
+                                <h4>n8n MCP</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="tools.n8n.mcp.enabled" id="n8n-mcp-enabled" />
+                            <label for="n8n-mcp-enabled">Enable MCP tool discovery</label>
+                        </div>
+                        <div class="form-group">
+                            <label>SSE URL</label>
+                            <input type="text" name="tools.n8n.mcp.sse_url" placeholder="https://your-n8n.example.com/mcp-server/http" />
+                        </div>
+                        <div class="form-group">
+                            <label>Bearer Token</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="tools.n8n.mcp.bearer_token" placeholder="Bearer token" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tool Name Prefix</label>
+                            <input type="text" name="tools.n8n.mcp.tool_name_prefix" placeholder="n8n_mcp_" />
+                        </div>
+                        <div class="form-group">
+                            <label>Max Reconnect Attempts</label>
+                            <input type="number" name="tools.n8n.mcp.max_reconnect_attempts" min="0" placeholder="5" />
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Section 6: Interface -->
             <div class="settings-section">
                 <div class="settings-section__title">Interface</div>
                 <div class="settings-cards-grid">

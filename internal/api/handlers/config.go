@@ -124,6 +124,23 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 		"tools.files.enabled":        boolToString(cfg.Tools.Files.Enabled),
 		"tools.files.home_dir":       cfg.Tools.Files.HomeDir,
 		"tools.files.max_file_size":  intToString(cfg.Tools.Files.MaxFileSize),
+		// n8n integration (Spec 29)
+		"tools.n8n.enabled":                     boolToString(cfg.Tools.N8n.Enabled),
+		"tools.n8n.base_url":                    cfg.Tools.N8n.BaseURL,
+		"tools.n8n.api_key":                     cfg.Tools.N8n.APIKey,
+		"tools.n8n.webhook_timeout_seconds":      intToString(cfg.Tools.N8n.WebhookTimeoutSeconds),
+		"tools.n8n.webhook_auth.method":          cfg.Tools.N8n.WebhookAuth.Method,
+		"tools.n8n.webhook_auth.username":        cfg.Tools.N8n.WebhookAuth.Username,
+		"tools.n8n.webhook_auth.password":        cfg.Tools.N8n.WebhookAuth.Password,
+		"tools.n8n.webhook_auth.header_name":     cfg.Tools.N8n.WebhookAuth.HeaderName,
+		"tools.n8n.webhook_auth.header_value":    cfg.Tools.N8n.WebhookAuth.HeaderValue,
+		"tools.n8n.mcp.enabled":                 boolToString(cfg.Tools.N8n.MCP.Enabled),
+		"tools.n8n.mcp.sse_url":                 cfg.Tools.N8n.MCP.SSEURL,
+		"tools.n8n.mcp.bearer_token":            cfg.Tools.N8n.MCP.BearerToken,
+		"tools.n8n.mcp.tool_name_prefix":        cfg.Tools.N8n.MCP.ToolNamePrefix,
+		"tools.n8n.mcp.max_reconnect_attempts":  intToString(cfg.Tools.N8n.MCP.MaxReconnectAttempts),
+		// HTTP client (Spec 29)
+		"tools.http_client.enabled": boolToString(cfg.Tools.HTTPClient.Enabled),
 	}
 
 	// Get all DB values.
@@ -277,6 +294,23 @@ func handlePutConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 		"tools.files.enabled",
 		"tools.files.home_dir",
 		"tools.files.max_file_size",
+		// n8n (Spec 29)
+		"tools.n8n.enabled",
+		"tools.n8n.base_url",
+		"tools.n8n.api_key",
+		"tools.n8n.webhook_timeout_seconds",
+		"tools.n8n.webhook_auth.method",
+		"tools.n8n.webhook_auth.username",
+		"tools.n8n.webhook_auth.password",
+		"tools.n8n.webhook_auth.header_name",
+		"tools.n8n.webhook_auth.header_value",
+		"tools.n8n.mcp.enabled",
+		"tools.n8n.mcp.sse_url",
+		"tools.n8n.mcp.bearer_token",
+		"tools.n8n.mcp.tool_name_prefix",
+		"tools.n8n.mcp.max_reconnect_attempts",
+		// HTTP client (Spec 29)
+		"tools.http_client.enabled",
 	}
 	if !contains(knownKeys, req.Key) {
 		if collector != nil {
@@ -349,7 +383,7 @@ func handlePutConfig(w http.ResponseWriter, r *http.Request, collector *monitori
 // isSensitiveKey returns true if the key contains sensitive data.
 func isSensitiveKey(key string) bool {
 	key = strings.ToLower(key)
-	return strings.Contains(key, "key") || strings.Contains(key, "token") || strings.Contains(key, "secret")
+	return strings.Contains(key, "key") || strings.Contains(key, "token") || strings.Contains(key, "secret") || strings.Contains(key, "password")
 }
 
 // contains checks if a string is in a slice.
