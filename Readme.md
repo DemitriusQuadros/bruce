@@ -103,7 +103,7 @@ sequenceDiagram
 ### Option 1 — Local (go run)
 
 ```bash
-git clone https://github.com/yourorg/bruce
+git clone https://github.com/DemitriusQuadros/bruce
 cd bruce
 cp config.example.yml config.yml
 # Edit config.yml — add your LLM API key and enable a connector
@@ -124,7 +124,7 @@ The Docker Compose stack starts Redis and Bruce together. Bruce is accessible on
 
 ### Option 3 — Binary
 
-Download the latest release binary from the [releases page](https://github.com/yourorg/bruce/releases), place `config.yml` in the same directory, and run:
+Download the latest release binary from the [releases page](https://github.com/DemitriusQuadros/bruce/releases), place `config.yml` in the same directory, and run:
 
 ```bash
 ./bruce
@@ -246,7 +246,71 @@ make test-frontend      # Playwright E2E tests for the web UI
 
 Bruce uses `mattn/go-sqlite3`, which requires CGO. If you see `cgo: not found` errors, ensure your system has a C compiler (`gcc` or `clang`) installed and `CGO_ENABLED=1` is set in your environment.
 
-See `CLAUDE.md` for architectural conventions and the Spec-Driven Development pipeline built into this repository for Claude Code users.
+---
+
+## Spec-Driven Development (SDD) with Claude Code
+
+Bruce ships with a 6-stage AI-assisted development pipeline built directly into Claude Code. Open this repository in Claude Code and you get six slash commands — one per stage — that take you from raw idea to deployed, tested feature without leaving your editor.
+
+### The pipeline
+
+```
+/business-investor-validator → /product-manager-prd → /software-architect → /go-backend-dev → /frontend-specialist → /qa-specialist
+```
+
+| Stage | Command | Input | Output |
+|---|---|---|---|
+| 1 | `/business-investor-validator` | Raw idea | Investor-grade scorecard — market size, revenue model, moat, risks |
+| 2 | `/product-manager-prd` | Validator output | Full PRD — personas, user stories, MVP scope, success metrics |
+| 3 | `/software-architect` | PRD | Technical blueprint — system diagram, DB schema, API contracts, ADRs |
+| 4 | `/go-backend-dev` | Blueprint | Go packages under `internal/` — handlers, repos, workers, tests |
+| 5 | `/frontend-specialist` | Blueprint + API | Vanilla JS UI pages against the Go API on port 8080 |
+| 6 | `/qa-specialist` | Spec files in `docs/specs/` | BDD E2E tests (Gherkin + godog) |
+
+### How to use it
+
+Each command is invoked with a description of what you want. The output of each stage feeds directly into the next.
+
+**Stage 1 — Validate the idea**
+```
+/business-investor-validator I want to build a feature that lets Bruce proactively
+alert users when a calendar event is starting in 10 minutes
+```
+
+**Stage 2 — Turn it into a PRD**
+```
+/product-manager-prd [paste the validator output here]
+```
+
+**Stage 3 — Get a technical blueprint**
+```
+/software-architect [paste the PRD here]
+```
+
+**Stage 4 — Implement the backend**
+```
+/go-backend-dev implement the watch-alerts feature from this blueprint: [paste blueprint]
+```
+
+**Stage 5 — Build the UI**
+```
+/frontend-specialist add a Watches tab to the dashboard per this spec: [paste spec]
+```
+
+**Stage 6 — Write the tests**
+```
+/qa-specialist generate BDD tests for docs/specs/30-watch-alerts.md
+```
+
+### What each agent knows
+
+Every agent loads the full project context before it responds — architecture rules from `CLAUDE.md`, existing packages, the database schema, and prior specs in `docs/specs/`. You do not need to re-explain the stack at each stage. The agents enforce Bruce's conventions automatically: no FX, no GORM, no Postgres, manual DI in `main.go`.
+
+### Skipping stages
+
+You do not have to run every stage for every change. For a small bug fix, go straight to `/go-backend-dev`. For a UI tweak, go straight to `/frontend-specialist`. The pipeline is a guide, not a requirement.
+
+See `CLAUDE.md` for the full architectural conventions and rules each agent enforces.
 
 ---
 
