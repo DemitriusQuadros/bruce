@@ -97,7 +97,8 @@ sequenceDiagram
 ```
 
 ---
-
+## WARNING
+- The whatsapp connector and telegram connector are not tested yet
 ## Quick Start
 
 ### Option 1 — Local (go run)
