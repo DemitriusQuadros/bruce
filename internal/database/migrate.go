@@ -71,11 +71,6 @@ func RunMigrations(db *sql.DB) error {
 		return fmt.Errorf("migration create_tool_executions_session_index: %w", err)
 	}
 
-	// Seed monitoring configuration with defaults.
-	if err := seedMonitoringConfig(db); err != nil {
-		return fmt.Errorf("seed monitoring_config: %w", err)
-	}
-
 	return nil
 }
 
@@ -158,34 +153,3 @@ func migrateWebConnectorType(db *sql.DB) error {
 	return tx.Commit()
 }
 
-// seedMonitoringConfig initializes default monitoring configuration if not already present.
-func seedMonitoringConfig(db *sql.DB) error {
-	configs := map[string]string{
-		"log_enabled":      "true",
-		"metrics_enabled":  "true",
-		"retention_days":   "30",
-	}
-
-	for key, value := range configs {
-		var existing string
-		err := db.QueryRow(
-			`SELECT value FROM monitoring_config WHERE key = ?`,
-			key,
-		).Scan(&existing)
-
-		if err == sql.ErrNoRows {
-			// Config does not exist, insert it
-			if _, insertErr := db.Exec(
-				`INSERT INTO monitoring_config (key, value) VALUES (?, ?)`,
-				key, value,
-			); insertErr != nil {
-				return fmt.Errorf("seed monitoring_config %s: %w", key, insertErr)
-			}
-		} else if err != nil {
-			return fmt.Errorf("query monitoring_config %s: %w", key, err)
-		}
-		// If it exists, leave it as is
-	}
-
-	return nil
-}

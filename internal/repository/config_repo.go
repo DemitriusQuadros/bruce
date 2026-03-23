@@ -3,11 +3,9 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"bruce/internal/domain"
 	"bruce/internal/logging"
-	"bruce/internal/monitoring"
 )
 
 // ConfigRepository defines the data access contract for runtime config entries.
@@ -19,45 +17,22 @@ type ConfigRepository interface {
 
 // SQLiteConfigRepository is the SQLite-backed implementation of ConfigRepository.
 type SQLiteConfigRepository struct {
-	db               *sql.DB
-	metricsCollector *monitoring.Collector
+	db *sql.DB
 }
 
 // NewConfigRepository returns a new SQLiteConfigRepository.
 func NewConfigRepository(db *sql.DB) ConfigRepository {
-	return &SQLiteConfigRepository{db: db, metricsCollector: nil}
-}
-
-// NewConfigRepositoryWithMetrics returns a new SQLiteConfigRepository with metrics collection.
-func NewConfigRepositoryWithMetrics(db *sql.DB, collector *monitoring.Collector) ConfigRepository {
-	return &SQLiteConfigRepository{db: db, metricsCollector: collector}
+	return &SQLiteConfigRepository{db: db}
 }
 
 // Upsert inserts or overwrites a config entry.
 func (r *SQLiteConfigRepository) Upsert(key, value string) error {
-	start := time.Now()
 	logging.Debugf("config upsert called: key=%q, value=%q (len=%d)", key, value, len(value))
 	_, err := r.db.Exec(
 		`INSERT INTO config_entries (key, value, updated_at) VALUES (?, ?, datetime('now'))
 		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
 		key, value,
 	)
-	if r.metricsCollector != nil {
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		r.metricsCollector.IncrementCounter("db_operation_total", map[string]string{
-			"operation": "Upsert",
-			"entity":    "config",
-			"result":    status,
-		})
-		r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-			"operation": "Upsert",
-			"entity":    "config",
-			"status":    status,
-		})
-	}
 	if err != nil {
 		logging.Errorf("config upsert failed: key=%q, err=%v (type: %T)", key, err, err)
 		return fmt.Errorf("config upsert: %w", err)
@@ -86,17 +61,9 @@ func (r *SQLiteConfigRepository) Get(key string) (string, error) {
 
 // GetAll returns all config entries ordered by key ascending.
 func (r *SQLiteConfigRepository) GetAll() ([]*domain.ConfigEntry, error) {
-	start := time.Now()
 	logging.Debug("config get_all called")
 	rows, err := r.db.Query(`SELECT key, value, updated_at FROM config_entries ORDER BY key ASC`)
 	if err != nil {
-		if r.metricsCollector != nil {
-			r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-				"operation": "GetAll",
-				"entity":    "config",
-				"status":    "error",
-			})
-		}
 		logging.Errorf("config get_all query failed: err=%v (type: %T)", err, err)
 		return nil, fmt.Errorf("config get_all: %w", err)
 	}
@@ -121,17 +88,6 @@ func (r *SQLiteConfigRepository) GetAll() ([]*domain.ConfigEntry, error) {
 	if err := rows.Err(); err != nil {
 		logging.Errorf("config get_all rows iteration failed: err=%v (type: %T)", err, err)
 		return nil, fmt.Errorf("config get_all rows: %w", err)
-	}
-	if r.metricsCollector != nil {
-		r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-			"operation": "GetAll",
-			"entity":    "config",
-			"status":    "success",
-		})
-		r.metricsCollector.IncrementCounter("db_operation_total", map[string]string{
-			"operation": "GetAll",
-			"entity":    "config",
-		})
 	}
 	logging.Debugf("config get_all returned %d entries", len(entries))
 	return entries, nil

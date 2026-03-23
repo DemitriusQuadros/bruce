@@ -29,38 +29,6 @@ CREATE TABLE IF NOT EXISTS config_entries (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_connector_channel ON sessions(connector_type, channel_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_time ON messages(session_id, timestamp DESC);
 
-CREATE TABLE IF NOT EXISTS log_entries (
-    id TEXT PRIMARY KEY,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    level TEXT NOT NULL CHECK(level IN ('DEBUG', 'INFO', 'WARN', 'ERROR')),
-    logger TEXT NOT NULL,
-    message TEXT NOT NULL,
-    context TEXT,
-    enabled BOOLEAN DEFAULT 1
-);
-CREATE INDEX IF NOT EXISTS idx_log_entries_timestamp ON log_entries(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_log_entries_level ON log_entries(level);
-CREATE INDEX IF NOT EXISTS idx_log_entries_logger ON log_entries(logger);
-
-CREATE TABLE IF NOT EXISTS metric_snapshots (
-    id TEXT PRIMARY KEY,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    metric_name TEXT NOT NULL,
-    metric_type TEXT NOT NULL CHECK(metric_type IN ('COUNTER', 'GAUGE', 'HISTOGRAM')),
-    value REAL NOT NULL,
-    labels TEXT,
-    aggregation_window_seconds INTEGER DEFAULT 60
-);
-CREATE INDEX IF NOT EXISTS idx_metric_snapshots_timestamp ON metric_snapshots(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_metric_snapshots_name ON metric_snapshots(metric_name);
-CREATE INDEX IF NOT EXISTS idx_metric_snapshots_composite ON metric_snapshots(metric_name, timestamp DESC);
-
-CREATE TABLE IF NOT EXISTS monitoring_config (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS tool_executions (
     id          TEXT     PRIMARY KEY,
     session_id  TEXT     NOT NULL DEFAULT '',

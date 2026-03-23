@@ -18,7 +18,6 @@ import (
 	"bruce/internal/config"
 	"bruce/internal/database"
 	"bruce/internal/domain"
-	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 	"bruce/internal/worker"
 )
@@ -131,16 +130,12 @@ func startStubWorker(t *testing.T, db *sql.DB, cfg *config.Config, redisAddr str
 	sessionRepo := repository.NewSessionRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
-	monitoringRepo := repository.NewMonitoringRepository(db)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
 	// No real connector dispatchers are registered — dispatch errors are logged
 	// but do not fail the task (ADR-004), so this is safe for E2E testing.
 
-	metricsCollector := monitoring.NewCollector(db)
-	structuredLogger := monitoring.NewStructuredLogger(db)
-
-	proc := worker.NewProcessor(sessionRepo, messageRepo, configRepo, monitoringRepo,
-		&stubLLMService{}, dispatcherRegistry, metricsCollector, structuredLogger, cfg)
+	proc := worker.NewProcessor(sessionRepo, messageRepo, configRepo,
+		&stubLLMService{}, dispatcherRegistry, cfg)
 
 	redisOpt := asynq.RedisClientOpt{Addr: redisAddr}
 	srv := asynq.NewServer(redisOpt, asynq.Config{

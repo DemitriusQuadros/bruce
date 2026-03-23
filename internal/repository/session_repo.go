@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 
 	"bruce/internal/domain"
-	"bruce/internal/monitoring"
 )
 
 // SessionRepository defines the data access contract for sessions.
@@ -28,18 +27,12 @@ type SessionRepository interface {
 
 // SQLiteSessionRepository is the SQLite-backed implementation of SessionRepository.
 type SQLiteSessionRepository struct {
-	db                *sql.DB
-	metricsCollector  *monitoring.Collector
+	db *sql.DB
 }
 
 // NewSessionRepository returns a new SQLiteSessionRepository.
 func NewSessionRepository(db *sql.DB) SessionRepository {
-	return &SQLiteSessionRepository{db: db, metricsCollector: nil}
-}
-
-// NewSessionRepositoryWithMetrics returns a new SQLiteSessionRepository with metrics collection.
-func NewSessionRepositoryWithMetrics(db *sql.DB, collector *monitoring.Collector) SessionRepository {
-	return &SQLiteSessionRepository{db: db, metricsCollector: collector}
+	return &SQLiteSessionRepository{db: db}
 }
 
 // FindOrCreate returns the existing session for (connectorType, channelID), or inserts a new one.
@@ -64,19 +57,11 @@ func (r *SQLiteSessionRepository) FindOrCreate(connectorType, channelID string) 
 
 // GetAll returns all sessions ordered by creation time descending.
 func (r *SQLiteSessionRepository) GetAll() ([]*domain.Session, error) {
-	start := time.Now()
 	rows, err := r.db.Query(
 		`SELECT id, connector_type, channel_id, title, system_prompt, is_active, provider_override, created_at, updated_at
 		 FROM sessions ORDER BY created_at DESC`,
 	)
 	if err != nil {
-		if r.metricsCollector != nil {
-			r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-				"operation": "GetAll",
-				"entity":    "session",
-				"status":    "error",
-			})
-		}
 		return nil, fmt.Errorf("session get_all: %w", err)
 	}
 	defer rows.Close()
@@ -89,41 +74,17 @@ func (r *SQLiteSessionRepository) GetAll() ([]*domain.Session, error) {
 		}
 		sessions = append(sessions, s)
 	}
-	if r.metricsCollector != nil {
-		r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-			"operation": "GetAll",
-			"entity":    "session",
-			"status":    "success",
-		})
-		r.metricsCollector.IncrementCounter("db_operation_total", map[string]string{
-			"operation": "GetAll",
-			"entity":    "session",
-		})
-	}
 	return sessions, rows.Err()
 }
 
 // GetByID fetches a session by its primary key.
 func (r *SQLiteSessionRepository) GetByID(id string) (*domain.Session, error) {
-	start := time.Now()
 	row := r.db.QueryRow(
 		`SELECT id, connector_type, channel_id, title, system_prompt, is_active, provider_override, created_at, updated_at
 		 FROM sessions WHERE id = ?`,
 		id,
 	)
 	s, err := scanSession(row)
-	if r.metricsCollector != nil {
-		duration := time.Since(start).Milliseconds()
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(duration), map[string]string{
-			"operation": "GetByID",
-			"entity":    "session",
-			"status":    status,
-		})
-	}
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("session not found: %s", id)
@@ -135,27 +96,10 @@ func (r *SQLiteSessionRepository) GetByID(id string) (*domain.Session, error) {
 
 // UpdateSystemPrompt sets the system_prompt for a session.
 func (r *SQLiteSessionRepository) UpdateSystemPrompt(id, prompt string) error {
-	start := time.Now()
 	_, err := r.db.Exec(
 		`UPDATE sessions SET system_prompt = ?, updated_at = datetime('now') WHERE id = ?`,
 		prompt, id,
 	)
-	if r.metricsCollector != nil {
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		r.metricsCollector.IncrementCounter("db_operation_total", map[string]string{
-			"operation": "Update",
-			"entity":    "session",
-			"result":    status,
-		})
-		r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-			"operation": "Update",
-			"entity":    "session",
-			"status":    status,
-		})
-	}
 	if err != nil {
 		return fmt.Errorf("session update_system_prompt: %w", err)
 	}
@@ -211,7 +155,6 @@ func (r *SQLiteSessionRepository) GetByConnectorType(connectorType string) ([]*d
 
 // Create inserts a new session and returns it.
 func (r *SQLiteSessionRepository) Create(connectorType, channelID, title string) (*domain.Session, error) {
-	start := time.Now()
 	id := uuid.New().String()
 	_, err := r.db.Exec(
 		`INSERT INTO sessions (id, connector_type, channel_id, title, system_prompt, is_active, created_at, updated_at)
@@ -219,18 +162,6 @@ func (r *SQLiteSessionRepository) Create(connectorType, channelID, title string)
 		id, connectorType, channelID, title,
 	)
 	if err != nil {
-		if r.metricsCollector != nil {
-			r.metricsCollector.IncrementCounter("db_operation_total", map[string]string{
-				"operation": "Create",
-				"entity":    "session",
-				"result":    "error",
-			})
-			r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-				"operation": "Create",
-				"entity":    "session",
-				"status":    "error",
-			})
-		}
 		return nil, fmt.Errorf("session create: %w", err)
 	}
 
@@ -239,46 +170,12 @@ func (r *SQLiteSessionRepository) Create(connectorType, channelID, title string)
 		 FROM sessions WHERE id = ?`,
 		id,
 	)
-	result, err := scanSession(row)
-	if r.metricsCollector != nil {
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		r.metricsCollector.IncrementCounter("db_operation_total", map[string]string{
-			"operation": "Create",
-			"entity":    "session",
-			"result":    status,
-		})
-		r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-			"operation": "Create",
-			"entity":    "session",
-			"status":    status,
-		})
-	}
-	return result, err
+	return scanSession(row)
 }
 
 // Delete removes a session by ID. CASCADE handles messages.
 func (r *SQLiteSessionRepository) Delete(id string) error {
-	start := time.Now()
 	_, err := r.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
-	if r.metricsCollector != nil {
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		r.metricsCollector.IncrementCounter("db_operation_total", map[string]string{
-			"operation": "Delete",
-			"entity":    "session",
-			"result":    status,
-		})
-		r.metricsCollector.RecordHistogram("db_operation_duration_ms", float64(time.Since(start).Milliseconds()), map[string]string{
-			"operation": "Delete",
-			"entity":    "session",
-			"status":    status,
-		})
-	}
 	if err != nil {
 		return fmt.Errorf("session delete: %w", err)
 	}
