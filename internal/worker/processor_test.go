@@ -16,7 +16,6 @@ import (
 	"bruce/internal/config"
 	"bruce/internal/database"
 	"bruce/internal/domain"
-	"bruce/internal/monitoring"
 	"bruce/internal/repository"
 )
 
@@ -47,9 +46,6 @@ func newTestProcessor(t *testing.T, db *sql.DB, llm ai.LLMService, cfg ...*confi
 	sessRepo := repository.NewSessionRepository(db)
 	msgRepo := repository.NewMessageRepository(db)
 	cfgRepo := repository.NewConfigRepository(db)
-	monitoringRepo := repository.NewMonitoringRepository(db)
-	metricsCollector := monitoring.NewCollector(db)
-	structuredLogger := monitoring.NewStructuredLogger(db)
 	registry := NewDispatcherRegistry()
 
 	config := testConfig()
@@ -57,8 +53,7 @@ func newTestProcessor(t *testing.T, db *sql.DB, llm ai.LLMService, cfg ...*confi
 		config = cfg[0]
 	}
 
-	return NewProcessor(sessRepo, msgRepo, cfgRepo, monitoringRepo, llm, registry,
-		metricsCollector, structuredLogger, config)
+	return NewProcessor(sessRepo, msgRepo, cfgRepo, llm, registry, config)
 }
 
 func makeTask(t *testing.T, p ProcessIncomingMessagePayload) *asynq.Task {

@@ -225,7 +225,7 @@ func handleSendChatMessage(
 	var response string
 	var llmErr error
 	if toolRegistry != nil {
-		response, llmErr = ai.RunAgentLoop(ctx, llm, toolRegistry, systemPrompt, history, 10, nil)
+		response, llmErr = ai.RunAgentLoop(ctx, llm, toolRegistry, systemPrompt, history, 10)
 	} else {
 		response, llmErr = llm.GenerateResponse(ctx, systemPrompt, history)
 	}

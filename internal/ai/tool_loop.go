@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"bruce/internal/domain"
-	"bruce/internal/monitoring"
 )
 
 // ToolRegistry is the interface the agentic loop uses to look up and execute tools.
@@ -26,7 +25,6 @@ func RunAgentLoop(
 	systemPrompt string,
 	messages []domain.Message,
 	maxRetries int,
-	logger *monitoring.StructuredLogger,
 ) (string, error) {
 	currentMessages := make([]domain.Message, len(messages))
 	copy(currentMessages, messages)
@@ -64,20 +62,6 @@ func RunAgentLoop(
 		// Execute each tool and collect results
 		for _, call := range resp.ToolCalls {
 			result, execErr := registry.Execute(ctx, call.Name, call.Input)
-
-			// Log execution
-			if logger != nil {
-				logFields := map[string]interface{}{
-					"tool":    call.Name,
-					"success": execErr == nil,
-				}
-				if execErr != nil {
-					logFields["error"] = execErr.Error()
-				} else {
-					logFields["result_len"] = len(result)
-				}
-				logger.Info(ctx, "tool_loop", "tool_executed", logFields)
-			}
 
 			// Append tool result as message
 			toolResult := &domain.ToolResult{

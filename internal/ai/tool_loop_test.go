@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"bruce/internal/domain"
-	"bruce/internal/monitoring"
 )
 
 // mockLLM implements LLMService for testing
@@ -213,7 +212,6 @@ func TestRunAgentLoop(t *testing.T) {
 				"You are a helpful assistant",
 				[]domain.Message{},
 				tt.maxRetries,
-				nil, // logger
 			)
 
 			if tt.wantErrType != nil {
@@ -231,52 +229,3 @@ func TestRunAgentLoop(t *testing.T) {
 	}
 }
 
-func TestRunAgentLoopLogging(t *testing.T) {
-	// Test that logging is called correctly
-	llm := &mockLLM{
-		responses: []*ToolCallResponse{
-			{
-				ToolCalls: []ToolCall{
-					{
-						ID:    "call_1",
-						Name:  "test_tool",
-						Input: map[string]interface{}{"key": "value"},
-					},
-				},
-				Complete: false,
-			},
-			{
-				Text:     "Done",
-				Complete: true,
-			},
-		},
-	}
-
-	registry := &mockRegistry{
-		definitions: []ToolDefinition{
-			{Name: "test_tool", Description: "Test tool"},
-		},
-		execFunc: func(ctx context.Context, name string, input map[string]interface{}) (string, error) {
-			return "test result", nil
-		},
-	}
-
-	logger := monitoring.NewStructuredLogger(nil)
-
-	result, err := RunAgentLoop(
-		context.Background(),
-		llm,
-		registry,
-		"System prompt",
-		[]domain.Message{},
-		5,
-		logger,
-	)
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if result != "Done" {
-		t.Errorf("expected 'Done', got %q", result)
-	}
-}

@@ -51,12 +51,6 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/chat/sessions/{id}", chatHandler).Methods("GET", "DELETE", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}/messages", chatHandler).Methods("GET", "POST", "OPTIONS")
 
-	// Monitoring routes.
-	api.HandleFunc("/logs", handlers.LogsHandler()).Methods(http.MethodGet)
-	api.HandleFunc("/metrics", handlers.MetricsHandler()).Methods(http.MethodGet)
-	api.HandleFunc("/monitoring/config", handlers.MonitoringConfigGetHandler()).Methods(http.MethodGet)
-	api.HandleFunc("/monitoring/config", handlers.MonitoringConfigPatchHandler()).Methods(http.MethodPatch)
-
 	// Google OAuth routes (registered only when OAuth is configured).
 	if googleAuth != nil {
 		r.HandleFunc("/auth/google/start", googleAuth.StartHandler()).Methods(http.MethodGet)
