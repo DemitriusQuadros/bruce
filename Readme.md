@@ -1,4 +1,4 @@
-# Bruce
+https://media.demitrius-quadros.com/generated/reels/ready/# Bruce
 
 **A personal AI assistant that lives in your messaging apps.**
 
@@ -122,14 +122,6 @@ docker compose up -d
 ```
 
 The Docker Compose stack starts Redis and Bruce together. Bruce is accessible on port `9090` (mapped from container port `8080`). Logs: `docker compose logs -f`.
-
-### Option 3 — Binary
-
-Download the latest release binary from the [releases page](https://github.com/DemitriusQuadros/bruce/releases), place `config.yml` in the same directory, and run:
-
-```bash
-./bruce
-```
 
 > **CGO required:** Bruce uses `mattn/go-sqlite3`, which requires CGO. Pre-built binaries are CGO-enabled. If building from source, ensure `CGO_ENABLED=1` (the default on most platforms).
 
