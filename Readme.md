@@ -1,4 +1,4 @@
-https://media.demitrius-quadros.com/generated/reels/ready/# Bruce
+# Bruce
 
 **A personal AI assistant that lives in your messaging apps.**
 
