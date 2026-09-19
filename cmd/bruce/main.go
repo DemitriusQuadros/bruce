@@ -32,6 +32,7 @@ import (
 	"bruce/internal/database"
 	"bruce/internal/logging"
 	"bruce/internal/repository"
+	"bruce/internal/scheduler"
 	"bruce/internal/tools"
 	"bruce/internal/tools/bash"
 	calendar "bruce/internal/tools/calendar"
@@ -43,6 +44,7 @@ import (
 	"bruce/internal/tools/httpclient"
 	n8ntool "bruce/internal/tools/n8n"
 	"bruce/internal/tools/notion"
+	"bruce/internal/tools/proactive"
 	"bruce/internal/tools/trello"
 	"bruce/internal/worker"
 )
@@ -87,6 +89,7 @@ func main() {
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
 	toolExecutionRepo := repository.NewToolExecutionRepository(db)
+	proactiveTaskRepo := repository.NewProactiveTaskRepository(db)
 	providers := ai.BuildProviders(cfg)
 	llmService := ai.NewProviderRegistry(configRepo, sessionRepo, providers, cfg)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
@@ -284,16 +287,31 @@ func main() {
 		}
 	}
 
+	// Spec 32: Proactive Conversational Tools.
+	toolRegistry.Register(proactive.NewCreateTool(proactiveTaskRepo, cfg)) //nolint:errcheck
+	toolRegistry.Register(proactive.NewListTool(proactiveTaskRepo))        //nolint:errcheck
+	toolRegistry.Register(proactive.NewToggleTool(proactiveTaskRepo))      //nolint:errcheck
+	toolRegistry.Register(proactive.NewDeleteTool(proactiveTaskRepo))      //nolint:errcheck
+
 	proc.SetToolRegistry(toolRegistry)
+	proc.SetProactiveRepo(proactiveTaskRepo)
+	proc.SetProviderRegistry(llmService)
 
 	muxHandler := asynq.NewServeMux()
 	muxHandler.HandleFunc(worker.TaskProcessIncomingMessage, proc.HandleProcessIncomingMessageTask)
+	muxHandler.HandleFunc(worker.TaskEvaluateWatch, proc.HandleEvaluateWatchTask)
+	muxHandler.HandleFunc(worker.TaskExecuteScheduledReport, proc.HandleExecuteScheduledReportTask)
 
 	go func() {
 		if err := asynqServer.Run(muxHandler); err != nil {
 			log.Printf("WARNING: asynq server stopped: %v", err)
 		}
 	}()
+
+	// Spec 30: Start scheduler poller for due proactive tasks.
+	poller := scheduler.NewPoller(proactiveTaskRepo, asynqClient, cfg)
+	poller.Start(context.Background())
+	defer poller.Stop()
 
 	// 4. Init HTTP server.
 	mon := asynqmon.New(asynqmon.Options{
@@ -309,6 +327,8 @@ func main() {
 		ctx = context.WithValue(ctx, "messageRepo", messageRepo)
 		ctx = context.WithValue(ctx, "configRepo", configRepo)
 		ctx = context.WithValue(ctx, "toolExecutionRepo", toolExecutionRepo)
+		ctx = context.WithValue(ctx, "proactiveTaskRepo", proactiveTaskRepo)
+		ctx = context.WithValue(ctx, "asynqClient", asynqClient)
 		ctx = context.WithValue(ctx, "dispatcherRegistry", dispatcherRegistry)
 		router.ServeHTTP(w, r.WithContext(ctx))
 	})

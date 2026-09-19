@@ -24,8 +24,13 @@ openai:
   model: "gpt-4o"
   max_tokens: 1024
 
+app:
+  timezone: "America/Sao_Paulo" # default fallback timezone if not detected from host
+
 llm:
   provider: "claude"
+  background_provider: "gemini" # fast, cost-effective provider for background tasks & watches
+  background_model: "gemini-2.0-flash"
 
 connectors:
   whatsapp:

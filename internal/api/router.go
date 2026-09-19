@@ -45,6 +45,12 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/sessions/{id}/tool-executions", handlers.ToolExecutionsHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/connectors", handlers.ConnectorsHandler()).Methods(http.MethodGet)
 
+	// Proactive tasks routes (ambient watches and scheduled reports).
+	proactiveHandler := handlers.ProactiveTasksHandler(cfg)
+	api.HandleFunc("/proactive-tasks", proactiveHandler).Methods(http.MethodGet, http.MethodPost)
+	api.HandleFunc("/proactive-tasks/{id}", proactiveHandler).Methods(http.MethodGet, http.MethodPatch, http.MethodDelete)
+	api.HandleFunc("/proactive-tasks/{id}/run", handlers.ProactiveTaskRunHandler()).Methods(http.MethodPost)
+
 	// Chat routes (web chat interface — synchronous LLM calls).
 	chatHandler := handlers.ChatHandler(registry, cfg, toolRegistry)
 	api.HandleFunc("/chat/sessions", chatHandler).Methods("GET", "POST", "OPTIONS")

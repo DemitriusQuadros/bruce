@@ -19,13 +19,15 @@ import (
 
 // Processor handles Asynq tasks for Bruce.
 type Processor struct {
-	sessionRepo  repository.SessionRepository
-	messageRepo  repository.MessageRepository
-	configRepo   repository.ConfigRepository
-	llm          ai.LLMService
-	toolRegistry ai.ToolRegistry
-	dispatcher   *DispatcherRegistry
-	cfg          *config.Config
+	sessionRepo      repository.SessionRepository
+	messageRepo      repository.MessageRepository
+	configRepo       repository.ConfigRepository
+	proactiveRepo    repository.ProactiveTaskRepository
+	llm              ai.LLMService
+	providerRegistry *ai.ProviderRegistry
+	toolRegistry     ai.ToolRegistry
+	dispatcher       *DispatcherRegistry
+	cfg              *config.Config
 }
 
 // NewProcessor returns a Processor wired with all required dependencies.

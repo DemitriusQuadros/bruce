@@ -46,9 +46,16 @@ type OpenAIConfig struct {
 	MaxTokens int    `mapstructure:"max_tokens"`
 }
 
+// AppConfig holds general application settings such as default timezone.
+type AppConfig struct {
+	Timezone string `mapstructure:"timezone"`
+}
+
 // LLMConfig holds LLM provider selection settings.
 type LLMConfig struct {
-	Provider string `mapstructure:"provider"` // "claude" | "gemini" | "openai"
+	Provider           string `mapstructure:"provider"`            // "claude" | "gemini" | "openai"
+	BackgroundProvider string `mapstructure:"background_provider"` // "claude" | "gemini" | "openai"
+	BackgroundModel    string `mapstructure:"background_model"`
 }
 
 // WhatsAppConfig holds WhatsApp connector settings.
@@ -201,6 +208,7 @@ type ToolsConfig struct {
 
 // Config is the top-level application configuration.
 type Config struct {
+	App        AppConfig        `mapstructure:"app"`
 	Server     ServerConfig     `mapstructure:"server"`
 	Redis      RedisConfig      `mapstructure:"redis"`
 	SQLite     SQLiteConfig     `mapstructure:"sqlite"`

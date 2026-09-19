@@ -30,3 +30,55 @@ func NewProcessIncomingMessageTask(p ProcessIncomingMessagePayload) (*asynq.Task
 		asynq.Timeout(90*time.Second),
 	), nil
 }
+
+// TaskEvaluateWatch is the Asynq task type for evaluating condition-based ambient watches.
+const TaskEvaluateWatch = "proactive:evaluate_watch"
+
+// TaskExecuteScheduledReport is the Asynq task type for generating scheduled time-of-day reports.
+const TaskExecuteScheduledReport = "proactive:execute_report"
+
+// EvaluateWatchPayload is the JSON payload for a proactive:evaluate_watch task.
+type EvaluateWatchPayload struct {
+	TaskID          string   `json:"task_id"`
+	SessionID       string   `json:"session_id"`
+	TargetConnector string   `json:"target_connector"`
+	TargetChannelID string   `json:"target_channel_id"`
+	Title           string   `json:"title"`
+	Condition       string   `json:"condition"`
+	TargetTools     []string `json:"target_tools"`
+	LastResultHash  string   `json:"last_result_hash"`
+}
+
+// NewEvaluateWatchTask creates an Asynq task for evaluating a proactive watch.
+func NewEvaluateWatchTask(p EvaluateWatchPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskEvaluateWatch, payload,
+		asynq.MaxRetry(2),
+		asynq.Timeout(45*time.Second),
+	), nil
+}
+
+// ExecuteScheduledReportPayload is the JSON payload for a proactive:execute_report task.
+type ExecuteScheduledReportPayload struct {
+	TaskID          string `json:"task_id"`
+	SessionID       string `json:"session_id"`
+	TargetConnector string `json:"target_connector"`
+	TargetChannelID string `json:"target_channel_id"`
+	Title           string `json:"title"`
+	Prompt          string `json:"prompt"`
+}
+
+// NewExecuteScheduledReportTask creates an Asynq task for executing a scheduled report.
+func NewExecuteScheduledReportTask(p ExecuteScheduledReportPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskExecuteScheduledReport, payload,
+		asynq.MaxRetry(2),
+		asynq.Timeout(120*time.Second),
+	), nil
+}

@@ -197,3 +197,37 @@ func (r *ProviderRegistry) ListProviders() []ProviderInfo {
 	}
 	return result
 }
+
+// GetBackgroundProvider returns the designated background LLM provider (e.g. Gemini 2.0 Flash).
+// If not configured, or if the configured background provider is unavailable, it falls back
+// to the default provider.
+func (r *ProviderRegistry) GetBackgroundProvider() LLMService {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// 1. Check background provider configured in LLMConfig
+	if r.cfg != nil && r.cfg.LLM.BackgroundProvider != "" {
+		bgName := ProviderName(r.cfg.LLM.BackgroundProvider)
+		if p, exists := r.providers[bgName]; exists {
+			return p
+		}
+	}
+
+	// 2. Fall back to Gemini if available (fast/cheap default for background loops)
+	if p, exists := r.providers[ProviderGemini]; exists {
+		return p
+	}
+
+	// 3. Fall back to static default or whatever is available
+	if r.cfg != nil && r.cfg.LLM.Provider != "" {
+		defaultName := ProviderName(r.cfg.LLM.Provider)
+		if p, exists := r.providers[defaultName]; exists {
+			return p
+		}
+	}
+
+	for _, p := range r.providers {
+		return p
+	}
+	return nil
+}
