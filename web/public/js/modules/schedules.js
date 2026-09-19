@@ -9,6 +9,7 @@ let pollInterval = null;
 let countdownTimer = null;
 let currentFilter = 'all';
 let lastFocusedElement = null;
+let editingTaskId = null;
 
 const CONNECTOR_ICONS = {
     whatsapp: 'fab fa-whatsapp',
@@ -221,6 +222,9 @@ function renderTasks() {
                     <button type="button" class="btn-card-action" data-testid="task-toggle-btn" aria-label="${task.is_active ? 'Pause task' : 'Resume task'}" title="${task.is_active ? 'Pause task' : 'Resume task'}" data-action="toggle">
                         <i class="fas ${task.is_active ? 'fa-pause' : 'fa-play'}"></i> ${task.is_active ? 'Pause' : 'Resume'}
                     </button>
+                    <button type="button" class="btn-card-action" data-testid="task-edit-btn" aria-label="Edit task" title="Edit task" data-action="edit">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
                 </div>
                 <button type="button" class="btn-card-action btn-card-action--delete" data-testid="task-delete-btn" aria-label="Delete task" title="Delete task" data-action="delete">
                     <i class="fas fa-trash"></i>
@@ -231,6 +235,7 @@ function renderTasks() {
         // Wire action button events with visible loading state locking
         const runBtn = card.querySelector('[data-action="run"]');
         const toggleBtn = card.querySelector('[data-action="toggle"]');
+        const editBtn = card.querySelector('[data-action="edit"]');
         const deleteBtn = card.querySelector('[data-action="delete"]');
         const promptEl = card.querySelector('[data-testid="task-prompt-display"]');
 
@@ -242,6 +247,7 @@ function renderTasks() {
 
         runBtn.addEventListener('click', () => handleRunNow(task, runBtn));
         toggleBtn.addEventListener('click', () => handleToggleStatus(task, toggleBtn));
+        if (editBtn) editBtn.addEventListener('click', () => openEditModal(task));
         deleteBtn.addEventListener('click', () => handleDeleteTask(task, deleteBtn));
 
         listEl.appendChild(card);
@@ -335,6 +341,60 @@ function tickCountdowns() {
 /**
  * Setup modal dialog open/close, focus trapping, and creation form.
  */
+/**
+ * Setup modal dialog open/close, focus trapping, and creation form.
+ */
+function openEditModal(task) {
+    editingTaskId = task.id;
+    lastFocusedElement = document.activeElement;
+
+    const backdrop = document.getElementById('schedules-modal-backdrop');
+    const modalTitle = document.getElementById('schedules-modal-title');
+    const submitBtn = document.getElementById('schedules-modal-submit-btn');
+    const typeSelect = document.getElementById('task-type');
+    const scheduleLabel = document.getElementById('task-schedule-label');
+    const scheduleInput = document.getElementById('task-schedule-expr');
+    const scheduleHint = document.getElementById('task-schedule-hint');
+    const titleInput = document.getElementById('task-title');
+    const targetConnectorSelect = document.getElementById('task-target-connector');
+    const targetChannelInput = document.getElementById('task-target-channel');
+    const timezoneInput = document.getElementById('task-timezone');
+    const promptInput = document.getElementById('task-prompt');
+    const toolsInput = document.getElementById('task-tools');
+
+    if (modalTitle) {
+        modalTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Proactive Task';
+    }
+    if (submitBtn) {
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+    }
+
+    if (titleInput) titleInput.value = task.title || '';
+    if (typeSelect) {
+        typeSelect.value = task.task_type || 'cron';
+        if (task.task_type === 'watch') {
+            if (scheduleLabel) scheduleLabel.textContent = 'Poll Interval (Minutes)';
+            if (scheduleInput) scheduleInput.placeholder = '30';
+            if (scheduleHint) scheduleHint.textContent = 'Interval in minutes (minimum 5). e.g. 15 or 30';
+        } else {
+            if (scheduleLabel) scheduleLabel.textContent = 'Schedule Expression';
+            if (scheduleInput) scheduleInput.placeholder = '0 9 * * 1-5';
+            if (scheduleHint) scheduleHint.textContent = 'Cron expression (min hour dom mon dow), e.g. 0 9 * * 1-5';
+        }
+    }
+    if (scheduleInput) scheduleInput.value = task.schedule_expr || '';
+    if (targetConnectorSelect) targetConnectorSelect.value = task.target_connector || task.connector_type || 'web';
+    if (targetChannelInput) targetChannelInput.value = task.target_channel_id || task.channel_id || '';
+    if (timezoneInput) timezoneInput.value = task.timezone || 'America/Sao_Paulo';
+    if (promptInput) promptInput.value = task.prompt_condition || '';
+    if (toolsInput) toolsInput.value = (task.target_tools || []).join(', ');
+
+    if (backdrop) backdrop.hidden = false;
+    if (titleInput) {
+        setTimeout(() => titleInput.focus(), 50);
+    }
+}
+
 function setupModal() {
     const backdrop = document.getElementById('schedules-modal-backdrop');
     const newBtn = document.getElementById('schedules-new-btn');
@@ -360,7 +420,24 @@ function setupModal() {
     } catch (_) {}
 
     const openModal = () => {
+        editingTaskId = null;
         lastFocusedElement = document.activeElement;
+
+        const modalTitle = document.getElementById('schedules-modal-title');
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Create Proactive Task';
+        }
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Create Task';
+        }
+
+        form.reset();
+        updateTypeForm('cron');
+        try {
+            const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (timezoneInput) timezoneInput.value = localTz || 'America/Sao_Paulo';
+        } catch (_) {}
+
         backdrop.hidden = false;
         const titleInput = document.getElementById('task-title');
         if (titleInput) {
@@ -369,6 +446,7 @@ function setupModal() {
     };
 
     const closeModal = () => {
+        editingTaskId = null;
         backdrop.hidden = true;
         form.reset();
         updateTypeForm('cron');
@@ -454,33 +532,47 @@ function setupModal() {
             targetTools = toolsRaw.split(',').map(s => s.trim()).filter(Boolean);
         }
 
-        const payload = {
-            session_id: 'default',
-            connector_type: targetConnector,
-            channel_id: targetChannel,
-            target_connector: targetConnector,
-            target_channel_id: targetChannel,
-            title,
-            task_type: taskType,
-            schedule_expr: scheduleExpr,
-            timezone,
-            prompt_condition: prompt,
-            target_tools: targetTools,
-        };
-
-        const originalSubmitHtml = submitBtn ? submitBtn.innerHTML : 'Create Task';
+        const isEditing = Boolean(editingTaskId);
+        const originalSubmitHtml = submitBtn ? submitBtn.innerHTML : (isEditing ? 'Save Changes' : 'Create Task');
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${isEditing ? 'Saving...' : 'Creating...'}`;
         }
 
         try {
-            await req('POST', '/api/v1/proactive-tasks', payload);
-            showToast(`Task "${title}" created successfully`, 'success');
+            if (isEditing) {
+                const patchPayload = {
+                    title,
+                    schedule_expr: scheduleExpr,
+                    target_connector: targetConnector,
+                    target_channel_id: targetChannel,
+                    timezone,
+                    prompt_condition: prompt,
+                    target_tools: targetTools,
+                };
+                await req('PATCH', `/api/v1/proactive-tasks/${editingTaskId}`, patchPayload);
+                showToast(`Task "${title}" updated successfully`, 'success');
+            } else {
+                const payload = {
+                    session_id: 'default',
+                    connector_type: targetConnector,
+                    channel_id: targetChannel,
+                    target_connector: targetConnector,
+                    target_channel_id: targetChannel,
+                    title,
+                    task_type: taskType,
+                    schedule_expr: scheduleExpr,
+                    timezone,
+                    prompt_condition: prompt,
+                    target_tools: targetTools,
+                };
+                await req('POST', '/api/v1/proactive-tasks', payload);
+                showToast(`Task "${title}" created successfully`, 'success');
+            }
             closeModal();
             await loadTasks();
         } catch (err) {
-            showToast(`Failed to create task: ${err.message}`, 'error');
+            showToast(`Failed to ${isEditing ? 'update' : 'create'} task: ${err.message}`, 'error');
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;

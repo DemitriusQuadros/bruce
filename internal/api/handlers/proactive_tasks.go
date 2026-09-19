@@ -314,11 +314,14 @@ func handleCreateProactiveTask(w http.ResponseWriter, r *http.Request, repo repo
 }
 
 type patchProactiveTaskRequest struct {
-	IsActive        *bool   `json:"is_active"`
-	Title           *string `json:"title"`
-	ScheduleExpr    *string `json:"schedule_expr"`
-	PromptCondition *string `json:"prompt_condition"`
-	Timezone        *string `json:"timezone"`
+	IsActive        *bool     `json:"is_active"`
+	Title           *string   `json:"title"`
+	ScheduleExpr    *string   `json:"schedule_expr"`
+	PromptCondition *string   `json:"prompt_condition"`
+	Timezone        *string   `json:"timezone"`
+	TargetConnector *string   `json:"target_connector"`
+	TargetChannelID *string   `json:"target_channel_id"`
+	TargetTools     *[]string `json:"target_tools"`
 }
 
 func handlePatchProactiveTask(w http.ResponseWriter, r *http.Request, repo repository.ProactiveTaskRepository, id string, cfg *config.Config) {
@@ -356,6 +359,20 @@ func handlePatchProactiveTask(w http.ResponseWriter, r *http.Request, repo repos
 		task.ScheduleExpr = strings.TrimSpace(*req.ScheduleExpr)
 		scheduleChanged = true
 	}
+	if req.TargetConnector != nil && strings.TrimSpace(*req.TargetConnector) != "" {
+		targetConn := strings.ToLower(strings.TrimSpace(*req.TargetConnector))
+		if targetConn != "whatsapp" && targetConn != "discord" && targetConn != "telegram" && targetConn != "web" {
+			writeError(w, http.StatusBadRequest, "target_connector must be 'whatsapp', 'discord', 'telegram', or 'web'")
+			return
+		}
+		task.TargetConnector = targetConn
+	}
+	if req.TargetChannelID != nil {
+		task.TargetChannelID = strings.TrimSpace(*req.TargetChannelID)
+	}
+	if req.TargetTools != nil {
+		task.TargetTools = *req.TargetTools
+	}
 
 	if scheduleChanged {
 		cfgTz := ""
@@ -388,6 +405,7 @@ func handlePatchProactiveTask(w http.ResponseWriter, r *http.Request, repo repos
 		}
 	}
 
+	task.UpdatedAt = time.Now()
 	if err := repo.Update(r.Context(), task); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update task: "+err.Error())
 		return

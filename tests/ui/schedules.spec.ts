@@ -209,4 +209,78 @@ test.describe('Schedules & Ambient Watches Dashboard', () => {
     await expect(cards).toHaveCount(1);
     await expect(cards.first().locator('[data-testid="task-title"]')).toContainText('Task Paused Watch');
   });
+
+  test('should open edit modal pre-filled and update a task via PATCH', async ({ page }) => {
+    let patchCalled = false;
+    let patchPayload: any = null;
+
+    const mockTask = {
+      id: 'tsk-edit-1',
+      title: 'Original Title',
+      task_type: 'cron',
+      schedule_expr: '0 9 * * *',
+      timezone: 'America/Sao_Paulo',
+      prompt_condition: 'Original instruction prompt',
+      target_connector: 'discord',
+      target_channel_id: 'chan-dev',
+      is_active: true,
+      next_run_at: new Date(Date.now() + 3600000).toISOString(),
+    };
+
+    await page.route('**/api/v1/proactive-tasks', async route => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([mockTask]),
+        });
+      }
+    });
+
+    await page.route('**/api/v1/proactive-tasks/tsk-edit-1', async route => {
+      if (route.request().method() === 'PATCH') {
+        patchCalled = true;
+        patchPayload = JSON.parse(route.request().postData() || '{}');
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ...mockTask, ...patchPayload }),
+        });
+      }
+    });
+
+    await page.goto('/#schedules');
+
+    // Click Edit button
+    const editBtn = page.locator('[data-testid="task-edit-btn"]').first();
+    await expect(editBtn).toBeVisible();
+    await editBtn.click();
+
+    // Verify modal is open in Edit mode
+    const modal = page.locator('[data-testid="schedules-modal"]');
+    await expect(modal).toBeVisible();
+    await expect(page.locator('#schedules-modal-title')).toContainText('Edit Proactive Task');
+    await expect(page.locator('[data-testid="task-modal-submit-btn"]')).toContainText('Save Changes');
+
+    // Verify pre-filled inputs
+    await expect(page.locator('[data-testid="task-title-input"]')).toHaveValue('Original Title');
+    await expect(page.locator('[data-testid="task-schedule-input"]')).toHaveValue('0 9 * * *');
+    await expect(page.locator('[data-testid="task-prompt-input"]')).toHaveValue('Original instruction prompt');
+
+    // Modify title and prompt
+    await page.locator('[data-testid="task-title-input"]').fill('Updated Title');
+    await page.locator('[data-testid="task-prompt-input"]').fill('Updated instruction prompt');
+
+    // Submit
+    await page.locator('[data-testid="task-modal-submit-btn"]').click();
+
+    // Modal should close
+    const backdrop = page.locator('[data-testid="schedules-modal-backdrop"]');
+    await expect(backdrop).toHaveAttribute('hidden', '');
+
+    expect(patchCalled).toBe(true);
+    expect(patchPayload.title).toBe('Updated Title');
+    expect(patchPayload.prompt_condition).toBe('Updated instruction prompt');
+  });
 });
+
