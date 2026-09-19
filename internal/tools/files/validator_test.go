@@ -101,3 +101,24 @@ func TestValidatePath_SymlinkEscape(t *testing.T) {
 		t.Error("expected error for symlink escaping base directory, got nil")
 	}
 }
+
+func TestValidatePath_PathTrimming(t *testing.T) {
+	base := t.TempDir()
+
+	got, err := ValidatePath(base, "./myfile.txt")
+	if err != nil {
+		t.Fatalf("unexpected error for ./myfile.txt: %v", err)
+	}
+	if got != filepath.Join(base, "myfile.txt") {
+		t.Errorf("got %q, want %q", got, filepath.Join(base, "myfile.txt"))
+	}
+
+	got, err = ValidatePath(base, "~/myfile.txt")
+	if err != nil {
+		t.Fatalf("unexpected error for ~/myfile.txt: %v", err)
+	}
+	if got != filepath.Join(base, "myfile.txt") {
+		t.Errorf("got %q, want %q", got, filepath.Join(base, "myfile.txt"))
+	}
+}
+

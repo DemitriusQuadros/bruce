@@ -16,14 +16,11 @@ const defaultMaxFileSize = 102400 // 100KB
 
 // FileReadTool implements the tools.Tool interface for reading local files.
 type FileReadTool struct {
-	cfg config.FilesConfig
+	cfg *config.Config
 }
 
 // NewFileReadTool creates a new FileReadTool.
-func NewFileReadTool(cfg config.FilesConfig) *FileReadTool {
-	if cfg.MaxFileSize <= 0 {
-		cfg.MaxFileSize = defaultMaxFileSize
-	}
+func NewFileReadTool(cfg *config.Config) *FileReadTool {
 	return &FileReadTool{cfg: cfg}
 }
 
@@ -63,7 +60,19 @@ func (t *FileReadTool) Execute(_ context.Context, input map[string]interface{}) 
 		return nil, fmt.Errorf("path is required and must be a string")
 	}
 
-	canonical, err := ValidatePath(t.cfg.HomeDir, path)
+	homeDir := ""
+	maxFileSize := defaultMaxFileSize
+	if t.cfg != nil {
+		homeDir = t.cfg.Tools.Files.HomeDir
+		if t.cfg.Tools.Files.MaxFileSize > 0 {
+			maxFileSize = t.cfg.Tools.Files.MaxFileSize
+		}
+	}
+	if homeDir == "" {
+		homeDir = os.Getenv("HOME")
+	}
+
+	canonical, err := ValidatePath(homeDir, path)
 	if err != nil {
 		return nil, err
 	}
@@ -74,15 +83,15 @@ func (t *FileReadTool) Execute(_ context.Context, input map[string]interface{}) 
 	}
 	defer f.Close()
 
-	limited := io.LimitReader(f, int64(t.cfg.MaxFileSize)+1)
+	limited := io.LimitReader(f, int64(maxFileSize)+1)
 	data, err := io.ReadAll(limited)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", path, err)
 	}
 
 	truncated := false
-	if len(data) > t.cfg.MaxFileSize {
-		data = data[:t.cfg.MaxFileSize]
+	if len(data) > maxFileSize {
+		data = data[:maxFileSize]
 		truncated = true
 	}
 
@@ -96,14 +105,11 @@ func (t *FileReadTool) Execute(_ context.Context, input map[string]interface{}) 
 
 // FileWriteTool implements the tools.Tool interface for writing local files.
 type FileWriteTool struct {
-	cfg config.FilesConfig
+	cfg *config.Config
 }
 
 // NewFileWriteTool creates a new FileWriteTool.
-func NewFileWriteTool(cfg config.FilesConfig) *FileWriteTool {
-	if cfg.MaxFileSize <= 0 {
-		cfg.MaxFileSize = defaultMaxFileSize
-	}
+func NewFileWriteTool(cfg *config.Config) *FileWriteTool {
 	return &FileWriteTool{cfg: cfg}
 }
 
@@ -149,7 +155,15 @@ func (t *FileWriteTool) Execute(_ context.Context, input map[string]interface{})
 	}
 	content, _ := input["content"].(string)
 
-	canonical, err := ValidatePath(t.cfg.HomeDir, path)
+	homeDir := ""
+	if t.cfg != nil {
+		homeDir = t.cfg.Tools.Files.HomeDir
+	}
+	if homeDir == "" {
+		homeDir = os.Getenv("HOME")
+	}
+
+	canonical, err := ValidatePath(homeDir, path)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +177,7 @@ func (t *FileWriteTool) Execute(_ context.Context, input map[string]interface{})
 	parentDirsCreated := false
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, fmt.Errorf("failed to create parent directories for %q: %w", path, err)
+			return nil, fmt.Errorf("failed to create parent directories for %q in %q: %w", path, homeDir, err)
 		}
 		parentDirsCreated = true
 	}

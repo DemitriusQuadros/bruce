@@ -294,10 +294,10 @@ func main() {
 		if cfg.Tools.Files.HomeDir == "" {
 			cfg.Tools.Files.HomeDir = os.Getenv("HOME")
 		}
-		if err := toolRegistry.Register(files.NewFileReadTool(cfg.Tools.Files)); err != nil {
+		if err := toolRegistry.Register(files.NewFileReadTool(cfg)); err != nil {
 			log.Fatalf("FATAL: register file_read tool: %v", err)
 		}
-		if err := toolRegistry.Register(files.NewFileWriteTool(cfg.Tools.Files)); err != nil {
+		if err := toolRegistry.Register(files.NewFileWriteTool(cfg)); err != nil {
 			log.Fatalf("FATAL: register file_write tool: %v", err)
 		}
 	}
