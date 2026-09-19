@@ -221,7 +221,7 @@ func handleSendChatMessage(
 	}
 
 	// 6. Call LLM — use agent loop when tools are available, plain generation otherwise.
-	ctx := ai.WithSessionID(r.Context(), sessionID)
+	ctx := ai.WithSessionContext(r.Context(), sessionID, "web", session.ChannelID)
 	var response string
 	var llmErr error
 	if toolRegistry != nil {

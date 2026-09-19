@@ -19,13 +19,14 @@ import (
 
 // CreateTool allows Bruce to register a new recurring cron schedule or ambient watch.
 type CreateTool struct {
-	repo repository.ProactiveTaskRepository
-	cfg  *config.Config
+	repo        repository.ProactiveTaskRepository
+	sessionRepo repository.SessionRepository
+	cfg         *config.Config
 }
 
 // NewCreateTool returns a new CreateTool.
-func NewCreateTool(repo repository.ProactiveTaskRepository, cfg *config.Config) *CreateTool {
-	return &CreateTool{repo: repo, cfg: cfg}
+func NewCreateTool(repo repository.ProactiveTaskRepository, sessionRepo repository.SessionRepository, cfg *config.Config) *CreateTool {
+	return &CreateTool{repo: repo, sessionRepo: sessionRepo, cfg: cfg}
 }
 
 func (t *CreateTool) Name() string {
@@ -142,14 +143,49 @@ func (t *CreateTool) Execute(ctx context.Context, input map[string]interface{}) 
 	}
 
 	connectorType, _ := input["connector_type"].(string)
+	channelID, _ := input["channel_id"].(string)
+	sessionID, _ := input["session_id"].(string)
+
+	// Auto-detect connector and channel from context if not explicitly provided
+	if ctxConn, ctxChan, ok := ai.ConnectorFromContext(ctx); ok {
+		if connectorType == "" {
+			connectorType = ctxConn
+		}
+		if channelID == "" {
+			channelID = ctxChan
+		}
+	}
 	if connectorType == "" {
 		connectorType = "web"
 	}
-	channelID, _ := input["channel_id"].(string)
 	if channelID == "" {
 		channelID = "web"
 	}
-	sessionID, _ := input["session_id"].(string)
+
+	// Auto-detect session ID from context if not provided
+	if sessionID == "" {
+		if ctxSess, ok := ai.SessionIDFromContext(ctx); ok && ctxSess != "" {
+			sessionID = ctxSess
+		}
+	}
+
+	// Ensure session exists in DB to satisfy foreign key constraints
+	if t.sessionRepo != nil {
+		if sessionID != "" && sessionID != "default" {
+			existing, err := t.sessionRepo.GetByID(sessionID)
+			if err != nil || existing == nil {
+				sess, err := t.sessionRepo.FindOrCreate(connectorType, channelID)
+				if err == nil && sess != nil {
+					sessionID = sess.ID
+				}
+			}
+		} else {
+			sess, err := t.sessionRepo.FindOrCreate(connectorType, channelID)
+			if err == nil && sess != nil {
+				sessionID = sess.ID
+			}
+		}
+	}
 	if sessionID == "" {
 		sessionID = "default"
 	}

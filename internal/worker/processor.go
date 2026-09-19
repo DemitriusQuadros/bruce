@@ -134,7 +134,7 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 
 	// 6. Call LLM — choose execution path based on tool registry availability.
 	logging.Debug("calling LLM")
-	ctx = ai.WithSessionID(ctx, session.ID)
+	ctx = ai.WithSessionContext(ctx, session.ID, payload.ConnectorType, payload.ChannelID)
 
 	var response string
 	if p.toolRegistry != nil {

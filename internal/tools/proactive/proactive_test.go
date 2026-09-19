@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"bruce/internal/ai"
 	"bruce/internal/config"
 	"bruce/internal/domain"
 )
@@ -96,7 +97,7 @@ func (m *mockRepo) Delete(ctx context.Context, id string) error {
 func TestCreateTool_Watch(t *testing.T) {
 	repo := newMockRepo()
 	cfg := &config.Config{App: config.AppConfig{Timezone: "America/Sao_Paulo"}}
-	tool := NewCreateTool(repo, cfg)
+	tool := NewCreateTool(repo, nil, cfg)
 
 	// Valid watch
 	res, err := tool.Execute(context.Background(), map[string]interface{}{
@@ -130,7 +131,7 @@ func TestCreateTool_Watch(t *testing.T) {
 
 func TestCreateTool_Cron(t *testing.T) {
 	repo := newMockRepo()
-	tool := NewCreateTool(repo, &config.Config{})
+	tool := NewCreateTool(repo, nil, &config.Config{})
 
 	res, err := tool.Execute(context.Background(), map[string]interface{}{
 		"title":            "Daily Standup",
@@ -155,7 +156,7 @@ func TestCreateTool_Cron(t *testing.T) {
 
 func TestListToggleDeleteTools(t *testing.T) {
 	repo := newMockRepo()
-	createTool := NewCreateTool(repo, &config.Config{})
+	createTool := NewCreateTool(repo, nil, &config.Config{})
 	listTool := NewListTool(repo)
 	toggleTool := NewToggleTool(repo)
 	deleteTool := NewDeleteTool(repo)
@@ -195,4 +196,32 @@ func TestListToggleDeleteTools(t *testing.T) {
 
 	allAfter, _ := repo.ListAll(ctx)
 	assert.Empty(t, allAfter)
+}
+
+func TestCreateTool_ContextAutoDetection(t *testing.T) {
+	repo := newMockRepo()
+	tool := NewCreateTool(repo, nil, &config.Config{})
+
+	// Context simulates user chatting via WhatsApp
+	ctx := ai.WithSessionContext(context.Background(), "sess-wa-456", "whatsapp", "+5511988887777")
+
+	res, err := tool.Execute(ctx, map[string]interface{}{
+		"title":            "Daily Notion & Mail Summary",
+		"type":             "cron",
+		"schedule":         "0 9 * * 1-5",
+		"prompt_condition": "Check Notion tasks and unread emails",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, res.(string), "Daily Notion & Mail Summary")
+
+	all, err := repo.ListAll(ctx)
+	require.NoError(t, err)
+	require.Len(t, all, 1)
+
+	task := all[0]
+	assert.Equal(t, "sess-wa-456", task.SessionID)
+	assert.Equal(t, "whatsapp", task.ConnectorType)
+	assert.Equal(t, "+5511988887777", task.ChannelID)
+	assert.Equal(t, "whatsapp", task.TargetConnector)
+	assert.Equal(t, "+5511988887777", task.TargetChannelID)
 }

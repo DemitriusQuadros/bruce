@@ -133,7 +133,6 @@ NO_MATCH`, payload.Condition)
 	if p.dispatcher != nil {
 		if err := p.dispatcher.Dispatch(payload.TargetConnector, payload.TargetChannelID, formattedAlert); err != nil {
 			logging.Errorf("watch %s dispatch failed: %v", payload.TaskID, err)
-			return fmt.Errorf("dispatch watch alert: %w", err)
 		}
 	}
 
@@ -206,7 +205,6 @@ func (p *Processor) HandleExecuteScheduledReportTask(ctx context.Context, t *asy
 	if p.dispatcher != nil {
 		if err := p.dispatcher.Dispatch(payload.TargetConnector, payload.TargetChannelID, formattedReport); err != nil {
 			logging.Errorf("scheduled report %s dispatch failed: %v", payload.TaskID, err)
-			return fmt.Errorf("dispatch scheduled report: %w", err)
 		}
 	}
 

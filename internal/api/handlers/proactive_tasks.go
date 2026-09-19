@@ -142,6 +142,18 @@ func handleListProactiveTasks(w http.ResponseWriter, r *http.Request, repo repos
 		return
 	}
 
+	if isActiveStr := r.URL.Query().Get("is_active"); isActiveStr != "" {
+		if expectedActive, parseErr := strconv.ParseBool(isActiveStr); parseErr == nil {
+			var filtered []domain.ProactiveTask
+			for _, t := range tasks {
+				if t.IsActive == expectedActive {
+					filtered = append(filtered, t)
+				}
+			}
+			tasks = filtered
+		}
+	}
+
 	if tasks == nil {
 		tasks = []domain.ProactiveTask{}
 	}

@@ -14,11 +14,19 @@ import (
 	"github.com/hibiken/asynq"
 	_ "github.com/mattn/go-sqlite3"
 
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"time"
+
 	"bruce/internal/ai"
+	"bruce/internal/api"
 	"bruce/internal/config"
 	"bruce/internal/database"
 	"bruce/internal/domain"
 	"bruce/internal/repository"
+	"bruce/internal/tools"
+	"bruce/internal/tools/proactive"
 	"bruce/internal/worker"
 )
 
@@ -68,27 +76,50 @@ func TestE2E(t *testing.T) {
 	db := openTestDB(t, cfg)
 	defer db.Close()
 
-	baseURL := os.Getenv("BRUCE_BASE_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
-	}
-
 	redisAddr := cfg.Redis.Address
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
+	if redisAddr == "" || redisAddr == "localhost:6379" {
+		redisAddr = "127.0.0.1:6379"
 	}
 	if override := os.Getenv("REDIS_ADDRESS"); override != "" {
 		redisAddr = override
 	}
 
+	// Purge stale tasks from Redis queue to guarantee scenario isolation
+	inspector := asynq.NewInspector(asynq.RedisClientOpt{Addr: redisAddr})
+	_, _ = inspector.DeleteAllPendingTasks("default")
+	_, _ = inspector.DeleteAllScheduledTasks("default")
+	_, _ = inspector.DeleteAllRetryTasks("default")
+	_, _ = inspector.DeleteAllArchivedTasks("default")
+	inspector.Close()
+
 	asynqClient := newAsynqClient(redisAddr)
 	defer asynqClient.Close()
+
+	baseURL := os.Getenv("BRUCE_BASE_URL")
+	var testHTTPSrv *httptest.Server
+	if baseURL == "" {
+		testPort := 8081
+		if cfg.Server.Port > 0 {
+			testPort = cfg.Server.Port
+		}
+		targetURL := fmt.Sprintf("http://localhost:%d", testPort)
+		resp, err := http.Get(targetURL + "/health")
+		if err == nil && resp.StatusCode == http.StatusOK {
+			resp.Body.Close()
+			baseURL = targetURL
+		} else {
+			testHTTPSrv = startStubAPIServer(t, db, cfg, asynqClient)
+			defer testHTTPSrv.Close()
+			baseURL = testHTTPSrv.URL
+		}
+	}
 
 	// Start an in-process Asynq worker with the stub LLM so that all worker
 	// pipeline scenarios exercise the full message→LLM→persist flow without
 	// requiring a real Claude API key.
 	asynqSrv := startStubWorker(t, db, cfg, redisAddr)
 	defer asynqSrv.Shutdown()
+	time.Sleep(200 * time.Millisecond)
 
 	tc := NewTestContext(baseURL, db, asynqClient, redisAddr)
 
@@ -113,6 +144,7 @@ func TestE2E(t *testing.T) {
 			RegisterWorkerSteps(ctx, tc)
 			RegisterDiscordSteps(ctx, tc)
 			RegisterWebChatSteps(ctx, tc)
+			RegisterProactiveSteps(ctx, tc)
 		},
 		Options: opts,
 	}
@@ -120,6 +152,48 @@ func TestE2E(t *testing.T) {
 	if suite.Run() != 0 {
 		t.Fatal("E2E suite reported failures")
 	}
+}
+
+// startStubAPIServer spins up an in-process HTTP server wrapping the full Bruce API router.
+func startStubAPIServer(t *testing.T, db *sql.DB, cfg *config.Config, asynqClient *asynq.Client) *httptest.Server {
+	t.Helper()
+
+	sessionRepo := repository.NewSessionRepository(db)
+	messageRepo := repository.NewMessageRepository(db)
+	configRepo := repository.NewConfigRepository(db)
+	toolExecutionRepo := repository.NewToolExecutionRepository(db)
+	proactiveTaskRepo := repository.NewProactiveTaskRepository(db)
+	dispatcherRegistry := worker.NewDispatcherRegistry()
+
+	toolRegistry := tools.NewRegistry(db)
+	toolRegistry.Register(proactive.NewCreateTool(proactiveTaskRepo, sessionRepo, cfg)) //nolint:errcheck
+	toolRegistry.Register(proactive.NewListTool(proactiveTaskRepo))                      //nolint:errcheck
+	toolRegistry.Register(proactive.NewToggleTool(proactiveTaskRepo))                    //nolint:errcheck
+	toolRegistry.Register(proactive.NewDeleteTool(proactiveTaskRepo))                    //nolint:errcheck
+
+	providers := map[ai.ProviderName]ai.LLMService{
+		ai.ProviderClaude: &stubLLMService{},
+		ai.ProviderGemini: &stubLLMService{},
+		ai.ProviderOpenAI: &stubLLMService{},
+	}
+	llmService := ai.NewProviderRegistry(configRepo, sessionRepo, providers, cfg)
+
+	router := api.NewRouter(time.Now(), nil, llmService, cfg, nil, toolRegistry)
+
+	wrapped := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, "sessionRepo", sessionRepo)
+		ctx = context.WithValue(ctx, "messageRepo", messageRepo)
+		ctx = context.WithValue(ctx, "configRepo", configRepo)
+		ctx = context.WithValue(ctx, "proactiveTaskRepo", proactiveTaskRepo)
+		ctx = context.WithValue(ctx, "toolExecutionRepo", toolExecutionRepo)
+		ctx = context.WithValue(ctx, "toolRegistry", toolRegistry)
+		ctx = context.WithValue(ctx, "dispatcherRegistry", dispatcherRegistry)
+		ctx = context.WithValue(ctx, "asynqClient", asynqClient)
+		router.ServeHTTP(w, r.WithContext(ctx))
+	})
+
+	return httptest.NewServer(wrapped)
 }
 
 // startStubWorker wires up repositories, a stub LLM, and an Asynq server in-process.
@@ -130,12 +204,21 @@ func startStubWorker(t *testing.T, db *sql.DB, cfg *config.Config, redisAddr str
 	sessionRepo := repository.NewSessionRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 	configRepo := repository.NewConfigRepository(db)
+	proactiveTaskRepo := repository.NewProactiveTaskRepository(db)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
 	// No real connector dispatchers are registered — dispatch errors are logged
 	// but do not fail the task (ADR-004), so this is safe for E2E testing.
 
+	toolRegistry := tools.NewRegistry(db)
+	toolRegistry.Register(proactive.NewCreateTool(proactiveTaskRepo, sessionRepo, cfg)) //nolint:errcheck
+	toolRegistry.Register(proactive.NewListTool(proactiveTaskRepo))                      //nolint:errcheck
+	toolRegistry.Register(proactive.NewToggleTool(proactiveTaskRepo))                    //nolint:errcheck
+	toolRegistry.Register(proactive.NewDeleteTool(proactiveTaskRepo))                    //nolint:errcheck
+
 	proc := worker.NewProcessor(sessionRepo, messageRepo, configRepo,
 		&stubLLMService{}, dispatcherRegistry, cfg)
+	proc.SetToolRegistry(toolRegistry)
+	proc.SetProactiveRepo(proactiveTaskRepo)
 
 	redisOpt := asynq.RedisClientOpt{Addr: redisAddr}
 	srv := asynq.NewServer(redisOpt, asynq.Config{
@@ -145,6 +228,8 @@ func startStubWorker(t *testing.T, db *sql.DB, cfg *config.Config, redisAddr str
 
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(worker.TaskProcessIncomingMessage, proc.HandleProcessIncomingMessageTask)
+	mux.HandleFunc(worker.TaskEvaluateWatch, proc.HandleEvaluateWatchTask)
+	mux.HandleFunc(worker.TaskExecuteScheduledReport, proc.HandleExecuteScheduledReportTask)
 
 	go func() {
 		if err := srv.Run(mux); err != nil {

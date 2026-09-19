@@ -288,10 +288,10 @@ func main() {
 	}
 
 	// Spec 32: Proactive Conversational Tools.
-	toolRegistry.Register(proactive.NewCreateTool(proactiveTaskRepo, cfg)) //nolint:errcheck
-	toolRegistry.Register(proactive.NewListTool(proactiveTaskRepo))        //nolint:errcheck
-	toolRegistry.Register(proactive.NewToggleTool(proactiveTaskRepo))      //nolint:errcheck
-	toolRegistry.Register(proactive.NewDeleteTool(proactiveTaskRepo))      //nolint:errcheck
+	toolRegistry.Register(proactive.NewCreateTool(proactiveTaskRepo, sessionRepo, cfg)) //nolint:errcheck
+	toolRegistry.Register(proactive.NewListTool(proactiveTaskRepo))                      //nolint:errcheck
+	toolRegistry.Register(proactive.NewToggleTool(proactiveTaskRepo))                    //nolint:errcheck
+	toolRegistry.Register(proactive.NewDeleteTool(proactiveTaskRepo))                    //nolint:errcheck
 
 	proc.SetToolRegistry(toolRegistry)
 	proc.SetProactiveRepo(proactiveTaskRepo)
