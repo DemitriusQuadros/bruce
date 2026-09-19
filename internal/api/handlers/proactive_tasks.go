@@ -232,10 +232,6 @@ func handleCreateProactiveTask(w http.ResponseWriter, r *http.Request, repo repo
 		nextRun = sched.Next(nowInLoc).UTC()
 	}
 
-	sessionID := req.SessionID
-	if sessionID == "" {
-		sessionID = "default"
-	}
 	connType := req.ConnectorType
 	if connType == "" {
 		connType = "web"
@@ -244,6 +240,31 @@ func handleCreateProactiveTask(w http.ResponseWriter, r *http.Request, repo repo
 	if chanID == "" {
 		chanID = "web"
 	}
+
+	sessionID := req.SessionID
+	sessionRepo, ok := r.Context().Value("sessionRepo").(repository.SessionRepository)
+	if ok && sessionRepo != nil {
+		if sessionID != "" && sessionID != "default" {
+			existing, err := sessionRepo.GetByID(sessionID)
+			if err == nil && existing != nil {
+				sessionID = existing.ID
+			} else {
+				sess, err := sessionRepo.FindOrCreate(connType, chanID)
+				if err == nil && sess != nil {
+					sessionID = sess.ID
+				}
+			}
+		} else {
+			sess, err := sessionRepo.FindOrCreate(connType, chanID)
+			if err == nil && sess != nil {
+				sessionID = sess.ID
+			}
+		}
+	}
+	if sessionID == "" {
+		sessionID = "default"
+	}
+
 	targetConn := req.TargetConnector
 	if targetConn == "" {
 		targetConn = connType
