@@ -16,6 +16,8 @@ type ServerConfig struct {
 // RedisConfig holds Redis connection settings.
 type RedisConfig struct {
 	Address    string `mapstructure:"address"`
+	Password   string `mapstructure:"password"`
+	DB         int    `mapstructure:"db"`
 	MaxRetries int    `mapstructure:"max_retries"`
 }
 

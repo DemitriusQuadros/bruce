@@ -96,7 +96,11 @@ func main() {
 	// Connector dispatchers (whatsapp, discord) are registered here when connectors are enabled.
 
 	// 4. Init Asynq client + server.
-	redisOpt := asynq.RedisClientOpt{Addr: cfg.Redis.Address}
+	redisOpt := asynq.RedisClientOpt{
+		Addr:     cfg.Redis.Address,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	}
 	asynqClient := asynq.NewClient(redisOpt)
 	defer asynqClient.Close()
 

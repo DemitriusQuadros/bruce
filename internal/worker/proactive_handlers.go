@@ -62,7 +62,11 @@ func (p *Processor) HandleEvaluateWatchTask(ctx context.Context, t *asynq.Task) 
 	var toolOutputs []string
 	if p.toolRegistry != nil && len(payload.TargetTools) > 0 {
 		for _, toolName := range payload.TargetTools {
-			out, err := p.toolRegistry.Execute(ctx, toolName, map[string]interface{}{})
+			toolInput := map[string]interface{}{}
+			if toolName == "email_search" {
+				toolInput["query"] = "newer_than:1d"
+			}
+			out, err := p.toolRegistry.Execute(ctx, toolName, toolInput)
 			if err != nil {
 				logging.Warnf("watch %s tool %s execution error: %v", payload.TaskID, toolName, err)
 				continue

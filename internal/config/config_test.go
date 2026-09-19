@@ -20,6 +20,7 @@ func TestLoad_ExampleConfig(t *testing.T) {
 	assert.Equal(t, "America/Sao_Paulo", cfg.App.Timezone)
 	assert.Equal(t, "gemini", cfg.LLM.BackgroundProvider)
 	assert.Equal(t, "gemini-2.0-flash", cfg.LLM.BackgroundModel)
+	assert.Equal(t, 1, cfg.Redis.DB)
 }
 
 func TestLoad_UserConfig(t *testing.T) {

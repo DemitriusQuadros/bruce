@@ -3,6 +3,8 @@ server:
 
 redis:
   address: "localhost:6379"
+  password: ""
+  db: 1
   max_retries: 3
 
 sqlite:
