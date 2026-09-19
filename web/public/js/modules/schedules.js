@@ -55,6 +55,33 @@ function formatCountdown(isoDate, isActive) {
 }
 
 /**
+ * Format target route into a human-readable label and tooltip.
+ */
+function formatRoute(connector, channelId) {
+    const conn = (connector || 'web').toLowerCase();
+    const connName = {
+        web: 'Web Chat',
+        whatsapp: 'WhatsApp',
+        discord: 'Discord',
+        telegram: 'Telegram',
+    }[conn] || (conn.charAt(0).toUpperCase() + conn.slice(1));
+
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(channelId || '');
+
+    if (conn === 'web' || !channelId || channelId === 'web' || channelId === 'default' || isUUID) {
+        return {
+            display: connName,
+            tooltip: `${connName}${channelId && channelId !== 'web' ? ` (${channelId})` : ''}`,
+        };
+    }
+
+    return {
+        display: `${connName}: ${channelId}`,
+        tooltip: `${connName} channel: ${channelId}`,
+    };
+}
+
+/**
  * Fetch proactive tasks from API.
  */
 async function loadTasks() {
@@ -120,7 +147,9 @@ function renderTasks() {
             : '<span class="pill-badge pill-badge--paused">Paused</span>';
 
         const targetConn = task.target_connector || task.connector_type || 'web';
+        const targetChan = task.target_channel_id || task.channel_id || '';
         const connIcon = CONNECTOR_ICONS[targetConn] || 'fas fa-arrow-right';
+        const routeInfo = formatRoute(targetConn, targetChan);
         const countdownInfo = formatCountdown(task.next_run_at, task.is_active);
 
         const scheduleHuman = isCron
@@ -140,33 +169,37 @@ function renderTasks() {
                 </div>
 
                 <div class="schedule-card__body">
-                    <div class="schedule-card__prompt" data-testid="task-prompt-display" title="Instruction Condition">
-                        ${escapeHtml(task.prompt_condition)}
+                    <div class="schedule-card__prompt" data-testid="task-prompt-display" title="${escapeHtml(task.prompt_condition)}">
+                        <p class="schedule-card__prompt-text">${escapeHtml(task.prompt_condition)}</p>
                     </div>
 
                     <div class="schedule-card__meta-grid">
                         <div class="schedule-card__meta-item">
                             <span class="schedule-card__meta-label">Schedule</span>
                             <span class="schedule-card__meta-value" title="${escapeHtml(scheduleHuman)}">
-                                <i class="fas fa-calendar-alt"></i> ${escapeHtml(scheduleHuman)}
+                                <i class="fas fa-calendar-alt"></i>
+                                <span class="schedule-card__meta-text">${escapeHtml(scheduleHuman)}</span>
                             </span>
                         </div>
                         <div class="schedule-card__meta-item">
                             <span class="schedule-card__meta-label">Timezone</span>
                             <span class="schedule-card__meta-value" title="${escapeHtml(task.timezone || 'UTC')}">
-                                <i class="fas fa-globe-americas"></i> ${escapeHtml(task.timezone || 'UTC')}
+                                <i class="fas fa-globe-americas"></i>
+                                <span class="schedule-card__meta-text">${escapeHtml(task.timezone || 'UTC')}</span>
                             </span>
                         </div>
                         <div class="schedule-card__meta-item">
                             <span class="schedule-card__meta-label">Target Route</span>
-                            <span class="schedule-card__meta-value" title="${escapeHtml(targetConn)}: ${escapeHtml(task.target_channel_id || '')}">
-                                <i class="${connIcon}"></i> ${escapeHtml(task.target_channel_id || targetConn)}
+                            <span class="schedule-card__meta-value" title="${escapeHtml(routeInfo.tooltip)}">
+                                <i class="${connIcon}"></i>
+                                <span class="schedule-card__meta-text">${escapeHtml(routeInfo.display)}</span>
                             </span>
                         </div>
                         <div class="schedule-card__meta-item">
                             <span class="schedule-card__meta-label">Last Run</span>
                             <span class="schedule-card__meta-value" title="${task.last_run_at ? new Date(task.last_run_at).toLocaleString() : 'Never'}">
-                                <i class="fas fa-history"></i> ${task.last_run_at ? formatRelativeTime(task.last_run_at) : 'Never'}
+                                <i class="fas fa-history"></i>
+                                <span class="schedule-card__meta-text">${task.last_run_at ? formatRelativeTime(task.last_run_at) : 'Never'}</span>
                             </span>
                         </div>
                     </div>
@@ -199,6 +232,13 @@ function renderTasks() {
         const runBtn = card.querySelector('[data-action="run"]');
         const toggleBtn = card.querySelector('[data-action="toggle"]');
         const deleteBtn = card.querySelector('[data-action="delete"]');
+        const promptEl = card.querySelector('[data-testid="task-prompt-display"]');
+
+        if (promptEl) {
+            promptEl.addEventListener('click', () => {
+                promptEl.classList.toggle('is-expanded');
+            });
+        }
 
         runBtn.addEventListener('click', () => handleRunNow(task, runBtn));
         toggleBtn.addEventListener('click', () => handleToggleStatus(task, toggleBtn));
