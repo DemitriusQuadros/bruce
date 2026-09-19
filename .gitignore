@@ -30,3 +30,7 @@ Thumbs.db
 *.db
 *.db-shm
 *.db-wal
+
+# Node / UI test artifacts
+node_modules/
+test-results/
