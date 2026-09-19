@@ -18,7 +18,11 @@ export function registerTab(name, onActivate, onCleanup = null) {
  * Get the currently active tab name
  */
 export function currentTab() {
-    const hash = window.location.hash.slice(1) || 'chat';
+    let hash = window.location.hash.slice(1) || 'chat';
+    if (hash === 'connectors' || hash.startsWith('connectors/')) {
+        window.location.replace('#settings/connectors');
+        hash = 'settings/connectors';
+    }
     return hash;
 }
 
@@ -32,7 +36,10 @@ export function navigate(name) {
 /**
  * Activate a tab and hide others
  */
-function activateTab(name) {
+function activateTab(rawName) {
+    const name = (rawName || 'chat').split('/')[0] || 'chat';
+    const subRoute = (rawName || '').split('/')[1] || null;
+
     // Call cleanup for previous tab if it exists
     if (previousTab && cleanupCallbacks[previousTab]) {
         cleanupCallbacks[previousTab]();
@@ -62,7 +69,7 @@ function activateTab(name) {
 
     // Call the tab's registered callback if it exists
     if (tabCallbacks[name]) {
-        tabCallbacks[name]();
+        tabCallbacks[name](subRoute);
     }
 
     // Update previous tab tracker

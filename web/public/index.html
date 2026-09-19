@@ -14,7 +14,6 @@
         </div>
         <nav>
             <button class="tab-button" data-tab="chat">Chat</button>
-            <button class="tab-button" data-tab="connectors">Connectors</button>
             <button class="tab-button" data-tab="sessions">Sessions</button>
             <button class="tab-button" data-tab="schedules" data-testid="tab-schedules-btn">Schedules</button>
             <button class="tab-button" data-tab="logs">Logs</button>
@@ -61,11 +60,6 @@
             </div>
         </section>
 
-        <!-- Tab: Connectors -->
-        <section id="tab-connectors" class="tab-section">
-            <h2>Connectors</h2>
-            <div id="connectors-list"></div>
-        </section>
 
         <!-- Tab: Sessions -->
         <section id="tab-sessions" class="tab-section" hidden>
@@ -184,10 +178,32 @@
 
         <!-- Tab: Settings -->
         <section id="tab-settings" class="tab-section" hidden>
-            <h2>Settings</h2>
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <div class="settings-nav" role="tablist" aria-label="Settings categories">
+                    <button type="button" class="settings-nav-btn settings-nav-btn--active" data-settings-cat="all">
+                        <i class="fas fa-layer-group"></i> All
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="llm">
+                        <i class="fas fa-brain"></i> LLM Providers
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="connectors" data-testid="settings-nav-connectors">
+                        <i class="fas fa-plug"></i> Connectors
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="google">
+                        <i class="fab fa-google"></i> Google
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="tools">
+                        <i class="fas fa-tools"></i> Tools
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="interface">
+                        <i class="fas fa-sliders-h"></i> Interface
+                    </button>
+                </div>
+            </div>
 
             <!-- Section 1: LLM Providers -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="llm">
                 <div class="settings-section__title">LLM Providers</div>
                 <div class="settings-cards-grid">
 
@@ -361,8 +377,8 @@
                 </div>
             </div>
 
-            <!-- Section 2b: Connectors -->
-            <div class="settings-section">
+            <!-- Section 2: Connectors -->
+            <div class="settings-section" data-settings-section="connectors" id="settings-section-connectors">
                 <div class="settings-section__title">Connectors</div>
                 <div class="settings-cards-grid">
 
@@ -404,6 +420,9 @@
                             <input type="checkbox" name="connectors.whatsapp.enabled" id="whatsapp-enabled" />
                             <label for="whatsapp-enabled">Enable WhatsApp connector</label>
                         </div>
+                        <div class="connector-qr-notice" data-whatsapp-qr hidden>
+                            <i class="fas fa-qrcode"></i> Scan the QR code shown in server logs to pair.
+                        </div>
                         <p class="settings-card__hint">
                             On next restart a QR code will appear in the server logs — scan it with WhatsApp on your phone to pair the device.
                         </p>
@@ -441,7 +460,7 @@
             </div>
 
             <!-- Section 3: Google -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="google">
                 <div class="settings-section__title">Google</div>
                 <div class="settings-cards-grid">
 
@@ -532,7 +551,7 @@
             </div>
 
             <!-- Section 4: Tools -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="tools">
                 <div class="settings-section__title">Tools</div>
                 <div class="settings-cards-grid">
 
@@ -822,7 +841,7 @@
             </div>
 
             <!-- Section 6: Interface -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="interface">
                 <div class="settings-section__title">Interface</div>
                 <div class="settings-cards-grid">
 
