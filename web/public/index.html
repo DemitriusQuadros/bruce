@@ -16,6 +16,7 @@
             <button class="tab-button" data-tab="chat">Chat</button>
             <button class="tab-button" data-tab="connectors">Connectors</button>
             <button class="tab-button" data-tab="sessions">Sessions</button>
+            <button class="tab-button" data-tab="schedules">Schedules</button>
             <button class="tab-button" data-tab="logs">Logs</button>
             <button class="tab-button" data-tab="settings">Settings</button>
         </nav>
@@ -85,6 +86,43 @@
                     </div>
                     <button id="session-save" class="btn-primary">Save</button>
                 </aside>
+            </div>
+        </section>
+
+        <!-- Tab: Schedules -->
+        <section id="tab-schedules" class="tab-section" hidden>
+            <div class="schedules-container">
+                <div class="schedules-toolbar">
+                    <div class="schedules-toolbar__left">
+                        <h2 class="schedules-toolbar__title">
+                            <i class="fas fa-calendar-check"></i>
+                            Scheduled Tasks & Ambient Watches
+                        </h2>
+                        <div class="schedules-filters">
+                            <select id="schedules-filter-status" aria-label="Filter tasks">
+                                <option value="all">All Tasks</option>
+                                <option value="active">Active Only</option>
+                                <option value="paused">Paused Only</option>
+                                <option value="cron">Cron Reports</option>
+                                <option value="watch">Ambient Watches</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="schedules-new-btn" class="btn-primary">
+                        <i class="fas fa-plus"></i> New Task
+                    </button>
+                </div>
+
+                <div id="schedules-list" class="schedules-grid"></div>
+
+                <div id="schedules-empty" class="schedules-empty-state" hidden>
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <h3>No scheduled tasks found</h3>
+                    <p>Create proactive tasks to monitor conditions or deliver recurring reports directly to WhatsApp, Discord, or Telegram.</p>
+                    <button id="schedules-empty-new-btn" class="btn-primary">
+                        <i class="fas fa-plus"></i> Create First Task
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -780,6 +818,75 @@
         </section>
 
     </main>
+
+    <!-- New Task Modal -->
+    <div id="schedules-modal-backdrop" class="schedules-modal-backdrop" hidden>
+        <div class="schedules-modal" role="dialog" aria-modal="true" aria-labelledby="schedules-modal-title">
+            <div class="schedules-modal__header">
+                <h3 id="schedules-modal-title"><i class="fas fa-plus-circle"></i> Create Proactive Task</h3>
+                <button type="button" id="schedules-modal-close-btn" class="schedules-modal__close" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="schedules-create-form">
+                <div class="schedules-modal__body">
+                    <div class="form-group">
+                        <label for="task-title">Task Title</label>
+                        <input type="text" id="task-title" required placeholder="e.g. Daily Morning Standup Briefing" />
+                    </div>
+
+                    <div class="schedules-form-row">
+                        <div class="form-group">
+                            <label for="task-type">Task Type</label>
+                            <select id="task-type">
+                                <option value="cron">Scheduled Report (Cron)</option>
+                                <option value="watch">Ambient Watch (Interval)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-schedule-expr" id="task-schedule-label">Schedule Expression</label>
+                            <input type="text" id="task-schedule-expr" required placeholder="0 9 * * 1-5" />
+                            <div class="schedules-form-hint" id="task-schedule-hint">Cron expression (min hour dom mon dow), e.g. 0 9 * * 1-5</div>
+                        </div>
+                    </div>
+
+                    <div class="schedules-form-row">
+                        <div class="form-group">
+                            <label for="task-target-connector">Target Connector</label>
+                            <select id="task-target-connector">
+                                <option value="whatsapp">WhatsApp</option>
+                                <option value="discord">Discord</option>
+                                <option value="telegram">Telegram</option>
+                                <option value="web">Web Chat</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-target-channel">Target Channel / Number</label>
+                            <input type="text" id="task-target-channel" required placeholder="e.g. 5511999999999 or channel ID" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="task-timezone">Timezone</label>
+                        <input type="text" id="task-timezone" placeholder="America/Sao_Paulo (or leave empty for host default)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="task-prompt">Instruction / Condition Prompt</label>
+                        <textarea id="task-prompt" rows="3" required placeholder="e.g. Check for urgent PRs or unread customer emails and summarize findings."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="task-tools">Target Tools (Optional, comma-separated)</label>
+                        <input type="text" id="task-tools" placeholder="e.g. github, calendar, gmail" />
+                        <div class="schedules-form-hint">Restrict ambient watch polling to specific tools, or leave blank to enable general tool calling.</div>
+                    </div>
+                </div>
+                <div class="schedules-modal__footer">
+                    <button type="button" id="schedules-modal-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Create Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div id="toast-container"></div>
     <script type="module" src="js/main.js"></script>

@@ -61,6 +61,11 @@ func (m *mockRepo) GetDueTasks(ctx context.Context, now time.Time) ([]domain.Pro
 	return list, nil
 }
 
+func (m *mockRepo) Update(ctx context.Context, task *domain.ProactiveTask) error {
+	m.tasks[task.ID] = task
+	return nil
+}
+
 func (m *mockRepo) UpdateNextRun(ctx context.Context, id string, lastRunAt time.Time, nextRunAt time.Time) error {
 	if t, ok := m.tasks[id]; ok {
 		t.LastRunAt = &lastRunAt

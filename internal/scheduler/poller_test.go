@@ -87,6 +87,9 @@ func (m *mockTaskRepo) ListAll(ctx context.Context) ([]domain.ProactiveTask, err
 func (m *mockTaskRepo) GetDueTasks(ctx context.Context, now time.Time) ([]domain.ProactiveTask, error) {
 	return m.tasks, nil
 }
+func (m *mockTaskRepo) Update(ctx context.Context, task *domain.ProactiveTask) error {
+	return nil
+}
 func (m *mockTaskRepo) UpdateNextRun(ctx context.Context, id string, lastRunAt time.Time, nextRunAt time.Time) error {
 	return nil
 }

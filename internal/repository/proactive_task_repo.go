@@ -18,6 +18,7 @@ type ProactiveTaskRepository interface {
 	ListBySession(ctx context.Context, sessionID string) ([]domain.ProactiveTask, error)
 	ListAll(ctx context.Context) ([]domain.ProactiveTask, error)
 	GetDueTasks(ctx context.Context, now time.Time) ([]domain.ProactiveTask, error)
+	Update(ctx context.Context, task *domain.ProactiveTask) error
 	UpdateNextRun(ctx context.Context, id string, lastRunAt time.Time, nextRunAt time.Time) error
 	UpdateStatus(ctx context.Context, id string, isActive bool) error
 	UpdateLastResultHash(ctx context.Context, id string, hash string) error
@@ -132,6 +133,30 @@ func (r *SQLiteProactiveTaskRepository) GetDueTasks(ctx context.Context, now tim
 	defer rows.Close()
 
 	return scanProactiveTaskRows(rows)
+}
+
+// Update updates the mutable fields of a proactive task.
+func (r *SQLiteProactiveTaskRepository) Update(ctx context.Context, task *domain.ProactiveTask) error {
+	query := `UPDATE proactive_tasks SET
+		title = ?, schedule_expr = ?, timezone = ?, prompt_condition = ?,
+		target_connector = ?, target_channel_id = ?, target_tools = ?,
+		is_active = ?, next_run_at = ?, updated_at = datetime('now')
+		WHERE id = ?`
+	isActiveInt := 0
+	if task.IsActive {
+		isActiveInt = 1
+	}
+	_, err := r.db.ExecContext(
+		ctx, query,
+		task.Title, task.ScheduleExpr, task.Timezone, task.PromptCondition,
+		task.TargetConnector, task.TargetChannelID, task.TargetToolsJSON(),
+		isActiveInt, task.NextRunAt.UTC().Format(time.RFC3339),
+		task.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update proactive task %s: %w", task.ID, err)
+	}
+	return nil
 }
 
 // UpdateNextRun updates last_run_at and next_run_at for a task.

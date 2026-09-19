@@ -6,6 +6,7 @@ import { init as initConnectors } from './modules/connectors.js';
 import { init as initSessions } from './modules/sessions.js';
 import { init as initLogs } from './modules/logs.js';
 import { init as initSettings } from './modules/settings.js';
+import { init as initSchedules } from './modules/schedules.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -13,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initChat();
         initConnectors();
         initSessions();
+        initSchedules();
         initLogs();
         initSettings();
 

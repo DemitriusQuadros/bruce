@@ -305,21 +305,62 @@ func handlePatchProactiveTask(w http.ResponseWriter, r *http.Request, repo repos
 		return
 	}
 
+	scheduleChanged := false
 	if req.IsActive != nil {
-		if err := repo.UpdateStatus(r.Context(), id, *req.IsActive); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to update status: "+err.Error())
-			return
-		}
 		task.IsActive = *req.IsActive
 	}
+	if req.Title != nil && strings.TrimSpace(*req.Title) != "" {
+		task.Title = strings.TrimSpace(*req.Title)
+	}
+	if req.PromptCondition != nil && strings.TrimSpace(*req.PromptCondition) != "" {
+		task.PromptCondition = strings.TrimSpace(*req.PromptCondition)
+	}
+	if req.Timezone != nil && strings.TrimSpace(*req.Timezone) != "" {
+		task.Timezone = strings.TrimSpace(*req.Timezone)
+		scheduleChanged = true
+	}
+	if req.ScheduleExpr != nil && strings.TrimSpace(*req.ScheduleExpr) != "" {
+		task.ScheduleExpr = strings.TrimSpace(*req.ScheduleExpr)
+		scheduleChanged = true
+	}
 
-	// Fetch updated task and return
-	updated, err := repo.GetByID(r.Context(), id)
-	if err != nil || updated == nil {
-		writeJSON(w, http.StatusOK, task)
+	if scheduleChanged {
+		cfgTz := ""
+		if cfg != nil {
+			cfgTz = cfg.App.Timezone
+		}
+		loc := scheduler.ResolveTimezone(task.Timezone, cfgTz)
+		task.Timezone = loc.String()
+		now := time.Now()
+
+		if task.TaskType == domain.TaskTypeWatch {
+			mins, err := strconv.Atoi(task.ScheduleExpr)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "schedule_expr for watch must be an integer minute string")
+				return
+			}
+			if mins < 5 {
+				writeError(w, http.StatusBadRequest, "watch interval cannot be less than 5 minutes")
+				return
+			}
+			task.NextRunAt = now.Add(time.Duration(mins) * time.Minute)
+		} else {
+			parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+			sched, err := parser.Parse(task.ScheduleExpr)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid cron expression: "+err.Error())
+				return
+			}
+			task.NextRunAt = sched.Next(now.In(loc)).UTC()
+		}
+	}
+
+	if err := repo.Update(r.Context(), task); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update task: "+err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, updated)
+
+	writeJSON(w, http.StatusOK, task)
 }
 
 func handleDeleteProactiveTask(w http.ResponseWriter, r *http.Request, repo repository.ProactiveTaskRepository, id string) {

@@ -88,6 +88,17 @@ func TestProactiveTaskRepository_CRUD(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "abc123hash", fetchedHashed.LastResultHash)
 
+	// 6b. Update full task
+	fetchedHashed.Title = "Updated Briefing Title"
+	fetchedHashed.ScheduleExpr = "0 10 * * 1-5"
+	err = repo.Update(ctx, fetchedHashed)
+	require.NoError(t, err)
+
+	fetchedUpdated, err := repo.GetByID(ctx, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Updated Briefing Title", fetchedUpdated.Title)
+	assert.Equal(t, "0 10 * * 1-5", fetchedUpdated.ScheduleExpr)
+
 	// 7. Delete
 	err = repo.Delete(ctx, task.ID)
 	require.NoError(t, err)
