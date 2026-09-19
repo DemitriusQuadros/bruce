@@ -19,8 +19,19 @@ export async function req(method, path, body) {
     });
 
     if (!response.ok) {
-        const text = await response.text();
-        throw new ApiError(text || `HTTP ${response.status}`, response.status);
+        let message = `HTTP ${response.status}`;
+        try {
+            const data = await response.json();
+            if (data && data.error) {
+                message = data.error;
+            } else if (data && data.message) {
+                message = data.message;
+            }
+        } catch (_) {
+            const text = await response.text();
+            if (text) message = text;
+        }
+        throw new ApiError(message, response.status);
     }
 
     if (response.status === 204) {

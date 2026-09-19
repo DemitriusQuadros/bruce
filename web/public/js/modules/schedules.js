@@ -8,6 +8,7 @@ let tasks = [];
 let pollInterval = null;
 let countdownTimer = null;
 let currentFilter = 'all';
+let lastFocusedElement = null;
 
 const CONNECTOR_ICONS = {
     whatsapp: 'fab fa-whatsapp',
@@ -106,6 +107,8 @@ function renderTasks() {
         const card = document.createElement('div');
         card.className = `schedule-card ${task.is_active ? '' : 'is-paused'}`;
         card.dataset.id = task.id;
+        card.dataset.taskType = task.task_type;
+        card.setAttribute('data-testid', 'schedule-card');
 
         const isCron = task.task_type === 'cron';
         const typeBadge = isCron
@@ -128,7 +131,7 @@ function renderTasks() {
             <div>
                 <div class="schedule-card__header">
                     <div class="schedule-card__title-wrap">
-                        <h4 class="schedule-card__title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</h4>
+                        <h4 class="schedule-card__title" data-testid="task-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</h4>
                         <div class="schedule-card__badges">
                             ${typeBadge}
                             ${statusBadge}
@@ -137,7 +140,7 @@ function renderTasks() {
                 </div>
 
                 <div class="schedule-card__body">
-                    <div class="schedule-card__prompt" title="Instruction Condition">
+                    <div class="schedule-card__prompt" data-testid="task-prompt-display" title="Instruction Condition">
                         ${escapeHtml(task.prompt_condition)}
                     </div>
 
@@ -168,7 +171,7 @@ function renderTasks() {
                         </div>
                     </div>
 
-                    <div class="schedule-card__countdown ${countdownInfo.isDue ? 'is-due' : ''}" data-next-run="${task.next_run_at || ''}" data-is-active="${task.is_active}">
+                    <div class="schedule-card__countdown ${countdownInfo.isDue ? 'is-due' : ''}" data-testid="task-countdown" data-next-run="${task.next_run_at || ''}" data-is-active="${task.is_active}">
                         <span class="schedule-card__countdown-label">
                             <i class="fas fa-hourglass-half"></i> Next Run:
                         </span>
@@ -179,66 +182,82 @@ function renderTasks() {
 
             <div class="schedule-card__actions">
                 <div class="schedule-card__actions-left">
-                    <button type="button" class="btn-card-action btn-card-action--run" title="Run immediately now" data-action="run">
+                    <button type="button" class="btn-card-action btn-card-action--run" data-testid="task-run-btn" aria-label="Run test execution now" title="Run immediately now" data-action="run">
                         <i class="fas fa-play"></i> Run Now
                     </button>
-                    <button type="button" class="btn-card-action" title="${task.is_active ? 'Pause task' : 'Resume task'}" data-action="toggle">
+                    <button type="button" class="btn-card-action" data-testid="task-toggle-btn" aria-label="${task.is_active ? 'Pause task' : 'Resume task'}" title="${task.is_active ? 'Pause task' : 'Resume task'}" data-action="toggle">
                         <i class="fas ${task.is_active ? 'fa-pause' : 'fa-play'}"></i> ${task.is_active ? 'Pause' : 'Resume'}
                     </button>
                 </div>
-                <button type="button" class="btn-card-action btn-card-action--delete" title="Delete task" data-action="delete">
+                <button type="button" class="btn-card-action btn-card-action--delete" data-testid="task-delete-btn" aria-label="Delete task" title="Delete task" data-action="delete">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
         `;
 
-        // Wire action button events
+        // Wire action button events with visible loading state locking
         const runBtn = card.querySelector('[data-action="run"]');
         const toggleBtn = card.querySelector('[data-action="toggle"]');
         const deleteBtn = card.querySelector('[data-action="delete"]');
 
-        runBtn.addEventListener('click', () => handleRunNow(task));
-        toggleBtn.addEventListener('click', () => handleToggleStatus(task));
-        deleteBtn.addEventListener('click', () => handleDeleteTask(task));
+        runBtn.addEventListener('click', () => handleRunNow(task, runBtn));
+        toggleBtn.addEventListener('click', () => handleToggleStatus(task, toggleBtn));
+        deleteBtn.addEventListener('click', () => handleDeleteTask(task, deleteBtn));
 
         listEl.appendChild(card);
     });
 }
 
 /**
- * Handle immediate manual execution.
+ * Handle immediate manual execution with loading state locking.
  */
-async function handleRunNow(task) {
+async function handleRunNow(task, btn) {
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+
     try {
         await req('POST', `/api/v1/proactive-tasks/${task.id}/run`);
         showToast(`Test run enqueued for "${task.title}"`, 'success');
     } catch (err) {
         showToast(`Run failed: ${err.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
     }
 }
 
 /**
- * Handle pausing / resuming a task.
+ * Handle pausing / resuming a task with loading state locking.
  */
-async function handleToggleStatus(task) {
+async function handleToggleStatus(task, btn) {
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
     const newStatus = !task.is_active;
     try {
         await req('PATCH', `/api/v1/proactive-tasks/${task.id}`, { is_active: newStatus });
         task.is_active = newStatus;
-        showToast(`Task ${newStatus ? 'resumed' : 'paused'}`, 'success');
+        showToast(`Task "${task.title}" ${newStatus ? 'resumed' : 'paused'}`, 'success');
         await loadTasks();
     } catch (err) {
         showToast(`Failed to update status: ${err.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
     }
 }
 
 /**
- * Handle task deletion with confirmation.
+ * Handle task deletion with confirmation and loading state locking.
  */
-async function handleDeleteTask(task) {
+async function handleDeleteTask(task, btn) {
     if (!window.confirm(`Are you sure you want to delete "${task.title}"?`)) {
         return;
     }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
         await req('DELETE', `/api/v1/proactive-tasks/${task.id}`);
@@ -247,6 +266,8 @@ async function handleDeleteTask(task) {
         renderTasks();
     } catch (err) {
         showToast(`Failed to delete task: ${err.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash"></i>';
     }
 }
 
@@ -272,7 +293,7 @@ function tickCountdowns() {
 }
 
 /**
- * Setup modal dialog open/close and creation form.
+ * Setup modal dialog open/close, focus trapping, and creation form.
  */
 function setupModal() {
     const backdrop = document.getElementById('schedules-modal-backdrop');
@@ -281,6 +302,7 @@ function setupModal() {
     const closeBtn = document.getElementById('schedules-modal-close-btn');
     const cancelBtn = document.getElementById('schedules-modal-cancel-btn');
     const form = document.getElementById('schedules-create-form');
+    const submitBtn = document.getElementById('schedules-modal-submit-btn');
     const typeSelect = document.getElementById('task-type');
     const scheduleLabel = document.getElementById('task-schedule-label');
     const scheduleInput = document.getElementById('task-schedule-expr');
@@ -298,19 +320,25 @@ function setupModal() {
     } catch (_) {}
 
     const openModal = () => {
+        lastFocusedElement = document.activeElement;
         backdrop.hidden = false;
-        document.getElementById('task-title').focus();
+        const titleInput = document.getElementById('task-title');
+        if (titleInput) {
+            setTimeout(() => titleInput.focus(), 50);
+        }
     };
 
     const closeModal = () => {
         backdrop.hidden = true;
         form.reset();
-        // Reset type behavior
         updateTypeForm('cron');
         try {
             const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             if (timezoneInput) timezoneInput.value = localTz || 'America/Sao_Paulo';
         } catch (_) {}
+        if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+            lastFocusedElement.focus();
+        }
     };
 
     if (newBtn) newBtn.addEventListener('click', openModal);
@@ -320,6 +348,13 @@ function setupModal() {
 
     backdrop.addEventListener('click', e => {
         if (e.target === backdrop) closeModal();
+    });
+
+    // Keyboard accessibility: Escape key closes modal
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !backdrop.hidden) {
+            closeModal();
+        }
     });
 
     const updateTypeForm = type => {
@@ -352,9 +387,26 @@ function setupModal() {
         const prompt = document.getElementById('task-prompt').value.trim();
         const toolsRaw = document.getElementById('task-tools').value.trim();
 
-        if (!title || !scheduleExpr || !prompt) {
-            showToast('Please fill all required fields', 'error');
+        if (!title) {
+            showToast('Please provide a title for the task', 'error');
             return;
+        }
+        if (!scheduleExpr) {
+            showToast('Please specify a schedule or interval', 'error');
+            return;
+        }
+        if (!prompt) {
+            showToast('Please provide an instruction or condition prompt', 'error');
+            return;
+        }
+
+        // Validate watch interval in client
+        if (taskType === 'watch') {
+            const mins = parseInt(scheduleExpr, 10);
+            if (isNaN(mins) || mins < 5) {
+                showToast('Ambient watch interval must be at least 5 minutes to avoid rate limits', 'error');
+                return;
+            }
         }
 
         let targetTools = [];
@@ -376,13 +428,24 @@ function setupModal() {
             target_tools: targetTools,
         };
 
+        const originalSubmitHtml = submitBtn ? submitBtn.innerHTML : 'Create Task';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+        }
+
         try {
             await req('POST', '/api/v1/proactive-tasks', payload);
-            showToast('Proactive task created', 'success');
+            showToast(`Task "${title}" created successfully`, 'success');
             closeModal();
             await loadTasks();
         } catch (err) {
             showToast(`Failed to create task: ${err.message}`, 'error');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalSubmitHtml;
+            }
         }
     });
 }

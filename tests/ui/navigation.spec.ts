@@ -17,6 +17,12 @@ test.describe('Navigation and Module Decoupling', () => {
     await expect(page.locator('[data-tab="sessions"]')).toHaveClass(/active/);
     await expect(page.locator('#tab-sessions')).not.toHaveAttribute('hidden', '');
 
+    // Click schedules tab
+    await page.locator('[data-tab="schedules"]').click();
+    await expect(page).toHaveURL('/#schedules');
+    await expect(page.locator('[data-tab="schedules"]')).toHaveClass(/active/);
+    await expect(page.locator('#tab-schedules')).not.toHaveAttribute('hidden', '');
+
     // Click logs tab
     await page.locator('[data-tab="logs"]').click();
     await expect(page).toHaveURL('/#logs');
