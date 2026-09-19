@@ -73,6 +73,23 @@ func main() {
 		log.Fatalf("FATAL: run migrations: %v", err)
 	}
 
+	// 3. Wire repositories and hydrate application config from database.
+	sessionRepo := repository.NewSessionRepository(db)
+	messageRepo := repository.NewMessageRepository(db)
+	configRepo := repository.NewConfigRepository(db)
+	toolExecutionRepo := repository.NewToolExecutionRepository(db)
+	proactiveTaskRepo := repository.NewProactiveTaskRepository(db)
+
+	// Auto-migrate legacy application YAML settings into database if present.
+	if migrated, err := config.MigrateLegacyYamlToDB(cfg, configRepo); err == nil && migrated > 0 {
+		log.Printf("INFO: auto-migrated %d application config entries from YAML to database", migrated)
+	}
+
+	// Populate application configuration from database (single source of truth).
+	if err := config.ApplyDatabaseConfig(cfg, configRepo); err != nil {
+		log.Printf("WARNING: failed to apply database config: %v", err)
+	}
+
 	// Spec 13: Google OAuth handler (nil if credentials not set).
 	var googleAuth *auth.GoogleHandler
 	if cfg.Google.OAuthClientID != "" {
@@ -84,12 +101,6 @@ func main() {
 		)
 	}
 
-	// 3. Wire repositories, LLM providers and registry, and dispatcher.
-	sessionRepo := repository.NewSessionRepository(db)
-	messageRepo := repository.NewMessageRepository(db)
-	configRepo := repository.NewConfigRepository(db)
-	toolExecutionRepo := repository.NewToolExecutionRepository(db)
-	proactiveTaskRepo := repository.NewProactiveTaskRepository(db)
 	providers := ai.BuildProviders(cfg)
 	llmService := ai.NewProviderRegistry(configRepo, sessionRepo, providers, cfg)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
@@ -334,6 +345,7 @@ func main() {
 		ctx = context.WithValue(ctx, "proactiveTaskRepo", proactiveTaskRepo)
 		ctx = context.WithValue(ctx, "asynqClient", asynqClient)
 		ctx = context.WithValue(ctx, "dispatcherRegistry", dispatcherRegistry)
+		ctx = context.WithValue(ctx, "appConfig", cfg)
 		router.ServeHTTP(w, r.WithContext(ctx))
 	})
 

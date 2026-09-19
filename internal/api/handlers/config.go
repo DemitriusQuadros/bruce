@@ -39,82 +39,83 @@ func ConfigHandler() http.HandlerFunc {
 	}
 }
 
-// handleGetConfig returns the merged config (DB values override YAML defaults).
+// AllApplicationKeys lists all valid application configuration keys managed via DB and UI.
+var AllApplicationKeys = []string{
+	"claude.api_key",
+	"claude.model",
+	"claude.max_tokens",
+	"claude.context_window",
+	"gemini.api_key",
+	"gemini.model",
+	"gemini.max_tokens",
+	"openai.api_key",
+	"openai.model",
+	"openai.max_tokens",
+	"llm.provider",
+	"llm.background_provider",
+	"llm.background_model",
+	"app.timezone",
+	"ui.default_system_prompt",
+	"connectors.whatsapp.enabled",
+	"connectors.discord.enabled",
+	"connectors.discord.bot_token",
+	"connectors.telegram.enabled",
+	"connectors.telegram.bot_token",
+	// Google OAuth
+	"google.oauth_client_id",
+	"google.oauth_client_secret",
+	"google.oauth_redirect_uri",
+	// Notion
+	"tools.notion.enabled",
+	"tools.notion.api_token",
+	// Trello
+	"tools.trello.enabled",
+	"tools.trello.api_key",
+	"tools.trello.api_token",
+	// GitHub
+	"tools.github.enabled",
+	"tools.github.token",
+	"tools.github.default_owner",
+	"tools.github.default_repo",
+	// Git Local
+	"tools.git_local.enabled",
+	"tools.git_local.home_dir",
+	"tools.git_local.timeout_seconds",
+	// Bash
+	"tools.bash.enabled",
+	// Google-gated tools
+	"tools.gmail.enabled",
+	"tools.calendar.enabled",
+	"tools.docs.enabled",
+	// Files
+	"tools.files.enabled",
+	"tools.files.home_dir",
+	"tools.files.max_file_size",
+	// n8n integration (Spec 29)
+	"tools.n8n.enabled",
+	"tools.n8n.base_url",
+	"tools.n8n.api_key",
+	"tools.n8n.webhook_timeout_seconds",
+	"tools.n8n.webhook_auth.method",
+	"tools.n8n.webhook_auth.username",
+	"tools.n8n.webhook_auth.password",
+	"tools.n8n.webhook_auth.header_name",
+	"tools.n8n.webhook_auth.header_value",
+	"tools.n8n.mcp.enabled",
+	"tools.n8n.mcp.sse_url",
+	"tools.n8n.mcp.bearer_token",
+	"tools.n8n.mcp.tool_name_prefix",
+	"tools.n8n.mcp.max_reconnect_attempts",
+	// HTTP client (Spec 29)
+	"tools.http_client.enabled",
+}
+
+// handleGetConfig returns configuration stored in SQLite config_entries.
 func handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	repo, ok := r.Context().Value("configRepo").(repository.ConfigRepository)
 	if !ok {
 		writeError(w, http.StatusInternalServerError, "config repository not initialized")
 		return
-	}
-
-	cfg := config.Load()
-
-	// Known config keys with their YAML defaults.
-	knownKeys := map[string]string{
-		"claude.api_key":               cfg.Claude.APIKey,
-		"claude.model":                 cfg.Claude.Model,
-		"claude.max_tokens":            intToString(cfg.Claude.MaxTokens),
-		"claude.context_window":        intToString(cfg.Claude.ContextWindow),
-		"gemini.api_key":               cfg.Gemini.APIKey,
-		"gemini.model":                 cfg.Gemini.Model,
-		"gemini.max_tokens":            intToString(cfg.Gemini.MaxTokens),
-		"openai.api_key":               cfg.OpenAI.APIKey,
-		"openai.model":                 cfg.OpenAI.Model,
-		"openai.max_tokens":            intToString(cfg.OpenAI.MaxTokens),
-		"llm.provider":                 cfg.LLM.Provider,
-		"ui.default_system_prompt":     cfg.UI.DefaultSystemPrompt,
-		"connectors.whatsapp.enabled":   boolToString(cfg.Connectors.WhatsApp.Enabled),
-		"connectors.discord.enabled":    boolToString(cfg.Connectors.Discord.Enabled),
-		"connectors.discord.bot_token":  cfg.Connectors.Discord.BotToken,
-		"connectors.telegram.enabled":   boolToString(cfg.Connectors.Telegram.Enabled),
-		"connectors.telegram.bot_token": cfg.Connectors.Telegram.BotToken,
-		// Google OAuth
-		"google.oauth_client_id":          cfg.Google.OAuthClientID,
-		"google.oauth_client_secret":      cfg.Google.OAuthClientSecret,
-		"google.oauth_redirect_uri":       cfg.Google.OAuthRedirectURI,
-		// Notion
-		"tools.notion.enabled":   boolToString(cfg.Tools.Notion.Enabled),
-		"tools.notion.api_token": cfg.Tools.Notion.APIToken,
-		// Trello
-		"tools.trello.enabled":    boolToString(cfg.Tools.Trello.Enabled),
-		"tools.trello.api_key":    cfg.Tools.Trello.APIKey,
-		"tools.trello.api_token":  cfg.Tools.Trello.APIToken,
-		// GitHub
-		"tools.github.enabled":        boolToString(cfg.Tools.Github.Enabled),
-		"tools.github.token":          cfg.Tools.Github.Token,
-		"tools.github.default_owner":  cfg.Tools.Github.DefaultOwner,
-		"tools.github.default_repo":   cfg.Tools.Github.DefaultRepo,
-		// Git Local
-		"tools.git_local.enabled":          boolToString(cfg.Tools.GitLocal.Enabled),
-		"tools.git_local.home_dir":         cfg.Tools.GitLocal.HomeDir,
-		"tools.git_local.timeout_seconds":  intToString(cfg.Tools.GitLocal.TimeoutSeconds),
-		// Bash
-		"tools.bash.enabled": boolToString(cfg.Tools.Bash.Enabled),
-		// Google-gated tools
-		"tools.gmail.enabled":     boolToString(cfg.Tools.Gmail.Enabled),
-		"tools.calendar.enabled":  boolToString(cfg.Tools.Calendar.Enabled),
-		"tools.docs.enabled":      boolToString(cfg.Tools.Docs.Enabled),
-		// Files
-		"tools.files.enabled":        boolToString(cfg.Tools.Files.Enabled),
-		"tools.files.home_dir":       cfg.Tools.Files.HomeDir,
-		"tools.files.max_file_size":  intToString(cfg.Tools.Files.MaxFileSize),
-		// n8n integration (Spec 29)
-		"tools.n8n.enabled":                     boolToString(cfg.Tools.N8n.Enabled),
-		"tools.n8n.base_url":                    cfg.Tools.N8n.BaseURL,
-		"tools.n8n.api_key":                     cfg.Tools.N8n.APIKey,
-		"tools.n8n.webhook_timeout_seconds":      intToString(cfg.Tools.N8n.WebhookTimeoutSeconds),
-		"tools.n8n.webhook_auth.method":          cfg.Tools.N8n.WebhookAuth.Method,
-		"tools.n8n.webhook_auth.username":        cfg.Tools.N8n.WebhookAuth.Username,
-		"tools.n8n.webhook_auth.password":        cfg.Tools.N8n.WebhookAuth.Password,
-		"tools.n8n.webhook_auth.header_name":     cfg.Tools.N8n.WebhookAuth.HeaderName,
-		"tools.n8n.webhook_auth.header_value":    cfg.Tools.N8n.WebhookAuth.HeaderValue,
-		"tools.n8n.mcp.enabled":                 boolToString(cfg.Tools.N8n.MCP.Enabled),
-		"tools.n8n.mcp.sse_url":                 cfg.Tools.N8n.MCP.SSEURL,
-		"tools.n8n.mcp.bearer_token":            cfg.Tools.N8n.MCP.BearerToken,
-		"tools.n8n.mcp.tool_name_prefix":        cfg.Tools.N8n.MCP.ToolNamePrefix,
-		"tools.n8n.mcp.max_reconnect_attempts":  intToString(cfg.Tools.N8n.MCP.MaxReconnectAttempts),
-		// HTTP client (Spec 29)
-		"tools.http_client.enabled": boolToString(cfg.Tools.HTTPClient.Enabled),
 	}
 
 	// Get all DB values.
@@ -130,13 +131,10 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request) {
 		dbValues[entry.Key] = entry.Value
 	}
 
-	// Only expose DB-stored values. YAML defaults are used by the app internally
-	// but are never surfaced to the UI — the user must explicitly save each field.
-	result := make([]configEntry, 0, len(knownKeys))
-	for key := range knownKeys {
+	result := make([]configEntry, 0, len(AllApplicationKeys))
+	for _, key := range AllApplicationKeys {
 		dbValue, inDB := dbValues[key]
-		if !inDB {
-			// Not saved yet — return empty so the UI shows "Not configured".
+		if !inDB || dbValue == "" {
 			result = append(result, configEntry{Key: key, Value: ""})
 			continue
 		}
@@ -153,7 +151,7 @@ func handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// handlePutConfig updates a config entry.
+// handlePutConfig updates a config entry in the database.
 func handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Key   string `json:"key"`
@@ -170,74 +168,7 @@ func handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that the key is known.
-	knownKeys := []string{
-		"claude.api_key",
-		"claude.model",
-		"claude.max_tokens",
-		"claude.context_window",
-		"gemini.api_key",
-		"gemini.model",
-		"gemini.max_tokens",
-		"openai.api_key",
-		"openai.model",
-		"openai.max_tokens",
-		"llm.provider",
-		"ui.default_system_prompt",
-		"connectors.whatsapp.enabled",
-		"connectors.discord.enabled",
-		"connectors.discord.bot_token",
-		"connectors.telegram.enabled",
-		"connectors.telegram.bot_token",
-		// Google OAuth
-		"google.oauth_client_id",
-		"google.oauth_client_secret",
-		"google.oauth_redirect_uri",
-		// Notion
-		"tools.notion.enabled",
-		"tools.notion.api_token",
-		// Trello
-		"tools.trello.enabled",
-		"tools.trello.api_key",
-		"tools.trello.api_token",
-		// GitHub
-		"tools.github.enabled",
-		"tools.github.token",
-		"tools.github.default_owner",
-		"tools.github.default_repo",
-		// Git Local
-		"tools.git_local.enabled",
-		"tools.git_local.home_dir",
-		"tools.git_local.timeout_seconds",
-		// Bash
-		"tools.bash.enabled",
-		// Google-gated tools
-		"tools.gmail.enabled",
-		"tools.calendar.enabled",
-		"tools.docs.enabled",
-		// Files
-		"tools.files.enabled",
-		"tools.files.home_dir",
-		"tools.files.max_file_size",
-		// n8n (Spec 29)
-		"tools.n8n.enabled",
-		"tools.n8n.base_url",
-		"tools.n8n.api_key",
-		"tools.n8n.webhook_timeout_seconds",
-		"tools.n8n.webhook_auth.method",
-		"tools.n8n.webhook_auth.username",
-		"tools.n8n.webhook_auth.password",
-		"tools.n8n.webhook_auth.header_name",
-		"tools.n8n.webhook_auth.header_value",
-		"tools.n8n.mcp.enabled",
-		"tools.n8n.mcp.sse_url",
-		"tools.n8n.mcp.bearer_token",
-		"tools.n8n.mcp.tool_name_prefix",
-		"tools.n8n.mcp.max_reconnect_attempts",
-		// HTTP client (Spec 29)
-		"tools.http_client.enabled",
-	}
-	if !contains(knownKeys, req.Key) {
+	if !contains(AllApplicationKeys, req.Key) {
 		writeError(w, http.StatusUnprocessableEntity, "unknown config key")
 		return
 	}
@@ -253,12 +184,19 @@ func handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if appCfg, ok := r.Context().Value("appConfig").(*config.Config); ok && appCfg != nil {
+		_ = config.ApplyDatabaseConfig(appCfg, repo)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // isSensitiveKey returns true if the key contains sensitive data.
 func isSensitiveKey(key string) bool {
 	key = strings.ToLower(key)
+	if strings.HasSuffix(key, "max_tokens") {
+		return false
+	}
 	return strings.Contains(key, "key") || strings.Contains(key, "token") || strings.Contains(key, "secret") || strings.Contains(key, "password")
 }
 

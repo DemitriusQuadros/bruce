@@ -14,7 +14,6 @@ import (
 	"github.com/hibiken/asynq"
 	_ "github.com/mattn/go-sqlite3"
 
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -98,20 +97,9 @@ func TestE2E(t *testing.T) {
 	baseURL := os.Getenv("BRUCE_BASE_URL")
 	var testHTTPSrv *httptest.Server
 	if baseURL == "" {
-		testPort := 8081
-		if cfg.Server.Port > 0 {
-			testPort = cfg.Server.Port
-		}
-		targetURL := fmt.Sprintf("http://localhost:%d", testPort)
-		resp, err := http.Get(targetURL + "/health")
-		if err == nil && resp.StatusCode == http.StatusOK {
-			resp.Body.Close()
-			baseURL = targetURL
-		} else {
-			testHTTPSrv = startStubAPIServer(t, db, cfg, asynqClient)
-			defer testHTTPSrv.Close()
-			baseURL = testHTTPSrv.URL
-		}
+		testHTTPSrv = startStubAPIServer(t, db, cfg, asynqClient)
+		defer testHTTPSrv.Close()
+		baseURL = testHTTPSrv.URL
 	}
 
 	// Start an in-process Asynq worker with the stub LLM so that all worker
@@ -272,10 +260,7 @@ func loadTestConfig() *config.Config {
 func openTestDB(t *testing.T, cfg *config.Config) *sql.DB {
 	t.Helper()
 
-	dsn := cfg.SQLite.DSN
-	if dsn == "" {
-		dsn = ":memory:"
-	}
+	dsn := "./data/test_bruce.db"
 
 	// Resolve relative DSNs against the project root (two directories up from tests/e2e/).
 	// go test sets the working directory to the package directory, so relative paths

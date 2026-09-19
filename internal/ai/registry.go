@@ -205,7 +205,17 @@ func (r *ProviderRegistry) GetBackgroundProvider() LLMService {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	// 1. Check background provider configured in LLMConfig
+	// 1. Check background provider configured in database
+	if r.configRepo != nil {
+		if bg, err := r.configRepo.Get("llm.background_provider"); err == nil && bg != "" {
+			bgName := ProviderName(bg)
+			if p, exists := r.providers[bgName]; exists {
+				return p
+			}
+		}
+	}
+
+	// 2. Check background provider configured in LLMConfig
 	if r.cfg != nil && r.cfg.LLM.BackgroundProvider != "" {
 		bgName := ProviderName(r.cfg.LLM.BackgroundProvider)
 		if p, exists := r.providers[bgName]; exists {
@@ -213,16 +223,18 @@ func (r *ProviderRegistry) GetBackgroundProvider() LLMService {
 		}
 	}
 
-	// 2. Fall back to Gemini if available (fast/cheap default for background loops)
+	// 3. Fall back to Gemini if available (fast/cheap default for background loops)
 	if p, exists := r.providers[ProviderGemini]; exists {
 		return p
 	}
 
-	// 3. Fall back to static default or whatever is available
-	if r.cfg != nil && r.cfg.LLM.Provider != "" {
-		defaultName := ProviderName(r.cfg.LLM.Provider)
-		if p, exists := r.providers[defaultName]; exists {
-			return p
+	// 4. Fall back to active default provider from database
+	if r.configRepo != nil {
+		if def, err := r.configRepo.Get("llm.provider"); err == nil && def != "" {
+			defName := ProviderName(def)
+			if p, exists := r.providers[defName]; exists {
+				return p
+			}
 		}
 	}
 
