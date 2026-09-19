@@ -4,12 +4,18 @@ test.describe('Navigation and Module Decoupling', () => {
   test('should render all tabs and maintain hash-based routing', async ({ page }) => {
     await page.goto('/');
 
-    // Verify connectors tab is active initially
-    const connectorsTab = page.locator('[data-tab="connectors"]');
-    await expect(connectorsTab).toHaveClass(/active/);
+    // Verify chat tab is active initially
+    const chatTab = page.locator('[data-tab="chat"]');
+    await expect(chatTab).toHaveClass(/active/);
 
-    const connectorsSection = page.locator('#tab-connectors');
-    await expect(connectorsSection).not.toHaveAttribute('hidden', '');
+    const chatSection = page.locator('#tab-chat');
+    await expect(chatSection).not.toHaveAttribute('hidden', '');
+
+    // Click connectors tab
+    await page.locator('[data-tab="connectors"]').click();
+    await expect(page).toHaveURL('/#connectors');
+    await expect(page.locator('[data-tab="connectors"]')).toHaveClass(/active/);
+    await expect(page.locator('#tab-connectors')).not.toHaveAttribute('hidden', '');
 
     // Click sessions tab
     await page.locator('[data-tab="sessions"]').click();

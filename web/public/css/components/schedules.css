@@ -344,6 +344,10 @@
     box-sizing: border-box;
 }
 
+.schedules-modal-backdrop[hidden] {
+    display: none !important;
+}
+
 .schedules-modal {
     background: var(--bg-card);
     border: 1px solid var(--border);
