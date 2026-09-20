@@ -117,13 +117,17 @@ func (g *geminiProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 	body, _ := io.ReadAll(resp.Body)
 
 	// Error mapping
-	switch resp.StatusCode {
-	case 429:
-		return "", ErrRateLimited
-	case 500, 502, 503:
-		return "", ErrProviderDown
-	case 400:
-		return "", fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+	if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case 429:
+			return "", ErrRateLimited
+		case 500, 502, 503:
+			return "", ErrProviderDown
+		case 400:
+			return "", fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+		default:
+			return "", fmt.Errorf("gemini api error (status %d): %s", resp.StatusCode, string(body))
+		}
 	}
 
 	var geminiResp geminiResponse
@@ -225,13 +229,17 @@ func (g *geminiProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 	body, _ := io.ReadAll(resp.Body)
 
 	// Error handling
-	switch resp.StatusCode {
-	case 429:
-		return nil, ErrRateLimited
-	case 500, 502, 503:
-		return nil, ErrProviderDown
-	case 400:
-		return nil, fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+	if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case 429:
+			return nil, ErrRateLimited
+		case 500, 502, 503:
+			return nil, ErrProviderDown
+		case 400:
+			return nil, fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+		default:
+			return nil, fmt.Errorf("gemini api error (status %d): %s", resp.StatusCode, string(body))
+		}
 	}
 
 	var geminiResp geminiResponse

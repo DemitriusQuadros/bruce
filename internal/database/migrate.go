@@ -71,6 +71,19 @@ func RunMigrations(db *sql.DB) error {
 		return fmt.Errorf("migration create_tool_executions_session_index: %w", err)
 	}
 
+	// Migration: ensure session_summaries table exists.
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS session_summaries (
+			session_id             TEXT PRIMARY KEY,
+			summary                TEXT NOT NULL DEFAULT '',
+			last_summarized_msg_id TEXT NOT NULL DEFAULT '',
+			message_count          INTEGER NOT NULL DEFAULT 0,
+			updated_at             DATETIME NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+		)`); err != nil {
+		return fmt.Errorf("migration create_session_summaries_table: %w", err)
+	}
+
 	return nil
 }
 

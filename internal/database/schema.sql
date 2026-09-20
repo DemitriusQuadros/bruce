@@ -77,3 +77,13 @@ CREATE TABLE IF NOT EXISTS proactive_tasks (
 
 CREATE INDEX IF NOT EXISTS idx_proactive_tasks_due ON proactive_tasks (is_active, next_run_at);
 CREATE INDEX IF NOT EXISTS idx_proactive_tasks_session ON proactive_tasks (session_id);
+
+CREATE TABLE IF NOT EXISTS session_summaries (
+    session_id             TEXT PRIMARY KEY,
+    summary                TEXT NOT NULL DEFAULT '',
+    last_summarized_msg_id TEXT NOT NULL DEFAULT '',
+    message_count          INTEGER NOT NULL DEFAULT 0,
+    updated_at             DATETIME NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+

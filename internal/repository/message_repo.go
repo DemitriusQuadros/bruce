@@ -12,6 +12,9 @@ type MessageRepository interface {
 	Insert(msg *domain.Message) error
 	GetContextWindow(sessionID string, limit int) ([]*domain.Message, error)
 	GetRecent(sessionID string, limit int) ([]*domain.Message, error)
+	CountBySession(sessionID string) (int, error)
+	GetOlderMessages(sessionID string, keepRecent int) ([]*domain.Message, error)
+	GetLastMessage(sessionID string) (*domain.Message, error)
 }
 
 // SQLiteMessageRepository is the SQLite-backed implementation of MessageRepository.
@@ -73,6 +76,74 @@ func (r *SQLiteMessageRepository) GetRecent(sessionID string, limit int) ([]*dom
 	}
 	defer rows.Close()
 	return scanMessages(rows)
+}
+
+func (r *SQLiteMessageRepository) CountBySession(sessionID string) (int, error) {
+	var count int
+	err := r.db.QueryRow(
+		`SELECT COUNT(*) FROM messages WHERE session_id = ?`,
+		sessionID,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("message count_by_session: %w", err)
+	}
+	return count, nil
+}
+
+// GetOlderMessages returns messages in chronological order, skipping the most recent `keepRecent` messages.
+func (r *SQLiteMessageRepository) GetOlderMessages(sessionID string, keepRecent int) ([]*domain.Message, error) {
+	// Calculate how many messages to return
+	total, err := r.CountBySession(sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	olderCount := total - keepRecent
+	if olderCount <= 0 {
+		return []*domain.Message{}, nil
+	}
+
+	rows, err := r.db.Query(
+		`SELECT id, session_id, role, content, timestamp
+		 FROM messages
+		 WHERE session_id = ?
+		 ORDER BY timestamp ASC
+		 LIMIT ?`,
+		sessionID, olderCount,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("message get_older_messages: %w", err)
+	}
+	defer rows.Close()
+	return scanMessages(rows)
+}
+
+// GetLastMessage returns the most recent message in the session, or nil if no messages exist.
+func (r *SQLiteMessageRepository) GetLastMessage(sessionID string) (*domain.Message, error) {
+	row := r.db.QueryRow(
+		`SELECT id, session_id, role, content, timestamp
+		 FROM messages
+		 WHERE session_id = ?
+		 ORDER BY timestamp DESC
+		 LIMIT 1`,
+		sessionID,
+	)
+
+	m := &domain.Message{}
+	var ts string
+	err := row.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &ts)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("message get_last_message: %w", err)
+	}
+
+	m.Timestamp, err = parseSQLiteTime(ts)
+	if err != nil {
+		return nil, fmt.Errorf("parse timestamp: %w", err)
+	}
+	return m, nil
 }
 
 func scanMessages(rows *sql.Rows) ([]*domain.Message, error) {

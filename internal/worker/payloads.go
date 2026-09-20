@@ -82,3 +82,23 @@ func NewExecuteScheduledReportTask(p ExecuteScheduledReportPayload) (*asynq.Task
 		asynq.Timeout(120*time.Second),
 	), nil
 }
+
+// TaskSummarizeSession is the Asynq task type for background conversation summarization.
+const TaskSummarizeSession = "session:summarize"
+
+// SummarizeSessionPayload is the JSON payload for a session:summarize task.
+type SummarizeSessionPayload struct {
+	SessionID string `json:"session_id"`
+}
+
+// NewSummarizeSessionTask creates an Asynq task for summarizing older messages in a session.
+func NewSummarizeSessionTask(p SummarizeSessionPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskSummarizeSession, payload,
+		asynq.MaxRetry(2),
+		asynq.Timeout(60*time.Second),
+	), nil
+}

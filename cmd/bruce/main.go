@@ -79,6 +79,7 @@ func main() {
 	configRepo := repository.NewConfigRepository(db)
 	toolExecutionRepo := repository.NewToolExecutionRepository(db)
 	proactiveTaskRepo := repository.NewProactiveTaskRepository(db)
+	sessionSummaryRepo := repository.NewSessionSummaryRepository(db)
 
 	// Auto-migrate legacy application YAML settings into database if present.
 	if migrated, err := config.MigrateLegacyYamlToDB(cfg, configRepo); err == nil && migrated > 0 {
@@ -303,11 +304,14 @@ func main() {
 	proc.SetToolRegistry(toolRegistry)
 	proc.SetProactiveRepo(proactiveTaskRepo)
 	proc.SetProviderRegistry(llmService)
+	proc.SetSummaryRepo(sessionSummaryRepo)
+	proc.SetAsynqClient(asynqClient)
 
 	muxHandler := asynq.NewServeMux()
 	muxHandler.HandleFunc(worker.TaskProcessIncomingMessage, proc.HandleProcessIncomingMessageTask)
 	muxHandler.HandleFunc(worker.TaskEvaluateWatch, proc.HandleEvaluateWatchTask)
 	muxHandler.HandleFunc(worker.TaskExecuteScheduledReport, proc.HandleExecuteScheduledReportTask)
+	muxHandler.HandleFunc(worker.TaskSummarizeSession, proc.HandleSummarizeSessionTask)
 
 	go func() {
 		if err := asynqServer.Run(muxHandler); err != nil {
@@ -332,6 +336,7 @@ func main() {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "sessionRepo", sessionRepo)
 		ctx = context.WithValue(ctx, "messageRepo", messageRepo)
+		ctx = context.WithValue(ctx, "sessionSummaryRepo", sessionSummaryRepo)
 		ctx = context.WithValue(ctx, "configRepo", configRepo)
 		ctx = context.WithValue(ctx, "toolExecutionRepo", toolExecutionRepo)
 		ctx = context.WithValue(ctx, "proactiveTaskRepo", proactiveTaskRepo)

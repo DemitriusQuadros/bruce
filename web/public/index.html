@@ -36,13 +36,25 @@
                 </aside>
                 <div class="chat-main">
                     <div class="chat-main-header" id="chat-main-header" hidden>
-                        <div class="chat-header-info">
+                        <div class="chat-header-info" style="display: flex; align-items: center; gap: 0.5rem;">
                             <h3 id="chat-title">New Conversation</h3>
                             <span id="chat-provider-badge" class="badge badge--accent" hidden></span>
+                            <button id="chat-memory-badge" class="badge badge--memory" hidden title="Click to view conversation memory" style="cursor: pointer; border: none; background: rgba(99, 102, 241, 0.15); color: #818cf8; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500;">
+                                <i class="fas fa-brain"></i> <span>Memory Active</span>
+                            </button>
                         </div>
                         <button id="chat-delete-btn" class="btn-danger btn-sm" title="Delete conversation">
                             <i class="fas fa-trash"></i>
                         </button>
+                    </div>
+                    <div id="chat-memory-banner" class="chat-memory-banner" hidden style="background: var(--bg-surface-2, #1e1e2d); border-bottom: 1px solid var(--border-color, #2a2a3c); padding: 0.75rem 1.25rem; font-size: 0.85rem; color: var(--text-secondary, #a1a1aa);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <strong style="color: #818cf8; display: flex; align-items: center; gap: 0.4rem;">
+                                <i class="fas fa-brain"></i> Conversation Memory Recap
+                            </strong>
+                            <button id="chat-memory-close-btn" class="btn-link" style="font-size: 0.75rem; color: var(--text-muted, #71717a); cursor: pointer; background: none; border: none;">Hide</button>
+                        </div>
+                        <div id="chat-memory-content" style="white-space: pre-wrap; line-height: 1.45;"></div>
                     </div>
                     <div id="chat-messages" class="chat-messages">
                         <div class="chat-empty-state">
@@ -294,7 +306,7 @@
                         <div class="form-group">
                             <label>Model</label>
                             <select name="gemini.model">
-                                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                <option value="gemini-2.5-flash">gemini-2.5-flash (Recommended)</option>
                                 <option value="gemini-2.5-pro-preview-06-05">gemini-2.5-pro-preview-06-05</option>
                                 <option value="gemini-2.5-flash-preview-05-20">gemini-2.5-flash-preview-05-20</option>
                             </select>
