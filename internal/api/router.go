@@ -43,6 +43,7 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/sessions/{id}", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPatch)
 	api.HandleFunc("/sessions/{id}/messages", handlers.MessagesHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/sessions/{id}/tool-executions", handlers.ToolExecutionsHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/tool-executions", handlers.ToolExecutionsHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/connectors", handlers.ConnectorsHandler()).Methods(http.MethodGet)
 
 	// Proactive tasks routes (ambient watches and scheduled reports).

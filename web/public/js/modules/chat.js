@@ -36,7 +36,7 @@ function onActivate() {
 async function loadSessions() {
     try {
         const sessions = await req('GET', '/api/v1/chat/sessions');
-        setState({ chatSessions: sessions });
+        setState({ chatSessions: sessions, sessions });
         renderSessionList(sessions);
     } catch (err) {
         showToast('Failed to load conversations', 'error');

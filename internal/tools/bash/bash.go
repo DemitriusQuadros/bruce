@@ -14,21 +14,37 @@ import (
 
 // BashTool implements the tools.Tool interface for bash command execution.
 type BashTool struct {
-	config config.BashConfig
+	cfg          *config.Config
+	staticConfig config.BashConfig
 }
 
-// New creates a new BashTool with the given configuration.
-func New(cfg config.BashConfig) *BashTool {
-	if cfg.MaxOutputBytes <= 0 {
-		cfg.MaxOutputBytes = 65536 // 64KB default
+// New creates a new BashTool with dynamic configuration.
+func New(cfg *config.Config) *BashTool {
+	return &BashTool{cfg: cfg}
+}
+
+// NewWithConfig creates a new BashTool with static configuration.
+func NewWithConfig(cfg config.BashConfig) *BashTool {
+	return &BashTool{staticConfig: cfg}
+}
+
+func (bt *BashTool) getConfig() config.BashConfig {
+	var c config.BashConfig
+	if bt.cfg != nil {
+		c = bt.cfg.Tools.Bash
+	} else {
+		c = bt.staticConfig
 	}
-	if cfg.TimeoutSeconds <= 0 {
-		cfg.TimeoutSeconds = 30 // 30s default
+	if c.MaxOutputBytes <= 0 {
+		c.MaxOutputBytes = 65536 // 64KB default
 	}
-	if cfg.TimeoutSeconds > 60 {
-		cfg.TimeoutSeconds = 60 // 60s hard cap
+	if c.TimeoutSeconds <= 0 {
+		c.TimeoutSeconds = 30 // 30s default
 	}
-	return &BashTool{config: cfg}
+	if c.TimeoutSeconds > 60 {
+		c.TimeoutSeconds = 60 // 60s hard cap
+	}
+	return c
 }
 
 // Name returns the tool name.
@@ -36,7 +52,7 @@ func (bt *BashTool) Name() string {
 	return "bash_exec"
 }
 
-// Definition returns the tool definition for the AI model.
+// Definition returns the AI tool definition for the AI model.
 func (bt *BashTool) Definition() ai.ToolDefinition {
 	return ai.ToolDefinition{
 		Name:        "bash_exec",
@@ -50,11 +66,11 @@ func (bt *BashTool) Definition() ai.ToolDefinition {
 				},
 				"working_dir": map[string]interface{}{
 					"type":        "string",
-					"description": "Relative subdirectory under configured base (no .. allowed)",
+					"description": "Subdirectory under configured base (or absolute path within base, defaults to base dir)",
 				},
 				"timeout_seconds": map[string]interface{}{
 					"type":        "integer",
-					"description": "Command timeout in seconds (capped at config max)",
+					"description": "Command timeout in seconds (capped at config max, hard cap 60)",
 				},
 			},
 			"required": []string{"command"},
@@ -82,13 +98,15 @@ func (bt *BashTool) Execute(ctx context.Context, input map[string]interface{}) (
 	workingDir, _ := input["working_dir"].(string)
 	timeoutSeconds, _ := input["timeout_seconds"].(float64)
 
+	conf := bt.getConfig()
+
 	// Validate command.
-	if err := ValidateCommand(command, bt.config.AllowedCommands); err != nil {
+	if err := ValidateCommand(command, conf.AllowedCommands); err != nil {
 		return nil, err
 	}
 
 	// Validate and resolve working directory.
-	resolvedDir, err := ValidateWorkingDir(bt.config.WorkingDir, workingDir)
+	resolvedDir, err := ValidateWorkingDir(conf.WorkingDir, workingDir)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +117,7 @@ func (bt *BashTool) Execute(ctx context.Context, input map[string]interface{}) (
 	}
 
 	// Determine timeout: use request timeout if provided and valid, otherwise config default.
-	timeout := time.Duration(bt.config.TimeoutSeconds) * time.Second
+	timeout := time.Duration(conf.TimeoutSeconds) * time.Second
 	if timeoutSeconds > 0 {
 		requestTimeout := int(timeoutSeconds)
 		if requestTimeout > 60 {
@@ -109,7 +127,7 @@ func (bt *BashTool) Execute(ctx context.Context, input map[string]interface{}) (
 	}
 
 	// Execute command with timeout.
-	resp, err := bt.executeWithTimeout(ctx, command, resolvedDir, timeout)
+	resp, err := bt.executeWithTimeout(ctx, command, resolvedDir, timeout, conf.MaxOutputBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +136,7 @@ func (bt *BashTool) Execute(ctx context.Context, input map[string]interface{}) (
 }
 
 // executeWithTimeout runs the command with timeout enforcement.
-func (bt *BashTool) executeWithTimeout(ctx context.Context, command, workingDir string, timeout time.Duration) (*BashResponse, error) {
+func (bt *BashTool) executeWithTimeout(ctx context.Context, command, workingDir string, timeout time.Duration, maxOutputBytes int) (*BashResponse, error) {
 	// Create a context with timeout.
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -128,18 +146,20 @@ func (bt *BashTool) executeWithTimeout(ctx context.Context, command, workingDir 
 	cmd.Dir = workingDir
 	cmd.Stdin = nil // No stdin
 
-	// Restrict environment: only PATH, HOME, USER, LANG.
+	// Restrict environment: only PATH, HOME, USER, LANG, TERM, PAGER.
 	cmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + os.Getenv("HOME"),
 		"USER=" + os.Getenv("USER"),
 		"LANG=" + os.Getenv("LANG"),
+		"TERM=dumb",
+		"PAGER=cat",
 	}
 
 	// Capture stdout and stderr.
 	var stdoutBuf, stderrBuf []byte
-	cmd.Stdout = &limitedWriter{data: &stdoutBuf, max: bt.config.MaxOutputBytes}
-	cmd.Stderr = &limitedWriter{data: &stderrBuf, max: bt.config.MaxOutputBytes}
+	cmd.Stdout = &limitedWriter{data: &stdoutBuf, max: maxOutputBytes}
+	cmd.Stderr = &limitedWriter{data: &stderrBuf, max: maxOutputBytes}
 
 	// Run the command.
 	err := cmd.Run()
@@ -151,9 +171,11 @@ func (bt *BashTool) executeWithTimeout(ctx context.Context, command, workingDir 
 			exitCode = exitErr.ExitCode()
 		} else if execCtx.Err() == context.DeadlineExceeded {
 			// Timeout: kill the process with SIGKILL after grace period.
-			_ = cmd.Process.Signal(syscall.SIGTERM)
-			time.Sleep(3 * time.Second)
-			_ = cmd.Process.Kill()
+			if cmd.Process != nil {
+				_ = cmd.Process.Signal(syscall.SIGTERM)
+				time.Sleep(100 * time.Millisecond)
+				_ = cmd.Process.Kill()
+			}
 			return nil, fmt.Errorf("tool execution timed out")
 		} else {
 			// Other error (spawn failure, etc.).
@@ -162,7 +184,7 @@ func (bt *BashTool) executeWithTimeout(ctx context.Context, command, workingDir 
 	}
 
 	// Check if output was truncated.
-	truncated := len(stdoutBuf)+len(stderrBuf) >= bt.config.MaxOutputBytes
+	truncated := len(stdoutBuf)+len(stderrBuf) >= maxOutputBytes
 
 	return &BashResponse{
 		Stdout:     string(stdoutBuf),

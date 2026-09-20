@@ -6,10 +6,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"bruce/internal/ai"
+	"bruce/internal/config"
 )
+
+// resolveConfig resolves the home directory and command timeout from *config.Config.
+func resolveConfig(cfg *config.Config) (string, time.Duration) {
+	home := ""
+	if cfg != nil && cfg.Tools.GitLocal.HomeDir != "" {
+		home = cfg.Tools.GitLocal.HomeDir
+	}
+	if home == "" {
+		home = os.Getenv("HOME")
+	}
+
+	timeout := 30 * time.Second
+	if cfg != nil && cfg.Tools.GitLocal.TimeoutSeconds > 0 {
+		timeout = time.Duration(cfg.Tools.GitLocal.TimeoutSeconds) * time.Second
+	}
+	return home, timeout
+}
 
 // StatusResponse is the JSON response returned by the git_status tool.
 type StatusResponse struct {
@@ -45,13 +64,12 @@ type BranchResponse struct {
 
 // GitStatusTool implements tools.Tool for running git status.
 type GitStatusTool struct {
-	homeDir string
-	timeout time.Duration
+	cfg *config.Config
 }
 
 // NewStatusTool creates a new GitStatusTool.
-func NewStatusTool(homeDir string, timeout time.Duration) *GitStatusTool {
-	return &GitStatusTool{homeDir: homeDir, timeout: timeout}
+func NewStatusTool(cfg *config.Config) *GitStatusTool {
+	return &GitStatusTool{cfg: cfg}
 }
 
 // Name returns the tool name.
@@ -67,10 +85,9 @@ func (t *GitStatusTool) Definition() ai.ToolDefinition {
 			"properties": map[string]interface{}{
 				"repo_path": map[string]interface{}{
 					"type":        "string",
-					"description": "Relative path to the git repository (relative to configured home_dir, no .. allowed)",
+					"description": "Relative or absolute path to the git repository (defaults to \".\" for configured home_dir)",
 				},
 			},
-			"required": []string{"repo_path"},
 		},
 	}
 }
@@ -79,19 +96,20 @@ func (t *GitStatusTool) Definition() ai.ToolDefinition {
 func (t *GitStatusTool) Execute(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 	log.Printf("[git_local] git_status: Execute called")
 
-	repoPathRaw, ok := input["repo_path"].(string)
-	if !ok || repoPathRaw == "" {
-		return nil, fmt.Errorf("repo_path is required and must be a non-empty string")
+	repoPathRaw, _ := input["repo_path"].(string)
+	if repoPathRaw == "" {
+		repoPathRaw = "."
 	}
 
-	resolvedPath, err := validateRepoPath(t.homeDir, repoPathRaw)
+	homeDir, timeout := resolveConfig(t.cfg)
+	resolvedPath, err := validateRepoPath(homeDir, repoPathRaw)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("[git_local] git_status: repo=%q", resolvedPath)
 
-	cmd := NewCommander(resolvedPath, t.timeout)
+	cmd := NewCommander(resolvedPath, timeout)
 	status, err := cmd.Status(ctx)
 	if err != nil {
 		log.Printf("[git_local] git_status: Status failed: %v", err)
@@ -117,13 +135,12 @@ func (t *GitStatusTool) Execute(ctx context.Context, input map[string]interface{
 
 // GitCommitTool implements tools.Tool for staging all changes and committing.
 type GitCommitTool struct {
-	homeDir string
-	timeout time.Duration
+	cfg *config.Config
 }
 
 // NewCommitTool creates a new GitCommitTool.
-func NewCommitTool(homeDir string, timeout time.Duration) *GitCommitTool {
-	return &GitCommitTool{homeDir: homeDir, timeout: timeout}
+func NewCommitTool(cfg *config.Config) *GitCommitTool {
+	return &GitCommitTool{cfg: cfg}
 }
 
 // Name returns the tool name.
@@ -139,14 +156,14 @@ func (t *GitCommitTool) Definition() ai.ToolDefinition {
 			"properties": map[string]interface{}{
 				"repo_path": map[string]interface{}{
 					"type":        "string",
-					"description": "Relative path to the git repository (relative to configured home_dir, no .. allowed)",
+					"description": "Relative or absolute path to the git repository (defaults to \".\" for configured home_dir)",
 				},
 				"message": map[string]interface{}{
 					"type":        "string",
 					"description": "Commit message",
 				},
 			},
-			"required": []string{"repo_path", "message"},
+			"required": []string{"message"},
 		},
 	}
 }
@@ -155,9 +172,9 @@ func (t *GitCommitTool) Definition() ai.ToolDefinition {
 func (t *GitCommitTool) Execute(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 	log.Printf("[git_local] git_commit: Execute called")
 
-	repoPathRaw, ok := input["repo_path"].(string)
-	if !ok || repoPathRaw == "" {
-		return nil, fmt.Errorf("repo_path is required and must be a non-empty string")
+	repoPathRaw, _ := input["repo_path"].(string)
+	if repoPathRaw == "" {
+		repoPathRaw = "."
 	}
 
 	message, ok := input["message"].(string)
@@ -165,14 +182,15 @@ func (t *GitCommitTool) Execute(ctx context.Context, input map[string]interface{
 		return nil, fmt.Errorf("message is required and must be a non-empty string")
 	}
 
-	resolvedPath, err := validateRepoPath(t.homeDir, repoPathRaw)
+	homeDir, timeout := resolveConfig(t.cfg)
+	resolvedPath, err := validateRepoPath(homeDir, repoPathRaw)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("[git_local] git_commit: repo=%q message=%q", resolvedPath, message)
 
-	cmd := NewCommander(resolvedPath, t.timeout)
+	cmd := NewCommander(resolvedPath, timeout)
 	hash, err := cmd.Commit(ctx, message)
 	if err != nil {
 		log.Printf("[git_local] git_commit: Commit failed: %v", err)
@@ -196,13 +214,12 @@ func (t *GitCommitTool) Execute(ctx context.Context, input map[string]interface{
 
 // GitPushTool implements tools.Tool for pushing commits to a remote.
 type GitPushTool struct {
-	homeDir string
-	timeout time.Duration
+	cfg *config.Config
 }
 
 // NewPushTool creates a new GitPushTool.
-func NewPushTool(homeDir string, timeout time.Duration) *GitPushTool {
-	return &GitPushTool{homeDir: homeDir, timeout: timeout}
+func NewPushTool(cfg *config.Config) *GitPushTool {
+	return &GitPushTool{cfg: cfg}
 }
 
 // Name returns the tool name.
@@ -218,14 +235,13 @@ func (t *GitPushTool) Definition() ai.ToolDefinition {
 			"properties": map[string]interface{}{
 				"repo_path": map[string]interface{}{
 					"type":        "string",
-					"description": "Relative path to the git repository (relative to configured home_dir, no .. allowed)",
+					"description": "Relative or absolute path to the git repository (defaults to \".\" for configured home_dir)",
 				},
 				"branch": map[string]interface{}{
 					"type":        "string",
 					"description": "Branch to push (e.g. main). If omitted, runs git push with no branch argument.",
 				},
 			},
-			"required": []string{"repo_path"},
 		},
 	}
 }
@@ -234,21 +250,22 @@ func (t *GitPushTool) Definition() ai.ToolDefinition {
 func (t *GitPushTool) Execute(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 	log.Printf("[git_local] git_push: Execute called")
 
-	repoPathRaw, ok := input["repo_path"].(string)
-	if !ok || repoPathRaw == "" {
-		return nil, fmt.Errorf("repo_path is required and must be a non-empty string")
+	repoPathRaw, _ := input["repo_path"].(string)
+	if repoPathRaw == "" {
+		repoPathRaw = "."
 	}
 
 	branch, _ := input["branch"].(string)
 
-	resolvedPath, err := validateRepoPath(t.homeDir, repoPathRaw)
+	homeDir, timeout := resolveConfig(t.cfg)
+	resolvedPath, err := validateRepoPath(homeDir, repoPathRaw)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("[git_local] git_push: repo=%q branch=%q", resolvedPath, branch)
 
-	cmd := NewCommander(resolvedPath, t.timeout)
+	cmd := NewCommander(resolvedPath, timeout)
 	if err := cmd.Push(ctx, branch); err != nil {
 		log.Printf("[git_local] git_push: Push failed: %v", err)
 		return nil, fmt.Errorf("git_push: %w", err)
@@ -270,13 +287,12 @@ func (t *GitPushTool) Execute(ctx context.Context, input map[string]interface{})
 
 // GitBranchTool implements tools.Tool for branch management operations.
 type GitBranchTool struct {
-	homeDir string
-	timeout time.Duration
+	cfg *config.Config
 }
 
 // NewBranchTool creates a new GitBranchTool.
-func NewBranchTool(homeDir string, timeout time.Duration) *GitBranchTool {
-	return &GitBranchTool{homeDir: homeDir, timeout: timeout}
+func NewBranchTool(cfg *config.Config) *GitBranchTool {
+	return &GitBranchTool{cfg: cfg}
 }
 
 // Name returns the tool name.
@@ -292,7 +308,7 @@ func (t *GitBranchTool) Definition() ai.ToolDefinition {
 			"properties": map[string]interface{}{
 				"repo_path": map[string]interface{}{
 					"type":        "string",
-					"description": "Relative path to the git repository (relative to configured home_dir, no .. allowed)",
+					"description": "Relative or absolute path to the git repository (defaults to \".\" for configured home_dir)",
 				},
 				"action": map[string]interface{}{
 					"type":        "string",
@@ -304,7 +320,7 @@ func (t *GitBranchTool) Definition() ai.ToolDefinition {
 					"description": "Branch name (required for create and delete actions)",
 				},
 			},
-			"required": []string{"repo_path", "action"},
+			"required": []string{"action"},
 		},
 	}
 }
@@ -313,9 +329,9 @@ func (t *GitBranchTool) Definition() ai.ToolDefinition {
 func (t *GitBranchTool) Execute(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 	log.Printf("[git_local] git_branch: Execute called")
 
-	repoPathRaw, ok := input["repo_path"].(string)
-	if !ok || repoPathRaw == "" {
-		return nil, fmt.Errorf("repo_path is required and must be a non-empty string")
+	repoPathRaw, _ := input["repo_path"].(string)
+	if repoPathRaw == "" {
+		repoPathRaw = "."
 	}
 
 	action, ok := input["action"].(string)
@@ -325,14 +341,15 @@ func (t *GitBranchTool) Execute(ctx context.Context, input map[string]interface{
 
 	branchName, _ := input["branch_name"].(string)
 
-	resolvedPath, err := validateRepoPath(t.homeDir, repoPathRaw)
+	homeDir, timeout := resolveConfig(t.cfg)
+	resolvedPath, err := validateRepoPath(homeDir, repoPathRaw)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("[git_local] git_branch: repo=%q action=%q branchName=%q", resolvedPath, action, branchName)
 
-	cmd := NewCommander(resolvedPath, t.timeout)
+	cmd := NewCommander(resolvedPath, timeout)
 	result, err := cmd.Branch(ctx, action, branchName)
 	if err != nil {
 		log.Printf("[git_local] git_branch: Branch failed: %v", err)

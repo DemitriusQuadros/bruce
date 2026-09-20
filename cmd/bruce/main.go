@@ -179,7 +179,7 @@ func main() {
 
 	// Spec 16: Register bash execution tool if enabled.
 	if cfg.Tools.Bash.Enabled {
-		bashTool := bash.New(cfg.Tools.Bash)
+		bashTool := bash.New(cfg)
 		if err := toolRegistry.Register(bashTool); err != nil {
 			log.Fatalf("FATAL: register bash tool: %v", err)
 		}
@@ -253,18 +253,10 @@ func main() {
 
 	// Spec 22: Git local tools.
 	if cfg.Tools.GitLocal.Enabled {
-		homeDir := cfg.Tools.GitLocal.HomeDir
-		if homeDir == "" {
-			homeDir = os.Getenv("HOME")
-		}
-		timeout := time.Duration(cfg.Tools.GitLocal.TimeoutSeconds) * time.Second
-		if timeout == 0 {
-			timeout = 30 * time.Second
-		}
-		toolRegistry.Register(git_local.NewStatusTool(homeDir, timeout)) //nolint:errcheck
-		toolRegistry.Register(git_local.NewCommitTool(homeDir, timeout)) //nolint:errcheck
-		toolRegistry.Register(git_local.NewPushTool(homeDir, timeout))   //nolint:errcheck
-		toolRegistry.Register(git_local.NewBranchTool(homeDir, timeout)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewStatusTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewCommitTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewPushTool(cfg))   //nolint:errcheck
+		toolRegistry.Register(git_local.NewBranchTool(cfg)) //nolint:errcheck
 	}
 
 	// Spec 29: HTTP client tool.

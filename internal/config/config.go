@@ -338,6 +338,9 @@ func getLegacyEntries(c *Config) map[string]string {
 	addIfNotEmpty("ui.default_system_prompt", c.UI.DefaultSystemPrompt)
 
 	addBool("tools.bash.enabled", c.Tools.Bash.Enabled)
+	addIfNotEmpty("tools.bash.working_dir", c.Tools.Bash.WorkingDir)
+	addInt("tools.bash.timeout_seconds", c.Tools.Bash.TimeoutSeconds)
+	addInt("tools.bash.max_output_bytes", c.Tools.Bash.MaxOutputBytes)
 	addBool("tools.gmail.enabled", c.Tools.Gmail.Enabled)
 	addBool("tools.calendar.enabled", c.Tools.Calendar.Enabled)
 	addBool("tools.docs.enabled", c.Tools.Docs.Enabled)
@@ -440,6 +443,16 @@ func applyEntry(cfg *Config, key, val string) {
 		cfg.UI.DefaultSystemPrompt = val
 	case "tools.bash.enabled":
 		cfg.Tools.Bash.Enabled = (val == "true")
+	case "tools.bash.working_dir":
+		cfg.Tools.Bash.WorkingDir = val
+	case "tools.bash.timeout_seconds":
+		if n, err := strconv.Atoi(val); err == nil {
+			cfg.Tools.Bash.TimeoutSeconds = n
+		}
+	case "tools.bash.max_output_bytes":
+		if n, err := strconv.Atoi(val); err == nil {
+			cfg.Tools.Bash.MaxOutputBytes = n
+		}
 	case "tools.gmail.enabled":
 		cfg.Tools.Gmail.Enabled = (val == "true")
 	case "tools.calendar.enabled":

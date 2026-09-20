@@ -2,7 +2,7 @@
 
 import { req } from '../api.js';
 import { showToast } from '../toast.js';
-import { getState, subscribe } from '../store.js';
+import { getState, setState, subscribe } from '../store.js';
 import { registerTab } from '../router.js';
 
 // ─── state ────────────────────────────────────────────────────────────────────
@@ -12,27 +12,77 @@ let allExecutions = [];   // cached for client-side filter/sort
 
 // ─── Messages subtab ──────────────────────────────────────────────────────────
 
-function populateLogsDropdown() {
+async function populateLogsDropdown(forceSelectId = null) {
     const select = document.getElementById('logs-session-select');
     if (!select) return;
 
-    const sessionsData = getState('sessions') || [];
-    select.innerHTML = '<option value="">Select a session</option>';
+    let sessionsData = getState('sessions') || [];
+    try {
+        const fresh = await req('GET', '/api/v1/sessions');
+        if (Array.isArray(fresh)) {
+            sessionsData = fresh;
+            setState({ sessions: fresh });
+        }
+    } catch (e) {
+        // use sessionsData from state
+    }
 
-    if (sessionsData.length === 0) return;
+    const currentVal = forceSelectId || select.value;
+    const activeChatId = getState('activeChatId') || getState('selectedSessionId');
+
+    select.innerHTML = '<option value="all">All Sessions (Global Tools)</option>';
 
     sessionsData.forEach(session => {
         const option = document.createElement('option');
         option.value = session.id;
-        option.textContent = `${session.id} (${session.connector_type})`;
+        const title = session.title ? session.title : (session.id ? session.id.slice(0, 8) : 'Session');
+        option.textContent = `${title} (${session.connector_type || 'chat'})`;
         select.appendChild(option);
     });
+
+    if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+        select.value = currentVal;
+    } else if (activeChatId && Array.from(select.options).some(o => o.value === activeChatId)) {
+        select.value = activeChatId;
+    } else if (sessionsData.length > 0) {
+        select.value = sessionsData[0].id;
+    } else {
+        select.value = 'all';
+    }
+
+    await loadCurrentLogs();
+}
+
+async function loadCurrentLogs() {
+    const select = document.getElementById('logs-session-select');
+    if (!select) return;
+    const id = select.value;
+    const activeSubtab = document.querySelector('.logs-subtab-btn.active')?.dataset.subtab || 'messages';
+
+    stopToolsPolling();
+    if (activeSubtab === 'messages') {
+        await loadMessages(id);
+    } else {
+        await loadToolExecutions(id);
+        startToolsPolling();
+    }
 }
 
 async function loadMessages(sessionId) {
+    const container = document.getElementById('logs-messages');
+    if (!container) return;
+
+    if (!sessionId || sessionId === 'all') {
+        container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">Select a specific session from the dropdown above to view chat messages.</div>';
+        return;
+    }
+
     try {
-        const messages = await req('GET', `/api/v1/sessions/${sessionId}/messages?limit=50`);
-        renderMessages(messages || []);
+        const messages = await req('GET', `/api/v1/sessions/${sessionId}/messages?limit=100`);
+        // The API returns messages ordered by timestamp DESC.
+        // We reverse them so chronological order (oldest -> newest) renders top -> bottom.
+        const chronological = Array.isArray(messages) ? messages.slice().reverse() : [];
+        renderMessages(chronological);
     } catch (err) {
         showToast(`Failed to load messages: ${err.message}`, 'error');
     }
@@ -72,7 +122,10 @@ function renderMessages(messages) {
 
 async function loadToolExecutions(sessionId) {
     try {
-        const data = await req('GET', `/api/v1/sessions/${sessionId}/tool-executions?limit=100`);
+        const url = (sessionId && sessionId !== 'all')
+            ? `/api/v1/sessions/${sessionId}/tool-executions?limit=100`
+            : `/api/v1/tool-executions?limit=100`;
+        const data = await req('GET', url);
         allExecutions = data.executions || [];
         populateToolNameFilter(allExecutions);
         renderToolsTable();
@@ -258,12 +311,13 @@ function escapeHtml(s) {
 
 // ─── Polling ──────────────────────────────────────────────────────────────────
 
-function startToolsPolling(sessionId) {
+function startToolsPolling() {
     stopToolsPolling();
     toolsPollingTimer = setInterval(() => {
         const activeSubtab = document.querySelector('.logs-subtab-btn.active')?.dataset.subtab;
         if (activeSubtab === 'tools') {
-            loadToolExecutions(sessionId);
+            const id = document.getElementById('logs-session-select')?.value;
+            loadToolExecutions(id);
         }
     }, 3000);
 }
@@ -301,6 +355,15 @@ export function init() {
             populateLogsDropdown();
         }
     });
+
+    subscribe('activeChatId', (activeId) => {
+        if (activeId) {
+            const select = document.getElementById('logs-session-select');
+            if (select) {
+                select.value = activeId;
+            }
+        }
+    });
 }
 
 function setupEventHandlers() {
@@ -310,14 +373,12 @@ function setupEventHandlers() {
         select.addEventListener('change', async (e) => {
             const id = e.target.value;
             stopToolsPolling();
-            if (!id) return;
-
             const activeSubtab = document.querySelector('.logs-subtab-btn.active')?.dataset.subtab || 'messages';
             if (activeSubtab === 'messages') {
                 await loadMessages(id);
             } else {
                 await loadToolExecutions(id);
-                startToolsPolling(id);
+                startToolsPolling();
             }
         });
     }
@@ -326,14 +387,7 @@ function setupEventHandlers() {
     const refreshBtn = document.getElementById('logs-refresh');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', async () => {
-            const id = document.getElementById('logs-session-select')?.value;
-            if (!id) return;
-            const activeSubtab = document.querySelector('.logs-subtab-btn.active')?.dataset.subtab || 'messages';
-            if (activeSubtab === 'messages') {
-                await loadMessages(id);
-            } else {
-                await loadToolExecutions(id);
-            }
+            await populateLogsDropdown();
         });
     }
 
@@ -343,14 +397,13 @@ function setupEventHandlers() {
             const name = btn.dataset.subtab;
             activateSubtab(name);
             const id = document.getElementById('logs-session-select')?.value;
-            if (!id) return;
 
             stopToolsPolling();
             if (name === 'messages') {
                 await loadMessages(id);
             } else {
                 await loadToolExecutions(id);
-                startToolsPolling(id);
+                startToolsPolling();
             }
         });
     });

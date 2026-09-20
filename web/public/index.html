@@ -684,6 +684,14 @@
                             <input type="checkbox" name="tools.bash.enabled" id="bash-enabled" />
                             <label for="bash-enabled">Enable Bash tool</label>
                         </div>
+                        <div class="form-group">
+                            <label>Working Directory</label>
+                            <input type="text" name="tools.bash.working_dir" placeholder="/home/user/workspace" />
+                        </div>
+                        <div class="form-group">
+                            <label>Timeout (seconds)</label>
+                            <input type="number" name="tools.bash.timeout_seconds" min="1" max="60" placeholder="30" />
+                        </div>
                         <div class="settings-card__footer">
                             <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
                         </div>

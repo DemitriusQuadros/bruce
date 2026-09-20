@@ -83,6 +83,9 @@ var AllApplicationKeys = []string{
 	"tools.git_local.timeout_seconds",
 	// Bash
 	"tools.bash.enabled",
+	"tools.bash.working_dir",
+	"tools.bash.timeout_seconds",
+	"tools.bash.max_output_bytes",
 	// Google-gated tools
 	"tools.gmail.enabled",
 	"tools.calendar.enabled",

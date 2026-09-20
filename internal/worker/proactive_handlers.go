@@ -61,12 +61,16 @@ func (p *Processor) HandleEvaluateWatchTask(ctx context.Context, t *asynq.Task) 
 	// 1. Gather outputs from target tools
 	var toolOutputs []string
 	if p.toolRegistry != nil && len(payload.TargetTools) > 0 {
+		toolCtx := ctx
+		if payload.SessionID != "" {
+			toolCtx = ai.WithSessionContext(ctx, payload.SessionID, payload.TargetConnector, payload.TargetChannelID)
+		}
 		for _, toolName := range payload.TargetTools {
 			toolInput := map[string]interface{}{}
 			if toolName == "email_search" {
 				toolInput["query"] = "newer_than:1d"
 			}
-			out, err := p.toolRegistry.Execute(ctx, toolName, toolInput)
+			out, err := p.toolRegistry.Execute(toolCtx, toolName, toolInput)
 			if err != nil {
 				logging.Warnf("watch %s tool %s execution error: %v", payload.TaskID, toolName, err)
 				continue
@@ -192,10 +196,15 @@ func (p *Processor) HandleExecuteScheduledReportTask(ctx context.Context, t *asy
 	var reportText string
 	var runErr error
 
+	reportCtx := ctx
+	if payload.SessionID != "" {
+		reportCtx = ai.WithSessionContext(ctx, payload.SessionID, payload.TargetConnector, payload.TargetChannelID)
+	}
+
 	if p.toolRegistry != nil {
-		reportText, runErr = ai.RunAgentLoop(ctx, bgLLM, p.toolRegistry, systemPrompt, messages, 5)
+		reportText, runErr = ai.RunAgentLoop(reportCtx, bgLLM, p.toolRegistry, systemPrompt, messages, 5)
 	} else {
-		reportText, runErr = bgLLM.GenerateResponse(ctx, systemPrompt, messages)
+		reportText, runErr = bgLLM.GenerateResponse(reportCtx, systemPrompt, messages)
 	}
 
 	if runErr != nil {

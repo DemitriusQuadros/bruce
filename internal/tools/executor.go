@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"bruce/internal/ai"
 )
 
 const defaultTimeout = 150 * time.Second
@@ -70,7 +72,8 @@ func executeWithTimeout(ctx context.Context, tool Tool, input map[string]interfa
 		errorMsg = execErr.Error()
 	}
 
-	logExecution(db, tool.Name(), string(inputJSON), outputJSON, latencyMs, execErr == nil, errorMsg)
+	sessionID, _ := ai.SessionIDFromContext(ctx)
+	logExecution(db, sessionID, tool.Name(), string(inputJSON), outputJSON, latencyMs, execErr == nil, errorMsg)
 
 	// Convert output to JSON string for the return value.
 	if execErr != nil {
@@ -114,7 +117,7 @@ func scrubSecrets(input map[string]interface{}) map[string]interface{} {
 }
 
 // logExecution logs a tool execution to the tool_executions table.
-func logExecution(db *sql.DB, toolName string, inputJSON string, outputJSON string, latencyMs int64, success bool, errorMsg string) {
+func logExecution(db *sql.DB, sessionID string, toolName string, inputJSON string, outputJSON string, latencyMs int64, success bool, errorMsg string) {
 	if db == nil {
 		return
 	}
@@ -126,8 +129,8 @@ func logExecution(db *sql.DB, toolName string, inputJSON string, outputJSON stri
 	}
 
 	_, _ = db.Exec(
-		`INSERT INTO tool_executions (id, tool_name, input, output, latency_ms, success, error_msg)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, toolName, inputJSON, outputJSON, latencyMs, successInt, errorMsg,
+		`INSERT INTO tool_executions (id, session_id, tool_name, input, output, latency_ms, success, error_msg)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, sessionID, toolName, inputJSON, outputJSON, latencyMs, successInt, errorMsg,
 	)
 }
