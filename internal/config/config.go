@@ -52,9 +52,25 @@ type OpenAIConfig struct {
 	MaxTokens int    `mapstructure:"max_tokens"`
 }
 
-// AppConfig holds general application settings such as default timezone.
+// AppConfig holds general application settings such as default timezone and external base URL.
 type AppConfig struct {
 	Timezone string `mapstructure:"timezone"`
+	BaseURL  string `mapstructure:"base_url"` // e.g. "http://bruce.homeserver.local"
+}
+
+// WebSearchConfig holds settings for internet search and web page reading tools.
+type WebSearchConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	Provider string `mapstructure:"provider"` // "duckduckgo" (default) | "brave" | "tavily" | "searxng"
+	APIKey   string `mapstructure:"api_key"`
+	BaseURL  string `mapstructure:"base_url"`
+}
+
+// ArtifactsConfig holds settings for saving and statically serving generated documents/pages.
+type ArtifactsConfig struct {
+	Enabled bool   `mapstructure:"enabled"`
+	Dir     string `mapstructure:"dir"`      // defaults to "./data/artifacts"
+	BaseURL string `mapstructure:"base_url"` // optional domain override, falls back to AppConfig.BaseURL
 }
 
 // LLMConfig holds LLM provider selection settings.
@@ -210,6 +226,8 @@ type ToolsConfig struct {
 	GitLocal   GitLocalConfig   `mapstructure:"git_local"`
 	HTTPClient HTTPClientConfig `mapstructure:"http_client"`
 	N8n        N8nConfig        `mapstructure:"n8n"`
+	WebSearch  WebSearchConfig  `mapstructure:"web_search"`
+	Artifacts  ArtifactsConfig  `mapstructure:"artifacts"`
 }
 
 // Config is the top-level application configuration.
@@ -240,6 +258,11 @@ func Load() *Config {
 	v.SetConfigFile(path)
 	v.SetConfigType("yaml")
 	v.BindEnv("redis.address", "REDIS_ADDRESS") //nolint:errcheck
+
+	v.SetDefault("tools.web_search.enabled", true)
+	v.SetDefault("tools.web_search.provider", "duckduckgo")
+	v.SetDefault("tools.artifacts.enabled", true)
+	v.SetDefault("tools.artifacts.dir", "./data/artifacts")
 
 	if err := v.ReadInConfig(); err != nil {
 		log.Printf("WARNING: could not read config file %q: %v — using defaults", path, err)
@@ -324,6 +347,7 @@ func getLegacyEntries(c *Config) map[string]string {
 	addIfNotEmpty("llm.background_model", c.LLM.BackgroundModel)
 
 	addIfNotEmpty("app.timezone", c.App.Timezone)
+	addIfNotEmpty("app.base_url", c.App.BaseURL)
 
 	addBool("connectors.whatsapp.enabled", c.Connectors.WhatsApp.Enabled)
 	addBool("connectors.discord.enabled", c.Connectors.Discord.Enabled)
@@ -366,6 +390,15 @@ func getLegacyEntries(c *Config) map[string]string {
 	addInt("tools.files.max_file_size", c.Tools.Files.MaxFileSize)
 
 	addBool("tools.http_client.enabled", c.Tools.HTTPClient.Enabled)
+
+	addBool("tools.web_search.enabled", c.Tools.WebSearch.Enabled)
+	addIfNotEmpty("tools.web_search.provider", c.Tools.WebSearch.Provider)
+	addIfNotEmpty("tools.web_search.api_key", c.Tools.WebSearch.APIKey)
+	addIfNotEmpty("tools.web_search.base_url", c.Tools.WebSearch.BaseURL)
+
+	addBool("tools.artifacts.enabled", c.Tools.Artifacts.Enabled)
+	addIfNotEmpty("tools.artifacts.dir", c.Tools.Artifacts.Dir)
+	addIfNotEmpty("tools.artifacts.base_url", c.Tools.Artifacts.BaseURL)
 
 	addBool("tools.n8n.enabled", c.Tools.N8n.Enabled)
 	addIfNotEmpty("tools.n8n.base_url", c.Tools.N8n.BaseURL)
@@ -423,6 +456,8 @@ func applyEntry(cfg *Config, key, val string) {
 		cfg.LLM.BackgroundModel = val
 	case "app.timezone":
 		cfg.App.Timezone = val
+	case "app.base_url":
+		cfg.App.BaseURL = val
 	case "connectors.discord.enabled":
 		cfg.Connectors.Discord.Enabled = (val == "true")
 	case "connectors.discord.bot_token":
@@ -495,6 +530,20 @@ func applyEntry(cfg *Config, key, val string) {
 		}
 	case "tools.http_client.enabled":
 		cfg.Tools.HTTPClient.Enabled = (val == "true")
+	case "tools.web_search.enabled":
+		cfg.Tools.WebSearch.Enabled = (val == "true")
+	case "tools.web_search.provider":
+		cfg.Tools.WebSearch.Provider = val
+	case "tools.web_search.api_key":
+		cfg.Tools.WebSearch.APIKey = val
+	case "tools.web_search.base_url":
+		cfg.Tools.WebSearch.BaseURL = val
+	case "tools.artifacts.enabled":
+		cfg.Tools.Artifacts.Enabled = (val == "true")
+	case "tools.artifacts.dir":
+		cfg.Tools.Artifacts.Dir = val
+	case "tools.artifacts.base_url":
+		cfg.Tools.Artifacts.BaseURL = val
 	case "tools.n8n.enabled":
 		cfg.Tools.N8n.Enabled = (val == "true")
 	case "tools.n8n.base_url":

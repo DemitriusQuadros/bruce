@@ -42,6 +42,8 @@ import (
 	"bruce/internal/tools/github"
 	gmail "bruce/internal/tools/gmail"
 	"bruce/internal/tools/httpclient"
+	"bruce/internal/tools/artifacts"
+	"bruce/internal/tools/websearch"
 	n8ntool "bruce/internal/tools/n8n"
 	"bruce/internal/tools/notion"
 	"bruce/internal/tools/proactive"
@@ -62,6 +64,7 @@ func main() {
 	if err := os.MkdirAll("./data", 0o755); err != nil {
 		log.Fatalf("FATAL: create data dir: %v", err)
 	}
+	_ = os.MkdirAll("./data/artifacts", 0o755)
 
 	db, err := database.NewSQLiteDB(cfg.SQLite.DSN)
 	if err != nil {
@@ -263,6 +266,19 @@ func main() {
 	// Spec 29: HTTP client tool.
 	if cfg.Tools.HTTPClient.Enabled {
 		toolRegistry.Register(httpclient.NewHTTPRequestTool(cfg.Tools.HTTPClient)) //nolint:errcheck
+	}
+
+	// Web search & reading tools.
+	if resolveConnectorEnabled("tools.web_search.enabled", true, configRepo) {
+		toolRegistry.Register(websearch.NewSearchTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(websearch.NewFetchTool(cfg))  //nolint:errcheck
+	}
+
+	// Static artifacts tools.
+	if resolveConnectorEnabled("tools.artifacts.enabled", true, configRepo) {
+		toolRegistry.Register(artifacts.NewArtifactSaveTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(artifacts.NewArtifactListTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(artifacts.NewArtifactReadTool(cfg)) //nolint:errcheck
 	}
 
 	// Spec 29: n8n tools.

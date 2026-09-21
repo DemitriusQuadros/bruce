@@ -27,6 +27,7 @@ Thumbs.db
 
 # Output directory for sqlite files or temporary data
 /tmp/
+data/
 *.db
 *.db-shm
 *.db-wal

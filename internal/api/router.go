@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -59,6 +60,15 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/chat/sessions/{id}", chatHandler).Methods("GET", "DELETE", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}/messages", chatHandler).Methods("GET", "POST", "OPTIONS")
 
+	// Artifacts REST API.
+	artifactsDir := "./data/artifacts"
+	if cfg != nil && cfg.Tools.Artifacts.Dir != "" {
+		artifactsDir = cfg.Tools.Artifacts.Dir
+	}
+	_ = os.MkdirAll(artifactsDir, 0o755)
+	api.HandleFunc("/artifacts", handlers.ListArtifactsHandler(artifactsDir, cfg)).Methods(http.MethodGet)
+	api.HandleFunc("/artifacts/{filename:.*}", handlers.DeleteArtifactHandler(artifactsDir)).Methods(http.MethodDelete)
+
 	// Google OAuth routes (registered only when OAuth is configured).
 	if googleAuth != nil {
 		r.HandleFunc("/auth/google/start", googleAuth.StartHandler()).Methods(http.MethodGet)
@@ -70,6 +80,11 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 
 	// Swagger UI.
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+
+	// Static artifacts server (accessible at /artifacts/... and /artifact/...).
+	artifactsServer := handlers.ArtifactsFileServer(artifactsDir)
+	r.PathPrefix("/artifacts/").Handler(http.StripPrefix("/artifacts/", artifactsServer))
+	r.PathPrefix("/artifact/").Handler(http.StripPrefix("/artifact/", artifactsServer))
 
 	// Static assets — embedded at compile time from web/public/.
 	// Any path not matched above falls through here.

@@ -55,6 +55,7 @@ var AllApplicationKeys = []string{
 	"llm.background_provider",
 	"llm.background_model",
 	"app.timezone",
+	"app.base_url",
 	"ui.default_system_prompt",
 	"connectors.whatsapp.enabled",
 	"connectors.discord.enabled",
@@ -111,6 +112,15 @@ var AllApplicationKeys = []string{
 	"tools.n8n.mcp.max_reconnect_attempts",
 	// HTTP client (Spec 29)
 	"tools.http_client.enabled",
+	// Web search & reading
+	"tools.web_search.enabled",
+	"tools.web_search.provider",
+	"tools.web_search.api_key",
+	"tools.web_search.base_url",
+	// Artifacts
+	"tools.artifacts.enabled",
+	"tools.artifacts.dir",
+	"tools.artifacts.base_url",
 }
 
 // handleGetConfig returns configuration stored in SQLite config_entries.

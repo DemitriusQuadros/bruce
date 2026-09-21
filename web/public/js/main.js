@@ -6,12 +6,14 @@ import { init as initSessions } from './modules/sessions.js';
 import { init as initLogs } from './modules/logs.js';
 import { init as initSettings } from './modules/settings.js';
 import { init as initSchedules } from './modules/schedules.js';
+import { init as initArtifacts } from './modules/artifacts.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Initialize all modules synchronously to set up event listeners
         initChat();
         initSessions();
+        initArtifacts();
         initSchedules();
         initLogs();
         initSettings();

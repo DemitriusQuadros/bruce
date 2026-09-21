@@ -15,6 +15,7 @@
         <nav>
             <button class="tab-button" data-tab="chat">Chat</button>
             <button class="tab-button" data-tab="sessions">Sessions</button>
+            <button class="tab-button" data-tab="artifacts" data-testid="tab-artifacts-btn">Artifacts</button>
             <button class="tab-button" data-tab="schedules" data-testid="tab-schedules-btn">Schedules</button>
             <button class="tab-button" data-tab="logs">Logs</button>
             <button class="tab-button" data-tab="settings">Settings</button>
@@ -95,6 +96,35 @@
             </div>
         </section>
 
+        <!-- Tab: Artifacts -->
+        <section id="tab-artifacts" class="tab-section" hidden>
+            <div class="artifacts-container">
+                <div class="artifacts-toolbar">
+                    <div class="artifacts-toolbar__left">
+                        <h2 class="artifacts-toolbar__title" data-testid="artifacts-title">
+                            <i class="fas fa-file-code"></i>
+                            Artifacts & Reports
+                        </h2>
+                        <div class="artifacts-search-wrap">
+                            <i class="fas fa-search"></i>
+                            <input type="search" id="artifacts-search" class="artifacts-search-input" placeholder="Filter artifacts..." aria-label="Filter artifacts" />
+                        </div>
+                    </div>
+                    <button id="artifacts-refresh-btn" class="btn-secondary" title="Refresh artifacts">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+
+                <div id="artifacts-list" class="artifacts-grid" data-testid="artifacts-list"></div>
+
+                <div id="artifacts-empty" class="artifacts-empty-state" data-testid="artifacts-empty" hidden>
+                    <i class="fas fa-folder-open"></i>
+                    <h3>No artifacts yet</h3>
+                    <p>Ask Bruce in chat to search the web, read pages, and generate an HTML report or document artifact.</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Tab: Schedules -->
         <section id="tab-schedules" class="tab-section" hidden>
             <div class="schedules-container">
@@ -134,20 +164,48 @@
 
         <!-- Tab: Logs -->
         <section id="tab-logs" class="tab-section" hidden>
-            <h2>Logs</h2>
-            <div class="logs-controls">
-                <select id="logs-session-select"></select>
-                <button id="logs-refresh" class="btn-secondary">Refresh</button>
+            <div class="logs-header">
+                <h2>Logs</h2>
+                <div class="logs-controls">
+                    <select id="logs-session-select" aria-label="Select session"></select>
+                    <div class="logs-search-wrap">
+                        <i class="fas fa-search"></i>
+                        <input type="search" id="logs-search-filter" class="logs-search-input" placeholder="Search in logs..." aria-label="Search logs" />
+                    </div>
+                    <label class="logs-autoscroll-toggle" title="Toggle automatic scrolling to latest logs">
+                        <input type="checkbox" id="logs-autoscroll" checked />
+                        <span><i class="fas fa-arrow-down"></i> Auto-scroll</span>
+                    </label>
+                    <button id="logs-refresh" class="btn-secondary" title="Refresh logs">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
             </div>
 
             <!-- Subtabs -->
             <div class="logs-subtabs">
-                <button class="logs-subtab-btn active" data-subtab="messages">Messages</button>
-                <button class="logs-subtab-btn" data-subtab="tools">Tools</button>
+                <button class="logs-subtab-btn active" data-subtab="messages">
+                    <i class="fas fa-comments"></i> Messages <span id="logs-messages-count" class="logs-count-badge"></span>
+                </button>
+                <button class="logs-subtab-btn" data-subtab="tools">
+                    <i class="fas fa-tools"></i> Tools <span id="logs-tools-count" class="logs-count-badge"></span>
+                </button>
             </div>
 
             <!-- Messages subtab -->
             <div id="logs-subtab-messages" class="logs-subtab-panel">
+                <div class="messages-toolbar">
+                    <label class="tools-filter-label">
+                        Role
+                        <select id="message-role-filter" aria-label="Filter by role">
+                            <option value="">All Roles</option>
+                            <option value="user">User</option>
+                            <option value="assistant">Assistant</option>
+                            <option value="system">System</option>
+                        </select>
+                    </label>
+                    <button type="button" id="messages-clear-filter-btn" class="btn-link" style="display: none;">Clear filters</button>
+                </div>
                 <div id="logs-messages"></div>
             </div>
 
@@ -156,18 +214,19 @@
                 <div class="tools-toolbar">
                     <label class="tools-filter-label">
                         Tool
-                        <select id="tool-name-filter">
+                        <select id="tool-name-filter" aria-label="Filter by tool name">
                             <option value="">All Tools</option>
                         </select>
                     </label>
                     <label class="tools-filter-label">
                         Status
-                        <select id="tool-status-filter">
-                            <option value="">All</option>
+                        <select id="tool-status-filter" aria-label="Filter by status">
+                            <option value="">All Statuses</option>
                             <option value="success">Success</option>
                             <option value="failed">Failed</option>
                         </select>
                     </label>
+                    <button type="button" id="tools-clear-filter-btn" class="btn-link" style="display: none;">Clear filters</button>
                 </div>
                 <div class="tools-table-container">
                     <table id="tools-log-table" class="tools-table">
@@ -735,6 +794,61 @@
                         </div>
                     </div>
 
+                    <!-- Web Search -->
+                    <div class="settings-card" data-connector="web-search">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-search"></i>
+                                <h4>Web Search & Fetch</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="tools.web_search.enabled" id="web-search-enabled" />
+                            <label for="web-search-enabled">Enable Web Search & Reading</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Search Provider</label>
+                            <select name="tools.web_search.provider">
+                                <option value="duckduckgo">DuckDuckGo (Free, zero API key required)</option>
+                                <option value="brave">Brave Search API</option>
+                                <option value="tavily">Tavily Search API</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>API Key (Optional for Brave / Tavily)</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="tools.web_search.api_key" placeholder="Leave empty for DuckDuckGo" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Artifacts -->
+                    <div class="settings-card" data-connector="artifacts">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-file-code"></i>
+                                <h4>Artifacts Storage</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="tools.artifacts.enabled" id="artifacts-enabled" />
+                            <label for="artifacts-enabled">Enable Artifacts Generation</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Storage Directory</label>
+                            <input type="text" name="tools.artifacts.dir" placeholder="./data/artifacts" />
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -876,6 +990,26 @@
                         <div class="form-group">
                             <label>System Prompt</label>
                             <textarea name="ui.default_system_prompt" rows="6" placeholder="You are Bruce, a personal AI assistant."></textarea>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-card" data-connector="app-domain">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-globe"></i>
+                                <h4>Application Domain / Base URL</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="form-group">
+                            <label>Base URL</label>
+                            <input type="text" name="app.base_url" placeholder="http://bruce.homeserver.local:9090" />
+                            <div class="settings-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                                Optional public domain used for generated artifact links. E.g. <code>http://bruce.homeserver.local</code>.
+                            </div>
                         </div>
                         <div class="settings-card__footer">
                             <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>

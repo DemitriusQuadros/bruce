@@ -255,6 +255,8 @@ function renderMessage(msg, provider) {
 
 function renderMarkdown(text) {
     let html = escapeHTML(text);
+    // Links: [text](url)
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     // Code blocks: ```...```
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
     // Inline code: `...`
