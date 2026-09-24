@@ -14,8 +14,9 @@
         </div>
         <nav>
             <button class="tab-button" data-tab="chat">Chat</button>
-            <button class="tab-button" data-tab="connectors">Connectors</button>
             <button class="tab-button" data-tab="sessions">Sessions</button>
+            <button class="tab-button" data-tab="artifacts" data-testid="tab-artifacts-btn">Artifacts</button>
+            <button class="tab-button" data-tab="schedules" data-testid="tab-schedules-btn">Schedules</button>
             <button class="tab-button" data-tab="logs">Logs</button>
             <button class="tab-button" data-tab="settings">Settings</button>
         </nav>
@@ -36,13 +37,25 @@
                 </aside>
                 <div class="chat-main">
                     <div class="chat-main-header" id="chat-main-header" hidden>
-                        <div class="chat-header-info">
+                        <div class="chat-header-info" style="display: flex; align-items: center; gap: 0.5rem;">
                             <h3 id="chat-title">New Conversation</h3>
                             <span id="chat-provider-badge" class="badge badge--accent" hidden></span>
+                            <button id="chat-memory-badge" class="badge badge--memory" hidden title="Click to view conversation memory" style="cursor: pointer; border: none; background: rgba(99, 102, 241, 0.15); color: #818cf8; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500;">
+                                <i class="fas fa-brain"></i> <span>Memory Active</span>
+                            </button>
                         </div>
                         <button id="chat-delete-btn" class="btn-danger btn-sm" title="Delete conversation">
                             <i class="fas fa-trash"></i>
                         </button>
+                    </div>
+                    <div id="chat-memory-banner" class="chat-memory-banner" hidden style="background: var(--bg-surface-2, #1e1e2d); border-bottom: 1px solid var(--border-color, #2a2a3c); padding: 0.75rem 1.25rem; font-size: 0.85rem; color: var(--text-secondary, #a1a1aa);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <strong style="color: #818cf8; display: flex; align-items: center; gap: 0.4rem;">
+                                <i class="fas fa-brain"></i> Conversation Memory Recap
+                            </strong>
+                            <button id="chat-memory-close-btn" class="btn-link" style="font-size: 0.75rem; color: var(--text-muted, #71717a); cursor: pointer; background: none; border: none;">Hide</button>
+                        </div>
+                        <div id="chat-memory-content" style="white-space: pre-wrap; line-height: 1.45;"></div>
                     </div>
                     <div id="chat-messages" class="chat-messages">
                         <div class="chat-empty-state">
@@ -60,11 +73,6 @@
             </div>
         </section>
 
-        <!-- Tab: Connectors -->
-        <section id="tab-connectors" class="tab-section">
-            <h2>Connectors</h2>
-            <div id="connectors-list"></div>
-        </section>
 
         <!-- Tab: Sessions -->
         <section id="tab-sessions" class="tab-section" hidden>
@@ -88,22 +96,116 @@
             </div>
         </section>
 
+        <!-- Tab: Artifacts -->
+        <section id="tab-artifacts" class="tab-section" hidden>
+            <div class="artifacts-container">
+                <div class="artifacts-toolbar">
+                    <div class="artifacts-toolbar__left">
+                        <h2 class="artifacts-toolbar__title" data-testid="artifacts-title">
+                            <i class="fas fa-file-code"></i>
+                            Artifacts & Reports
+                        </h2>
+                        <div class="artifacts-search-wrap">
+                            <i class="fas fa-search"></i>
+                            <input type="search" id="artifacts-search" class="artifacts-search-input" placeholder="Filter artifacts..." aria-label="Filter artifacts" />
+                        </div>
+                    </div>
+                    <button id="artifacts-refresh-btn" class="btn-secondary" title="Refresh artifacts">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+
+                <div id="artifacts-list" class="artifacts-grid" data-testid="artifacts-list"></div>
+
+                <div id="artifacts-empty" class="artifacts-empty-state" data-testid="artifacts-empty" hidden>
+                    <i class="fas fa-folder-open"></i>
+                    <h3>No artifacts yet</h3>
+                    <p>Ask Bruce in chat to search the web, read pages, and generate an HTML report or document artifact.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab: Schedules -->
+        <section id="tab-schedules" class="tab-section" hidden>
+            <div class="schedules-container">
+                <div class="schedules-toolbar">
+                    <div class="schedules-toolbar__left">
+                        <h2 class="schedules-toolbar__title" data-testid="schedules-title">
+                            <i class="fas fa-calendar-check"></i>
+                            Scheduled Tasks & Ambient Watches
+                        </h2>
+                        <div class="schedules-filters">
+                            <select id="schedules-filter-status" aria-label="Filter tasks" data-testid="schedules-filter">
+                                <option value="all">All Tasks</option>
+                                <option value="active">Active Only</option>
+                                <option value="paused">Paused Only</option>
+                                <option value="cron">Cron Reports</option>
+                                <option value="watch">Ambient Watches</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="schedules-new-btn" class="btn-primary" data-testid="new-task-btn">
+                        <i class="fas fa-plus"></i> New Task
+                    </button>
+                </div>
+
+                <div id="schedules-list" class="schedules-grid" data-testid="schedules-list"></div>
+
+                <div id="schedules-empty" class="schedules-empty-state" data-testid="schedules-empty" hidden>
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <h3>No scheduled tasks found</h3>
+                    <p>Create proactive tasks to monitor conditions or deliver recurring reports directly to WhatsApp, Discord, or Telegram.</p>
+                    <button id="schedules-empty-new-btn" class="btn-primary" data-testid="empty-new-task-btn">
+                        <i class="fas fa-plus"></i> Create First Task
+                    </button>
+                </div>
+            </div>
+        </section>
+
         <!-- Tab: Logs -->
         <section id="tab-logs" class="tab-section" hidden>
-            <h2>Logs</h2>
-            <div class="logs-controls">
-                <select id="logs-session-select"></select>
-                <button id="logs-refresh" class="btn-secondary">Refresh</button>
+            <div class="logs-header">
+                <h2>Logs</h2>
+                <div class="logs-controls">
+                    <select id="logs-session-select" aria-label="Select session"></select>
+                    <div class="logs-search-wrap">
+                        <i class="fas fa-search"></i>
+                        <input type="search" id="logs-search-filter" class="logs-search-input" placeholder="Search in logs..." aria-label="Search logs" />
+                    </div>
+                    <label class="logs-autoscroll-toggle" title="Toggle automatic scrolling to latest logs">
+                        <input type="checkbox" id="logs-autoscroll" checked />
+                        <span><i class="fas fa-arrow-down"></i> Auto-scroll</span>
+                    </label>
+                    <button id="logs-refresh" class="btn-secondary" title="Refresh logs">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
             </div>
 
             <!-- Subtabs -->
             <div class="logs-subtabs">
-                <button class="logs-subtab-btn active" data-subtab="messages">Messages</button>
-                <button class="logs-subtab-btn" data-subtab="tools">Tools</button>
+                <button class="logs-subtab-btn active" data-subtab="messages">
+                    <i class="fas fa-comments"></i> Messages <span id="logs-messages-count" class="logs-count-badge"></span>
+                </button>
+                <button class="logs-subtab-btn" data-subtab="tools">
+                    <i class="fas fa-tools"></i> Tools <span id="logs-tools-count" class="logs-count-badge"></span>
+                </button>
             </div>
 
             <!-- Messages subtab -->
             <div id="logs-subtab-messages" class="logs-subtab-panel">
+                <div class="messages-toolbar">
+                    <label class="tools-filter-label">
+                        Role
+                        <select id="message-role-filter" aria-label="Filter by role">
+                            <option value="">All Roles</option>
+                            <option value="user">User</option>
+                            <option value="assistant">Assistant</option>
+                            <option value="system">System</option>
+                        </select>
+                    </label>
+                    <button type="button" id="messages-clear-filter-btn" class="btn-link" style="display: none;">Clear filters</button>
+                </div>
                 <div id="logs-messages"></div>
             </div>
 
@@ -112,18 +214,19 @@
                 <div class="tools-toolbar">
                     <label class="tools-filter-label">
                         Tool
-                        <select id="tool-name-filter">
+                        <select id="tool-name-filter" aria-label="Filter by tool name">
                             <option value="">All Tools</option>
                         </select>
                     </label>
                     <label class="tools-filter-label">
                         Status
-                        <select id="tool-status-filter">
-                            <option value="">All</option>
+                        <select id="tool-status-filter" aria-label="Filter by status">
+                            <option value="">All Statuses</option>
                             <option value="success">Success</option>
                             <option value="failed">Failed</option>
                         </select>
                     </label>
+                    <button type="button" id="tools-clear-filter-btn" class="btn-link" style="display: none;">Clear filters</button>
                 </div>
                 <div class="tools-table-container">
                     <table id="tools-log-table" class="tools-table">
@@ -146,10 +249,32 @@
 
         <!-- Tab: Settings -->
         <section id="tab-settings" class="tab-section" hidden>
-            <h2>Settings</h2>
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <div class="settings-nav" role="tablist" aria-label="Settings categories">
+                    <button type="button" class="settings-nav-btn settings-nav-btn--active" data-settings-cat="all">
+                        <i class="fas fa-layer-group"></i> All
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="llm">
+                        <i class="fas fa-brain"></i> LLM Providers
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="connectors" data-testid="settings-nav-connectors">
+                        <i class="fas fa-plug"></i> Connectors
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="google">
+                        <i class="fab fa-google"></i> Google
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="tools">
+                        <i class="fas fa-tools"></i> Tools
+                    </button>
+                    <button type="button" class="settings-nav-btn" data-settings-cat="interface">
+                        <i class="fas fa-sliders-h"></i> Interface
+                    </button>
+                </div>
+            </div>
 
             <!-- Section 1: LLM Providers -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="llm">
                 <div class="settings-section__title">LLM Providers</div>
                 <div class="settings-cards-grid">
 
@@ -240,7 +365,7 @@
                         <div class="form-group">
                             <label>Model</label>
                             <select name="gemini.model">
-                                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                <option value="gemini-2.5-flash">gemini-2.5-flash (Recommended)</option>
                                 <option value="gemini-2.5-pro-preview-06-05">gemini-2.5-pro-preview-06-05</option>
                                 <option value="gemini-2.5-flash-preview-05-20">gemini-2.5-flash-preview-05-20</option>
                             </select>
@@ -289,11 +414,42 @@
                         </div>
                     </div>
 
+                    <!-- Background LLM & Timezone -->
+                    <div class="settings-card" data-connector="background-llm" data-testid="settings-card-background-llm">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-clock-rotate-left"></i>
+                                <h4>Background Intelligence</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="form-group">
+                            <label>Background LLM Provider</label>
+                            <select name="llm.background_provider">
+                                <option value="">(Default: use active provider)</option>
+                                <option value="gemini">Google Gemini (Recommended for cost-effective loops)</option>
+                                <option value="openai">OpenAI (e.g. gpt-4o-mini)</option>
+                                <option value="claude">Anthropic Claude (e.g. haiku)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Background Model</label>
+                            <input type="text" name="llm.background_model" placeholder="e.g. gemini-2.0-flash, gpt-4o-mini" />
+                        </div>
+                        <div class="form-group">
+                            <label>System Timezone</label>
+                            <input type="text" name="app.timezone" placeholder="America/Sao_Paulo (or leave empty for host default)" />
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            <!-- Section 2b: Connectors -->
-            <div class="settings-section">
+            <!-- Section 2: Connectors -->
+            <div class="settings-section" data-settings-section="connectors" id="settings-section-connectors">
                 <div class="settings-section__title">Connectors</div>
                 <div class="settings-cards-grid">
 
@@ -335,6 +491,9 @@
                             <input type="checkbox" name="connectors.whatsapp.enabled" id="whatsapp-enabled" />
                             <label for="whatsapp-enabled">Enable WhatsApp connector</label>
                         </div>
+                        <div class="connector-qr-notice" data-whatsapp-qr hidden>
+                            <i class="fas fa-qrcode"></i> Scan the QR code shown in server logs to pair.
+                        </div>
                         <p class="settings-card__hint">
                             On next restart a QR code will appear in the server logs — scan it with WhatsApp on your phone to pair the device.
                         </p>
@@ -372,7 +531,7 @@
             </div>
 
             <!-- Section 3: Google -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="google">
                 <div class="settings-section__title">Google</div>
                 <div class="settings-cards-grid">
 
@@ -463,7 +622,7 @@
             </div>
 
             <!-- Section 4: Tools -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="tools">
                 <div class="settings-section__title">Tools</div>
                 <div class="settings-cards-grid">
 
@@ -596,6 +755,14 @@
                             <input type="checkbox" name="tools.bash.enabled" id="bash-enabled" />
                             <label for="bash-enabled">Enable Bash tool</label>
                         </div>
+                        <div class="form-group">
+                            <label>Working Directory</label>
+                            <input type="text" name="tools.bash.working_dir" placeholder="/home/user/workspace" />
+                        </div>
+                        <div class="form-group">
+                            <label>Timeout (seconds)</label>
+                            <input type="number" name="tools.bash.timeout_seconds" min="1" max="60" placeholder="30" />
+                        </div>
                         <div class="settings-card__footer">
                             <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
                         </div>
@@ -621,6 +788,61 @@
                         <div class="form-group">
                             <label>Max File Size (bytes)</label>
                             <input type="number" name="tools.files.max_file_size" min="1" />
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Web Search -->
+                    <div class="settings-card" data-connector="web-search">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-search"></i>
+                                <h4>Web Search & Fetch</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="tools.web_search.enabled" id="web-search-enabled" />
+                            <label for="web-search-enabled">Enable Web Search & Reading</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Search Provider</label>
+                            <select name="tools.web_search.provider">
+                                <option value="duckduckgo">DuckDuckGo (Free, zero API key required)</option>
+                                <option value="brave">Brave Search API</option>
+                                <option value="tavily">Tavily Search API</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>API Key (Optional for Brave / Tavily)</label>
+                            <div class="field-password-wrap">
+                                <input type="password" name="tools.web_search.api_key" placeholder="Leave empty for DuckDuckGo" />
+                                <button type="button" class="btn-eye" tabindex="-1"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Artifacts -->
+                    <div class="settings-card" data-connector="artifacts">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-file-code"></i>
+                                <h4>Artifacts Storage</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" name="tools.artifacts.enabled" id="artifacts-enabled" />
+                            <label for="artifacts-enabled">Enable Artifacts Generation</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Storage Directory</label>
+                            <input type="text" name="tools.artifacts.dir" placeholder="./data/artifacts" />
                         </div>
                         <div class="settings-card__footer">
                             <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
@@ -753,7 +975,7 @@
             </div>
 
             <!-- Section 6: Interface -->
-            <div class="settings-section">
+            <div class="settings-section" data-settings-section="interface">
                 <div class="settings-section__title">Interface</div>
                 <div class="settings-cards-grid">
 
@@ -774,6 +996,26 @@
                         </div>
                     </div>
 
+                    <div class="settings-card" data-connector="app-domain">
+                        <div class="settings-card__header">
+                            <div class="settings-card__title">
+                                <i class="fas fa-globe"></i>
+                                <h4>Application Domain / Base URL</h4>
+                            </div>
+                            <span class="badge badge--empty" data-status></span>
+                        </div>
+                        <div class="form-group">
+                            <label>Base URL</label>
+                            <input type="text" name="app.base_url" placeholder="http://bruce.homeserver.local:9090" />
+                            <div class="settings-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                                Optional public domain used for generated artifact links. E.g. <code>http://bruce.homeserver.local</code>.
+                            </div>
+                        </div>
+                        <div class="settings-card__footer">
+                            <button type="button" class="btn-primary btn-sm" data-save-btn>Save</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -781,7 +1023,76 @@
 
     </main>
 
-    <div id="toast-container"></div>
+    <!-- New Task Modal -->
+    <div id="schedules-modal-backdrop" class="schedules-modal-backdrop" data-testid="schedules-modal-backdrop" hidden>
+        <div class="schedules-modal" role="dialog" aria-modal="true" aria-labelledby="schedules-modal-title" data-testid="schedules-modal">
+            <div class="schedules-modal__header">
+                <h3 id="schedules-modal-title"><i class="fas fa-plus-circle"></i> Create Proactive Task</h3>
+                <button type="button" id="schedules-modal-close-btn" class="schedules-modal__close" title="Close" aria-label="Close dialog" data-testid="task-modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="schedules-create-form" data-testid="schedules-form">
+                <div class="schedules-modal__body">
+                    <div class="form-group">
+                        <label for="task-title">Task Title</label>
+                        <input type="text" id="task-title" required placeholder="e.g. Daily Morning Standup Briefing" data-testid="task-title-input" />
+                    </div>
+
+                    <div class="schedules-form-row">
+                        <div class="form-group">
+                            <label for="task-type">Task Type</label>
+                            <select id="task-type" data-testid="task-type-select">
+                                <option value="cron">Scheduled Report (Cron)</option>
+                                <option value="watch">Ambient Watch (Interval)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-schedule-expr" id="task-schedule-label">Schedule Expression</label>
+                            <input type="text" id="task-schedule-expr" required placeholder="0 9 * * 1-5" data-testid="task-schedule-input" />
+                            <div class="schedules-form-hint" id="task-schedule-hint">Cron expression (min hour dom mon dow), e.g. 0 9 * * 1-5</div>
+                        </div>
+                    </div>
+
+                    <div class="schedules-form-row">
+                        <div class="form-group">
+                            <label for="task-target-connector">Target Connector</label>
+                            <select id="task-target-connector" data-testid="task-target-connector-select">
+                                <option value="whatsapp">WhatsApp</option>
+                                <option value="discord">Discord</option>
+                                <option value="telegram">Telegram</option>
+                                <option value="web">Web Chat</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-target-channel">Target Channel / Number</label>
+                            <input type="text" id="task-target-channel" required placeholder="e.g. 5511999999999 or channel ID" data-testid="task-target-channel-input" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="task-timezone">Timezone</label>
+                        <input type="text" id="task-timezone" placeholder="America/Sao_Paulo (or leave empty for host default)" data-testid="task-timezone-input" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="task-prompt">Instruction / Condition Prompt</label>
+                        <textarea id="task-prompt" rows="3" required placeholder="e.g. Check for urgent PRs or unread customer emails and summarize findings." data-testid="task-prompt-input"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="task-tools">Target Tools (Optional, comma-separated)</label>
+                        <input type="text" id="task-tools" placeholder="e.g. github, calendar, gmail" data-testid="task-tools-input" />
+                        <div class="schedules-form-hint">Restrict ambient watch polling to specific tools, or leave blank to enable general tool calling.</div>
+                    </div>
+                </div>
+                <div class="schedules-modal__footer">
+                    <button type="button" id="schedules-modal-cancel-btn" class="btn-secondary" data-testid="task-modal-cancel-btn">Cancel</button>
+                    <button type="submit" id="schedules-modal-submit-btn" class="btn-primary" data-testid="task-modal-submit-btn">Create Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

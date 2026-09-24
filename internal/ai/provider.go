@@ -53,18 +53,44 @@ const (
 	ProviderOpenAI ProviderName = "openai"
 )
 
-// contextKey type for session ID propagation
+// contextKey type for session ID and connector propagation
 type contextKey string
 
-const contextKeySessionID contextKey = "session_id"
+const (
+	contextKeySessionID     contextKey = "session_id"
+	contextKeyConnectorType contextKey = "connector_type"
+	contextKeyChannelID     contextKey = "channel_id"
+)
 
 // WithSessionID injects a session ID into the context for provider resolution.
 func WithSessionID(ctx context.Context, sessionID string) context.Context {
 	return context.WithValue(ctx, contextKeySessionID, sessionID)
 }
 
-// sessionIDFromContext extracts the session ID from context if present.
-func sessionIDFromContext(ctx context.Context) (string, bool) {
+// WithSessionContext injects session ID, connector type, and channel ID into the context.
+func WithSessionContext(ctx context.Context, sessionID, connectorType, channelID string) context.Context {
+	ctx = context.WithValue(ctx, contextKeySessionID, sessionID)
+	ctx = context.WithValue(ctx, contextKeyConnectorType, connectorType)
+	ctx = context.WithValue(ctx, contextKeyChannelID, channelID)
+	return ctx
+}
+
+// SessionIDFromContext extracts the session ID from context if present.
+func SessionIDFromContext(ctx context.Context) (string, bool) {
 	sessionID, ok := ctx.Value(contextKeySessionID).(string)
 	return sessionID, ok && sessionID != ""
+}
+
+func sessionIDFromContext(ctx context.Context) (string, bool) {
+	return SessionIDFromContext(ctx)
+}
+
+// ConnectorFromContext extracts connector type and channel ID from context if present.
+func ConnectorFromContext(ctx context.Context) (connectorType, channelID string, ok bool) {
+	c, _ := ctx.Value(contextKeyConnectorType).(string)
+	ch, _ := ctx.Value(contextKeyChannelID).(string)
+	if c != "" && ch != "" {
+		return c, ch, true
+	}
+	return "", "", false
 }

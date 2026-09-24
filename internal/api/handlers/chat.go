@@ -8,11 +8,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/hibiken/asynq"
 
 	"bruce/internal/ai"
 	"bruce/internal/config"
 	"bruce/internal/domain"
 	"bruce/internal/repository"
+	"bruce/internal/worker"
 )
 
 // ChatHandler returns a handler for web chat endpoints.
@@ -185,6 +187,22 @@ func handleSendChatMessage(
 		return
 	}
 
+	// Check time gap before inserting the new user message
+	var timeGapNotice string
+	lastMsg, err := messageRepo.GetLastMessage(sessionID)
+	if err == nil && lastMsg != nil {
+		timeGapNotice = ai.FormatTimeGap(lastMsg.Timestamp)
+	}
+
+	// Fetch existing session summary if available
+	summaryRepo, _ := r.Context().Value("sessionSummaryRepo").(repository.SessionSummaryRepository)
+	var summaryText string
+	if summaryRepo != nil {
+		if s, err := summaryRepo.Get(sessionID); err == nil && s != nil {
+			summaryText = s.Summary
+		}
+	}
+
 	// 3. Insert user message.
 	userMsg := &domain.Message{
 		ID:        uuid.New().String(),
@@ -209,6 +227,8 @@ func handleSendChatMessage(
 		}
 	}
 
+	effectiveSystemPrompt := ai.BuildEffectiveSystemPrompt(systemPrompt, summaryText, timeGapNotice)
+
 	// 5. Fetch context window.
 	historyPtrs, err := messageRepo.GetContextWindow(sessionID, cfg.Claude.ContextWindow)
 	if err != nil {
@@ -221,13 +241,13 @@ func handleSendChatMessage(
 	}
 
 	// 6. Call LLM — use agent loop when tools are available, plain generation otherwise.
-	ctx := ai.WithSessionID(r.Context(), sessionID)
+	ctx := ai.WithSessionContext(r.Context(), sessionID, "web", session.ChannelID)
 	var response string
 	var llmErr error
 	if toolRegistry != nil {
-		response, llmErr = ai.RunAgentLoop(ctx, llm, toolRegistry, systemPrompt, history, 10)
+		response, llmErr = ai.RunAgentLoop(ctx, llm, toolRegistry, effectiveSystemPrompt, history, 10)
 	} else {
-		response, llmErr = llm.GenerateResponse(ctx, systemPrompt, history)
+		response, llmErr = llm.GenerateResponse(ctx, effectiveSystemPrompt, history)
 	}
 	if llmErr != nil {
 		if errors.Is(llmErr, ai.ErrRateLimited) {
@@ -263,6 +283,22 @@ func handleSendChatMessage(
 		}
 		sessionRepo.UpdateTitle(sessionID, title)
 		session.Title = title
+	}
+
+	// 9. Enqueue background summarization if conversation length exceeds threshold.
+	if asynqClient, ok := r.Context().Value("asynqClient").(*asynq.Client); ok && asynqClient != nil && summaryRepo != nil {
+		totalCount, err := messageRepo.CountBySession(sessionID)
+		if err == nil && totalCount > cfg.Claude.ContextWindow {
+			lastSummarizedCount := 0
+			if existingSummary, err := summaryRepo.Get(sessionID); err == nil && existingSummary != nil {
+				lastSummarizedCount = existingSummary.MessageCount
+			}
+			if totalCount-lastSummarizedCount >= 5 {
+				if sumTask, err := worker.NewSummarizeSessionTask(worker.SummarizeSessionPayload{SessionID: sessionID}); err == nil {
+					asynqClient.Enqueue(sumTask)
+				}
+			}
+		}
 	}
 
 	// Resolve provider name for the response.

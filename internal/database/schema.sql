@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS sessions (
     id               TEXT    PRIMARY KEY,
-    connector_type   TEXT    NOT NULL CHECK(connector_type IN ('whatsapp', 'discord', 'web')),
+    connector_type   TEXT    NOT NULL CHECK(connector_type IN ('whatsapp', 'discord', 'telegram', 'web')),
     channel_id       TEXT    NOT NULL,
     title            TEXT    NOT NULL DEFAULT '',
     system_prompt    TEXT    NOT NULL DEFAULT '',
@@ -52,3 +52,38 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     updated_at   DATETIME NOT NULL DEFAULT (datetime('now')),
     UNIQUE(user_id, provider)
 );
+
+CREATE TABLE IF NOT EXISTS proactive_tasks (
+    id                 TEXT PRIMARY KEY,
+    session_id         TEXT NOT NULL,
+    connector_type     TEXT NOT NULL CHECK(connector_type IN ('whatsapp', 'discord', 'telegram', 'web')),
+    channel_id         TEXT NOT NULL,
+    target_connector   TEXT NOT NULL CHECK(target_connector IN ('whatsapp', 'discord', 'telegram', 'web')),
+    target_channel_id  TEXT NOT NULL,
+    title              TEXT NOT NULL,
+    task_type          TEXT NOT NULL CHECK(task_type IN ('watch', 'cron')),
+    schedule_expr      TEXT NOT NULL,
+    timezone           TEXT NOT NULL DEFAULT 'UTC',
+    prompt_condition   TEXT NOT NULL,
+    target_tools       TEXT NOT NULL DEFAULT '[]',
+    is_active          INTEGER NOT NULL DEFAULT 1,
+    last_run_at        DATETIME,
+    next_run_at        DATETIME NOT NULL,
+    last_result_hash   TEXT NOT NULL DEFAULT '',
+    created_at         DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at         DATETIME NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_proactive_tasks_due ON proactive_tasks (is_active, next_run_at);
+CREATE INDEX IF NOT EXISTS idx_proactive_tasks_session ON proactive_tasks (session_id);
+
+CREATE TABLE IF NOT EXISTS session_summaries (
+    session_id             TEXT PRIMARY KEY,
+    summary                TEXT NOT NULL DEFAULT '',
+    last_summarized_msg_id TEXT NOT NULL DEFAULT '',
+    message_count          INTEGER NOT NULL DEFAULT 0,
+    updated_at             DATETIME NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+

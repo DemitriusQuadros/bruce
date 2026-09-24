@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"bruce/internal/domain"
 	"bruce/internal/repository"
 )
 
@@ -52,11 +53,6 @@ func ToolExecutionsHandler() http.HandlerFunc {
 
 		sessionID := mux.Vars(r)["id"]
 
-		if _, err := sessionRepo.GetByID(sessionID); err != nil {
-			writeError(w, http.StatusNotFound, "session not found")
-			return
-		}
-
 		limit := 100
 		if l := r.URL.Query().Get("limit"); l != "" {
 			if v, err := strconv.Atoi(l); err == nil && v > 0 {
@@ -74,16 +70,36 @@ func ToolExecutionsHandler() http.HandlerFunc {
 			}
 		}
 
-		executions, err := toolExecRepo.GetBySession(sessionID, limit, offset)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to fetch tool executions")
-			return
-		}
+		var executions []*domain.ToolExecution
+		var total int
+		var err error
 
-		total, err := toolExecRepo.CountBySession(sessionID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to count tool executions")
-			return
+		if sessionID == "" || sessionID == "all" {
+			executions, err = toolExecRepo.GetAll(limit, offset)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to fetch tool executions")
+				return
+			}
+			total, err = toolExecRepo.CountAll()
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to count tool executions")
+				return
+			}
+		} else {
+			if _, err := sessionRepo.GetByID(sessionID); err != nil {
+				writeError(w, http.StatusNotFound, "session not found")
+				return
+			}
+			executions, err = toolExecRepo.GetBySession(sessionID, limit, offset)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to fetch tool executions")
+				return
+			}
+			total, err = toolExecRepo.CountBySession(sessionID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to count tool executions")
+				return
+			}
 		}
 
 		resp := toolExecutionsListResponse{

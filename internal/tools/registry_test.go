@@ -204,7 +204,7 @@ func TestExecuteTimeout(t *testing.T) {
 		name: "slow_tool",
 		execFunc: func(ctx context.Context, input map[string]interface{}) (interface{}, error) {
 			// Simulate a slow tool that exceeds the timeout.
-			time.Sleep(10 * time.Second)
+			time.Sleep(200 * time.Millisecond)
 			return nil, nil
 		},
 	}
@@ -212,7 +212,10 @@ func TestExecuteTimeout(t *testing.T) {
 	err := registry.Register(tool)
 	require.NoError(t, err)
 
-	_, err = registry.Execute(context.Background(), "slow_tool", map[string]interface{}{})
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err = registry.Execute(ctx, "slow_tool", map[string]interface{}{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "timed out")
 }

@@ -1,115 +1,15 @@
+# Bruce Infrastructure Configuration Template
+# Application settings (LLMs, API keys, Connectors, Tools, System Prompts)
+# are configured via the Web UI Settings tab and persisted in SQLite.
+
 server:
   port: 8080
 
 redis:
   address: "localhost:6379"
+  password: ""
+  db: 1
   max_retries: 3
 
 sqlite:
   dsn: "./data/bruce.db"
-
-claude:
-  api_key: ""
-  model: "claude-opus-4-6"
-  max_tokens: 1024
-  context_window: 15
-
-gemini:
-  api_key: ""
-  model: "gemini-2.0-flash"
-  max_tokens: 1024
-
-openai:
-  api_key: ""
-  model: "gpt-4o"
-  max_tokens: 1024
-
-llm:
-  provider: "claude"
-
-connectors:
-  whatsapp:
-    enabled: false
-    device_store_dsn: "./data/whatsapp.db"
-  discord:
-    enabled: false
-    bot_token: ""
-  telegram:
-    enabled: false
-    bot_token: ""   # Obtain from @BotFather on Telegram
-
-google:
-  # OAuth 2.0 credentials from https://console.cloud.google.com/
-  # Create a "Web application" credential, set redirect URI to:
-  #   http://localhost:8080/auth/google/callback
-  oauth_client_id: ""
-  oauth_client_secret: ""
-  oauth_redirect_uri: "http://localhost:8080/auth/google/callback"
-
-ui:
-  default_system_prompt: "You are Bruce, a personal AI assistant."
-
-tools:
-  bash:
-    enabled: false
-    # If empty, all commands allowed (except blocklist). If non-empty, only these binaries allowed.
-    allowed_commands: []
-    # Base directory for relative working_dir paths
-    working_dir: "/tmp/bruce"
-    # Truncate combined stdout+stderr at this size (bytes)
-    max_output_bytes: 65536
-    # Default command timeout in seconds (capped at 60s hard max)
-    timeout_seconds: 30
-  gmail:
-    enabled: false   # requires google.oauth_client_id to be set
-  calendar:
-    enabled: false   # requires google.oauth_client_id to be set
-  docs:
-    enabled: false   # Requires google.oauth_client_id with documents scope
-  notion:
-    enabled: false
-    api_token: ""   # Notion integration token (secret_...)
-  trello:
-    enabled: false
-    api_key: ""    # Trello Power-Up API key
-    api_token: ""  # Trello user token
-  files:
-    enabled: false
-    home_dir: ""           # defaults to $HOME if empty
-    max_file_size: 102400  # 100KB
-
-  github:
-    enabled: false
-    token: ""              # GitHub personal access token (needs repo, read:user scopes)
-    default_owner: ""      # Default repository owner (user or org) when not provided in tool input
-    default_repo: ""       # Default repository name when not provided in tool input
-
-  git_local:
-    enabled: false
-    home_dir: ""           # Base directory for relative repo paths; defaults to $HOME if empty
-    timeout_seconds: 30    # Timeout for each git subprocess command
-
-  http_client:
-    enabled: true
-    max_timeout_seconds: 120
-    max_response_bytes: 524288   # 512 KB
-    follow_redirects: false
-    allow_private_networks: false
-
-  n8n:
-    enabled: false
-    base_url: "https://your-n8n.example.com"
-    webhook_timeout_seconds: 30
-    webhook_auth:
-      method: "none"          # none | basic | header
-      username: ""
-      password: ""
-      header_name: ""
-      header_value: ""
-    api_key: ""               # X-N8N-API-KEY for /api/v1/workflows/:id/run
-    mcp:
-      enabled: false
-      sse_url: "https://your-n8n.example.com/mcp"
-      bearer_token: ""
-      tool_name_prefix: "n8n_mcp_"
-      max_reconnect_attempts: 5

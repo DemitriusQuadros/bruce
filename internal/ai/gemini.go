@@ -117,13 +117,17 @@ func (g *geminiProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 	body, _ := io.ReadAll(resp.Body)
 
 	// Error mapping
-	switch resp.StatusCode {
-	case 429:
-		return "", ErrRateLimited
-	case 500, 502, 503:
-		return "", ErrProviderDown
-	case 400:
-		return "", fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+	if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case 429:
+			return "", ErrRateLimited
+		case 500, 502, 503:
+			return "", ErrProviderDown
+		case 400:
+			return "", fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+		default:
+			return "", fmt.Errorf("gemini api error (status %d): %s", resp.StatusCode, string(body))
+		}
 	}
 
 	var geminiResp geminiResponse
@@ -156,7 +160,7 @@ func (g *geminiProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 			funcs[i] = geminiFunctionDecl{
 				Name:        tool.Name,
 				Description: tool.Description,
-				Parameters:  tool.InputSchema,
+				Parameters:  cleanGeminiSchema(tool.InputSchema),
 			}
 		}
 		geminiTools = append(geminiTools, geminiTool{FunctionDeclarations: funcs})
@@ -225,13 +229,17 @@ func (g *geminiProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 	body, _ := io.ReadAll(resp.Body)
 
 	// Error handling
-	switch resp.StatusCode {
-	case 429:
-		return nil, ErrRateLimited
-	case 500, 502, 503:
-		return nil, ErrProviderDown
-	case 400:
-		return nil, fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+	if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case 429:
+			return nil, ErrRateLimited
+		case 500, 502, 503:
+			return nil, ErrProviderDown
+		case 400:
+			return nil, fmt.Errorf("%w: %s", ErrBadRequest, string(body))
+		default:
+			return nil, fmt.Errorf("gemini api error (status %d): %s", resp.StatusCode, string(body))
+		}
 	}
 
 	var geminiResp geminiResponse
@@ -300,4 +308,34 @@ func mapToGeminiContents(messages []domain.Message) []geminiContent {
 		})
 	}
 	return contents
+}
+
+// cleanGeminiSchema recursively strips OpenAPI/JSONSchema fields unsupported by Gemini API,
+// such as "additionalProperties".
+func cleanGeminiSchema(schema map[string]interface{}) map[string]interface{} {
+	if schema == nil {
+		return nil
+	}
+	cleaned := make(map[string]interface{})
+	for k, v := range schema {
+		if k == "additionalProperties" {
+			continue
+		}
+		if subMap, ok := v.(map[string]interface{}); ok {
+			cleaned[k] = cleanGeminiSchema(subMap)
+		} else if slice, ok := v.([]interface{}); ok {
+			cleanedSlice := make([]interface{}, len(slice))
+			for i, item := range slice {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					cleanedSlice[i] = cleanGeminiSchema(itemMap)
+				} else {
+					cleanedSlice[i] = item
+				}
+			}
+			cleaned[k] = cleanedSlice
+		} else {
+			cleaned[k] = v
+		}
+	}
+	return cleaned
 }

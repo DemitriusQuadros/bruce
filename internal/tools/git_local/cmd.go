@@ -216,16 +216,17 @@ func extractCommitHash(output string) string {
 	return ""
 }
 
-// validateRepoPath validates and resolves a relative repository path against homeDir.
-// Rejects paths containing ".." and absolute paths.
-// Returns the resolved absolute path or an error if the path escapes homeDir.
+// validateRepoPath validates and resolves a repository path against homeDir.
+// Supports empty or "." (defaults to homeDir), relative subpaths, and absolute paths within homeDir.
+// Rejects paths containing ".." and paths escaping homeDir.
+// Returns the resolved absolute path or an error.
 func validateRepoPath(homeDir, repoPath string) (string, error) {
-	if strings.Contains(repoPath, "..") {
-		return "", fmt.Errorf("validation failed: repo_path contains .. (path traversal)")
+	if repoPath == "" {
+		repoPath = "."
 	}
 
-	if filepath.IsAbs(repoPath) {
-		return "", fmt.Errorf("validation failed: repo_path must be relative")
+	if strings.Contains(repoPath, "..") {
+		return "", fmt.Errorf("validation failed: repo_path contains .. (path traversal)")
 	}
 
 	// Resolve the home directory to eliminate symlinks.
@@ -234,13 +235,23 @@ func validateRepoPath(homeDir, repoPath string) (string, error) {
 		homeDirResolved = filepath.Clean(homeDir)
 	}
 
-	// Build the full path by joining resolved home dir with relative path.
-	fullPath := filepath.Clean(filepath.Join(homeDirResolved, repoPath))
-
-	// Verify the resulting path is still under homeDir.
-	rel, err := filepath.Rel(homeDirResolved, fullPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("validation failed: repo_path escapes home directory")
+	var fullPath string
+	if filepath.IsAbs(repoPath) {
+		repoClean := filepath.Clean(repoPath)
+		repoResolved, err := filepath.EvalSymlinks(repoClean)
+		if err != nil {
+			repoResolved = repoClean
+		}
+		if repoResolved != homeDirResolved && !strings.HasPrefix(repoResolved, homeDirResolved+string(filepath.Separator)) {
+			return "", fmt.Errorf("validation failed: repo_path escapes home directory")
+		}
+		fullPath = repoResolved
+	} else {
+		fullPath = filepath.Clean(filepath.Join(homeDirResolved, repoPath))
+		rel, err := filepath.Rel(homeDirResolved, fullPath)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			return "", fmt.Errorf("validation failed: repo_path escapes home directory")
+		}
 	}
 
 	return fullPath, nil

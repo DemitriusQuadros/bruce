@@ -1,13 +1,128 @@
 /* Logs */
+.logs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.logs-header h2 {
+    margin: 0;
+}
+
 .logs-controls {
     display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
 #logs-session-select {
-    flex: 1;
-    max-width: 400px;
+    width: 280px;
+    max-width: 100%;
+    height: 38px;
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0 0.75rem;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color var(--transition-fast);
+}
+
+#logs-session-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.logs-search-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.logs-search-wrap i {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    pointer-events: none;
+}
+
+.logs-search-input {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.75rem 0.5rem 2rem;
+    font-family: var(--font);
+    font-size: 0.85rem;
+    outline: none;
+    height: 38px;
+    width: 220px;
+    transition: border-color var(--transition-fast), width var(--transition-fast);
+}
+
+.logs-search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-dim);
+    width: 260px;
+}
+
+.logs-autoscroll-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    padding: 0.4rem 0.6rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    height: 38px;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.logs-autoscroll-toggle:hover {
+    border-color: #3f4568;
+    color: var(--text);
+}
+
+.logs-autoscroll-toggle input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.logs-count-badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-left: 0.25rem;
+}
+
+.messages-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    padding: 0.25rem 0;
+}
+
+.messages-toolbar select,
+.tools-toolbar select {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    outline: none;
+    height: 34px;
 }
 
 /* ── Subtabs ─────────────────────────────────────────────────────── */

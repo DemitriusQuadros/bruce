@@ -180,6 +180,18 @@
     color: var(--text);
 }
 
+.chat-bubble a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+    transition: color var(--transition-fast);
+}
+
+.chat-bubble a:hover {
+    color: var(--accent-hover, #6366f1);
+}
+
 .chat-bubble pre {
     background: var(--bg);
     padding: 0.6rem;

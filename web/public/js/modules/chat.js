@@ -14,6 +14,16 @@ export function init() {
     document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
     document.getElementById('chat-delete-btn').addEventListener('click', deleteSession);
 
+    document.getElementById('chat-memory-badge')?.addEventListener('click', () => {
+        const banner = document.getElementById('chat-memory-banner');
+        if (banner) banner.hidden = !banner.hidden;
+    });
+
+    document.getElementById('chat-memory-close-btn')?.addEventListener('click', () => {
+        const banner = document.getElementById('chat-memory-banner');
+        if (banner) banner.hidden = true;
+    });
+
     const input = document.getElementById('chat-input');
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -36,7 +46,7 @@ function onActivate() {
 async function loadSessions() {
     try {
         const sessions = await req('GET', '/api/v1/chat/sessions');
-        setState({ chatSessions: sessions });
+        setState({ chatSessions: sessions, sessions });
         renderSessionList(sessions);
     } catch (err) {
         showToast('Failed to load conversations', 'error');
@@ -117,6 +127,9 @@ function showChatArea(session, messages) {
     const badge = document.getElementById('chat-provider-badge');
     badge.hidden = true;
 
+    // Load memory recap
+    loadSessionMemory(session.id);
+
     const container = document.getElementById('chat-messages');
     if (!messages || messages.length === 0) {
         container.innerHTML = '<div class="chat-empty-state"><i class="fas fa-comment-dots"></i><p>Send a message to start the conversation</p></div>';
@@ -129,9 +142,33 @@ function showChatArea(session, messages) {
     document.getElementById('chat-input').focus();
 }
 
+async function loadSessionMemory(sessionId) {
+    const badge = document.getElementById('chat-memory-badge');
+    const banner = document.getElementById('chat-memory-banner');
+    const content = document.getElementById('chat-memory-content');
+    if (!badge) return;
+
+    badge.hidden = true;
+    if (banner) banner.hidden = true;
+
+    try {
+        const data = await req('GET', `/api/v1/sessions/${sessionId}/summary`);
+        if (data && data.summary) {
+            badge.hidden = false;
+            if (content) content.textContent = data.summary;
+        }
+    } catch (e) {
+        // Silently ignore if no summary exists
+    }
+}
+
 function hideChatArea() {
     document.getElementById('chat-main-header').hidden = true;
     document.getElementById('chat-input-area').hidden = true;
+    const memoryBadge = document.getElementById('chat-memory-badge');
+    if (memoryBadge) memoryBadge.hidden = true;
+    const memoryBanner = document.getElementById('chat-memory-banner');
+    if (memoryBanner) memoryBanner.hidden = true;
     document.getElementById('chat-messages').innerHTML =
         '<div class="chat-empty-state"><i class="fas fa-comments"></i><p>Select a conversation or start a new one</p></div>';
 }
@@ -218,6 +255,8 @@ function renderMessage(msg, provider) {
 
 function renderMarkdown(text) {
     let html = escapeHTML(text);
+    // Links: [text](url)
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     // Code blocks: ```...```
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
     // Inline code: `...`

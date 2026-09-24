@@ -1,7 +1,68 @@
 /* Settings card-based layout */
 
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-header h2 {
+    margin: 0;
+}
+
+.settings-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.25rem;
+}
+
+.settings-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    border: none;
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.45rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+.settings-nav-btn:hover {
+    color: var(--text);
+    background: var(--accent-dim);
+}
+
+.settings-nav-btn--active {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 600;
+}
+
+.settings-nav-btn--active:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
 .settings-section {
     margin-bottom: 2.5rem;
+}
+
+.settings-section[hidden] {
+    display: none;
 }
 
 .settings-section__title {
@@ -63,16 +124,52 @@
 }
 
 /* Status badges */
-.badge--configured {
+.badge--configured,
+.badge--connected {
     color: var(--green);
     background: rgba(0, 255, 136, 0.1);
-    border: 1px solid rgba(0, 255, 136, 0.2);
+    border: 1px solid rgba(0, 255, 136, 0.25);
 }
 
-.badge--empty {
+.badge--empty,
+.badge--disabled {
     color: var(--grey);
     background: rgba(107, 114, 128, 0.1);
     border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.badge--needs_qr,
+.badge--warning {
+    color: var(--amber);
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge--disconnected,
+.badge--danger {
+    color: var(--red);
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Connector QR Code Notice */
+.connector-qr-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.85rem;
+    font-size: 0.85rem;
+    color: var(--amber);
+    margin: 0.5rem 0 0.75rem;
+    line-height: 1.4;
+}
+
+.connector-qr-notice i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
 }
 
 /* Password + eye toggle */

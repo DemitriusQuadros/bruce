@@ -175,6 +175,7 @@ func TestIsSensitiveKey(t *testing.T) {
 	}{
 		{"claude.api_key", true},
 		{"claude.model", false},
+		{"claude.max_tokens", false},
 		{"connectors.discord.bot_token", true},
 		{"connectors.discord.enabled", false},
 		{"some.secret", true},

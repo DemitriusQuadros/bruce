@@ -19,13 +19,17 @@ import (
 
 // Processor handles Asynq tasks for Bruce.
 type Processor struct {
-	sessionRepo  repository.SessionRepository
-	messageRepo  repository.MessageRepository
-	configRepo   repository.ConfigRepository
-	llm          ai.LLMService
-	toolRegistry ai.ToolRegistry
-	dispatcher   *DispatcherRegistry
-	cfg          *config.Config
+	sessionRepo      repository.SessionRepository
+	messageRepo      repository.MessageRepository
+	configRepo       repository.ConfigRepository
+	proactiveRepo    repository.ProactiveTaskRepository
+	summaryRepo      repository.SessionSummaryRepository
+	asynqClient      *asynq.Client
+	llm              ai.LLMService
+	providerRegistry *ai.ProviderRegistry
+	toolRegistry     ai.ToolRegistry
+	dispatcher       *DispatcherRegistry
+	cfg              *config.Config
 }
 
 // NewProcessor returns a Processor wired with all required dependencies.
@@ -52,6 +56,16 @@ func NewProcessor(
 // Called by main.go after Spec 12 ships.
 func (p *Processor) SetToolRegistry(registry ai.ToolRegistry) {
 	p.toolRegistry = registry
+}
+
+// SetSummaryRepo injects the SessionSummaryRepository into Processor.
+func (p *Processor) SetSummaryRepo(repo repository.SessionSummaryRepository) {
+	p.summaryRepo = repo
+}
+
+// SetAsynqClient injects the Asynq client into Processor for queuing follow-up tasks.
+func (p *Processor) SetAsynqClient(client *asynq.Client) {
+	p.asynqClient = client
 }
 
 // HandleProcessIncomingMessageTask is the Asynq handler for message:process tasks.
@@ -97,6 +111,23 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 	logging.Debugf("system prompt resolved - len=%d, prompt_preview=%s",
 		len(systemPrompt), truncateForLog(systemPrompt, 80))
 
+	// Check time gap before inserting the new user message
+	var timeGapNotice string
+	lastMsg, err := p.messageRepo.GetLastMessage(session.ID)
+	if err == nil && lastMsg != nil {
+		timeGapNotice = ai.FormatTimeGap(lastMsg.Timestamp)
+	}
+
+	// Fetch existing session summary if available
+	var summaryText string
+	if p.summaryRepo != nil {
+		if s, err := p.summaryRepo.Get(session.ID); err == nil && s != nil {
+			summaryText = s.Summary
+		}
+	}
+
+	effectiveSystemPrompt := ai.BuildEffectiveSystemPrompt(systemPrompt, summaryText, timeGapNotice)
+
 	// 4. Insert incoming user message.
 	userMsg := &domain.Message{
 		ID:        uuid.New().String(),
@@ -132,15 +163,15 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 
 	// 6. Call LLM — choose execution path based on tool registry availability.
 	logging.Debug("calling LLM")
-	ctx = ai.WithSessionID(ctx, session.ID)
+	ctx = ai.WithSessionContext(ctx, session.ID, payload.ConnectorType, payload.ChannelID)
 
 	var response string
 	if p.toolRegistry != nil {
 		// Use agentic loop when tool registry is wired (Spec 12+)
-		response, err = ai.RunAgentLoop(ctx, p.llm, p.toolRegistry, systemPrompt, history, 10)
+		response, err = ai.RunAgentLoop(ctx, p.llm, p.toolRegistry, effectiveSystemPrompt, history, 10)
 	} else {
 		// Fallback to simple generation when no tool registry
-		response, err = p.llm.GenerateResponse(ctx, systemPrompt, history)
+		response, err = p.llm.GenerateResponse(ctx, effectiveSystemPrompt, history)
 	}
 
 	if err != nil {
@@ -179,6 +210,26 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 			payload.ConnectorType, payload.ChannelID, err)
 	} else {
 		logging.Debug("response dispatched successfully")
+	}
+
+	// 9. Enqueue background summarization if conversation length exceeds threshold.
+	if p.asynqClient != nil && p.summaryRepo != nil {
+		totalCount, err := p.messageRepo.CountBySession(session.ID)
+		if err == nil && totalCount > p.cfg.Claude.ContextWindow {
+			lastSummarizedCount := 0
+			if existingSummary, err := p.summaryRepo.Get(session.ID); err == nil && existingSummary != nil {
+				lastSummarizedCount = existingSummary.MessageCount
+			}
+			if totalCount-lastSummarizedCount >= 5 {
+				if sumTask, err := NewSummarizeSessionTask(SummarizeSessionPayload{SessionID: session.ID}); err == nil {
+					if _, err := p.asynqClient.Enqueue(sumTask); err != nil {
+						logging.Warnf("failed to enqueue session summarization: %v", err)
+					} else {
+						logging.Debugf("enqueued session summarization for session=%s", session.ID)
+					}
+				}
+			}
+		}
 	}
 
 	logging.Debugf("message processing completed successfully - session_id=%s", session.ID)

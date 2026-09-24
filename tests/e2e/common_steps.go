@@ -38,8 +38,8 @@ func RegisterCommonSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 // theDatabaseIsClean deletes all rows from all tables in reverse FK order.
 // SQLite does not support TRUNCATE; DELETE FROM is used instead.
 func (tc *TestContext) theDatabaseIsClean() error {
-	// FK order: messages depends on sessions; config_entries is independent.
-	tables := []string{"messages", "sessions", "config_entries"}
+	// Reverse FK order: proactive_tasks and messages depend on sessions.
+	tables := []string{"proactive_tasks", "tool_executions", "messages", "sessions", "config_entries"}
 	for _, t := range tables {
 		if _, err := tc.DB.Exec("DELETE FROM " + t); err != nil {
 			return fmt.Errorf("clean table %q: %w", t, err)

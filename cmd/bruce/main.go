@@ -32,6 +32,7 @@ import (
 	"bruce/internal/database"
 	"bruce/internal/logging"
 	"bruce/internal/repository"
+	"bruce/internal/scheduler"
 	"bruce/internal/tools"
 	"bruce/internal/tools/bash"
 	calendar "bruce/internal/tools/calendar"
@@ -41,8 +42,11 @@ import (
 	"bruce/internal/tools/github"
 	gmail "bruce/internal/tools/gmail"
 	"bruce/internal/tools/httpclient"
+	"bruce/internal/tools/artifacts"
+	"bruce/internal/tools/websearch"
 	n8ntool "bruce/internal/tools/n8n"
 	"bruce/internal/tools/notion"
+	"bruce/internal/tools/proactive"
 	"bruce/internal/tools/trello"
 	"bruce/internal/worker"
 )
@@ -60,6 +64,7 @@ func main() {
 	if err := os.MkdirAll("./data", 0o755); err != nil {
 		log.Fatalf("FATAL: create data dir: %v", err)
 	}
+	_ = os.MkdirAll("./data/artifacts", 0o755)
 
 	db, err := database.NewSQLiteDB(cfg.SQLite.DSN)
 	if err != nil {
@@ -69,6 +74,24 @@ func main() {
 
 	if err := database.RunMigrations(db); err != nil {
 		log.Fatalf("FATAL: run migrations: %v", err)
+	}
+
+	// 3. Wire repositories and hydrate application config from database.
+	sessionRepo := repository.NewSessionRepository(db)
+	messageRepo := repository.NewMessageRepository(db)
+	configRepo := repository.NewConfigRepository(db)
+	toolExecutionRepo := repository.NewToolExecutionRepository(db)
+	proactiveTaskRepo := repository.NewProactiveTaskRepository(db)
+	sessionSummaryRepo := repository.NewSessionSummaryRepository(db)
+
+	// Auto-migrate legacy application YAML settings into database if present.
+	if migrated, err := config.MigrateLegacyYamlToDB(cfg, configRepo); err == nil && migrated > 0 {
+		log.Printf("INFO: auto-migrated %d application config entries from YAML to database", migrated)
+	}
+
+	// Populate application configuration from database (single source of truth).
+	if err := config.ApplyDatabaseConfig(cfg, configRepo); err != nil {
+		log.Printf("WARNING: failed to apply database config: %v", err)
 	}
 
 	// Spec 13: Google OAuth handler (nil if credentials not set).
@@ -82,18 +105,17 @@ func main() {
 		)
 	}
 
-	// 3. Wire repositories, LLM providers and registry, and dispatcher.
-	sessionRepo := repository.NewSessionRepository(db)
-	messageRepo := repository.NewMessageRepository(db)
-	configRepo := repository.NewConfigRepository(db)
-	toolExecutionRepo := repository.NewToolExecutionRepository(db)
 	providers := ai.BuildProviders(cfg)
 	llmService := ai.NewProviderRegistry(configRepo, sessionRepo, providers, cfg)
 	dispatcherRegistry := worker.NewDispatcherRegistry()
 	// Connector dispatchers (whatsapp, discord) are registered here when connectors are enabled.
 
 	// 4. Init Asynq client + server.
-	redisOpt := asynq.RedisClientOpt{Addr: cfg.Redis.Address}
+	redisOpt := asynq.RedisClientOpt{
+		Addr:     cfg.Redis.Address,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	}
 	asynqClient := asynq.NewClient(redisOpt)
 	defer asynqClient.Close()
 
@@ -161,7 +183,7 @@ func main() {
 
 	// Spec 16: Register bash execution tool if enabled.
 	if cfg.Tools.Bash.Enabled {
-		bashTool := bash.New(cfg.Tools.Bash)
+		bashTool := bash.New(cfg)
 		if err := toolRegistry.Register(bashTool); err != nil {
 			log.Fatalf("FATAL: register bash tool: %v", err)
 		}
@@ -235,23 +257,28 @@ func main() {
 
 	// Spec 22: Git local tools.
 	if cfg.Tools.GitLocal.Enabled {
-		homeDir := cfg.Tools.GitLocal.HomeDir
-		if homeDir == "" {
-			homeDir = os.Getenv("HOME")
-		}
-		timeout := time.Duration(cfg.Tools.GitLocal.TimeoutSeconds) * time.Second
-		if timeout == 0 {
-			timeout = 30 * time.Second
-		}
-		toolRegistry.Register(git_local.NewStatusTool(homeDir, timeout)) //nolint:errcheck
-		toolRegistry.Register(git_local.NewCommitTool(homeDir, timeout)) //nolint:errcheck
-		toolRegistry.Register(git_local.NewPushTool(homeDir, timeout))   //nolint:errcheck
-		toolRegistry.Register(git_local.NewBranchTool(homeDir, timeout)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewStatusTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewCommitTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(git_local.NewPushTool(cfg))   //nolint:errcheck
+		toolRegistry.Register(git_local.NewBranchTool(cfg)) //nolint:errcheck
 	}
 
 	// Spec 29: HTTP client tool.
 	if cfg.Tools.HTTPClient.Enabled {
 		toolRegistry.Register(httpclient.NewHTTPRequestTool(cfg.Tools.HTTPClient)) //nolint:errcheck
+	}
+
+	// Web search & reading tools.
+	if resolveConnectorEnabled("tools.web_search.enabled", true, configRepo) {
+		toolRegistry.Register(websearch.NewSearchTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(websearch.NewFetchTool(cfg))  //nolint:errcheck
+	}
+
+	// Static artifacts tools.
+	if resolveConnectorEnabled("tools.artifacts.enabled", true, configRepo) {
+		toolRegistry.Register(artifacts.NewArtifactSaveTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(artifacts.NewArtifactListTool(cfg)) //nolint:errcheck
+		toolRegistry.Register(artifacts.NewArtifactReadTool(cfg)) //nolint:errcheck
 	}
 
 	// Spec 29: n8n tools.
@@ -276,24 +303,42 @@ func main() {
 		if cfg.Tools.Files.HomeDir == "" {
 			cfg.Tools.Files.HomeDir = os.Getenv("HOME")
 		}
-		if err := toolRegistry.Register(files.NewFileReadTool(cfg.Tools.Files)); err != nil {
+		if err := toolRegistry.Register(files.NewFileReadTool(cfg)); err != nil {
 			log.Fatalf("FATAL: register file_read tool: %v", err)
 		}
-		if err := toolRegistry.Register(files.NewFileWriteTool(cfg.Tools.Files)); err != nil {
+		if err := toolRegistry.Register(files.NewFileWriteTool(cfg)); err != nil {
 			log.Fatalf("FATAL: register file_write tool: %v", err)
 		}
 	}
 
+	// Spec 32: Proactive Conversational Tools.
+	toolRegistry.Register(proactive.NewCreateTool(proactiveTaskRepo, sessionRepo, cfg)) //nolint:errcheck
+	toolRegistry.Register(proactive.NewListTool(proactiveTaskRepo))                      //nolint:errcheck
+	toolRegistry.Register(proactive.NewToggleTool(proactiveTaskRepo))                    //nolint:errcheck
+	toolRegistry.Register(proactive.NewDeleteTool(proactiveTaskRepo))                    //nolint:errcheck
+
 	proc.SetToolRegistry(toolRegistry)
+	proc.SetProactiveRepo(proactiveTaskRepo)
+	proc.SetProviderRegistry(llmService)
+	proc.SetSummaryRepo(sessionSummaryRepo)
+	proc.SetAsynqClient(asynqClient)
 
 	muxHandler := asynq.NewServeMux()
 	muxHandler.HandleFunc(worker.TaskProcessIncomingMessage, proc.HandleProcessIncomingMessageTask)
+	muxHandler.HandleFunc(worker.TaskEvaluateWatch, proc.HandleEvaluateWatchTask)
+	muxHandler.HandleFunc(worker.TaskExecuteScheduledReport, proc.HandleExecuteScheduledReportTask)
+	muxHandler.HandleFunc(worker.TaskSummarizeSession, proc.HandleSummarizeSessionTask)
 
 	go func() {
 		if err := asynqServer.Run(muxHandler); err != nil {
 			log.Printf("WARNING: asynq server stopped: %v", err)
 		}
 	}()
+
+	// Spec 30: Start scheduler poller for due proactive tasks.
+	poller := scheduler.NewPoller(proactiveTaskRepo, asynqClient, cfg)
+	poller.Start(context.Background())
+	defer poller.Stop()
 
 	// 4. Init HTTP server.
 	mon := asynqmon.New(asynqmon.Options{
@@ -307,9 +352,13 @@ func main() {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "sessionRepo", sessionRepo)
 		ctx = context.WithValue(ctx, "messageRepo", messageRepo)
+		ctx = context.WithValue(ctx, "sessionSummaryRepo", sessionSummaryRepo)
 		ctx = context.WithValue(ctx, "configRepo", configRepo)
 		ctx = context.WithValue(ctx, "toolExecutionRepo", toolExecutionRepo)
+		ctx = context.WithValue(ctx, "proactiveTaskRepo", proactiveTaskRepo)
+		ctx = context.WithValue(ctx, "asynqClient", asynqClient)
 		ctx = context.WithValue(ctx, "dispatcherRegistry", dispatcherRegistry)
+		ctx = context.WithValue(ctx, "appConfig", cfg)
 		router.ServeHTTP(w, r.WithContext(ctx))
 	})
 

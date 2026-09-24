@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -43,13 +44,30 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 	api.HandleFunc("/sessions/{id}", handlers.SessionsHandler()).Methods(http.MethodGet, http.MethodPatch)
 	api.HandleFunc("/sessions/{id}/messages", handlers.MessagesHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/sessions/{id}/tool-executions", handlers.ToolExecutionsHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/sessions/{id}/summary", handlers.SessionSummaryHandler()).Methods(http.MethodGet)
+	api.HandleFunc("/tool-executions", handlers.ToolExecutionsHandler()).Methods(http.MethodGet)
 	api.HandleFunc("/connectors", handlers.ConnectorsHandler()).Methods(http.MethodGet)
+
+	// Proactive tasks routes (ambient watches and scheduled reports).
+	proactiveHandler := handlers.ProactiveTasksHandler(cfg)
+	api.HandleFunc("/proactive-tasks", proactiveHandler).Methods(http.MethodGet, http.MethodPost)
+	api.HandleFunc("/proactive-tasks/{id}", proactiveHandler).Methods(http.MethodGet, http.MethodPatch, http.MethodDelete)
+	api.HandleFunc("/proactive-tasks/{id}/run", handlers.ProactiveTaskRunHandler()).Methods(http.MethodPost)
 
 	// Chat routes (web chat interface — synchronous LLM calls).
 	chatHandler := handlers.ChatHandler(registry, cfg, toolRegistry)
 	api.HandleFunc("/chat/sessions", chatHandler).Methods("GET", "POST", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}", chatHandler).Methods("GET", "DELETE", "OPTIONS")
 	api.HandleFunc("/chat/sessions/{id}/messages", chatHandler).Methods("GET", "POST", "OPTIONS")
+
+	// Artifacts REST API.
+	artifactsDir := "./data/artifacts"
+	if cfg != nil && cfg.Tools.Artifacts.Dir != "" {
+		artifactsDir = cfg.Tools.Artifacts.Dir
+	}
+	_ = os.MkdirAll(artifactsDir, 0o755)
+	api.HandleFunc("/artifacts", handlers.ListArtifactsHandler(artifactsDir, cfg)).Methods(http.MethodGet)
+	api.HandleFunc("/artifacts/{filename:.*}", handlers.DeleteArtifactHandler(artifactsDir)).Methods(http.MethodDelete)
 
 	// Google OAuth routes (registered only when OAuth is configured).
 	if googleAuth != nil {
@@ -62,6 +80,11 @@ func NewRouter(startTime time.Time, asynqmonHandler http.Handler, registry *ai.P
 
 	// Swagger UI.
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+
+	// Static artifacts server (accessible at /artifacts/... and /artifact/...).
+	artifactsServer := handlers.ArtifactsFileServer(artifactsDir)
+	r.PathPrefix("/artifacts/").Handler(http.StripPrefix("/artifacts/", artifactsServer))
+	r.PathPrefix("/artifact/").Handler(http.StripPrefix("/artifact/", artifactsServer))
 
 	// Static assets — embedded at compile time from web/public/.
 	// Any path not matched above falls through here.

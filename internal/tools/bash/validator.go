@@ -2,6 +2,7 @@ package bash
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -92,19 +93,11 @@ func checkAllowlist(cmd string, allowlist []string) error {
 
 // ValidateWorkingDir validates the working directory and returns the absolute path.
 func ValidateWorkingDir(baseDir, relDir string) (string, error) {
-	if relDir == "" {
-		// No relative dir specified; use base dir.
-		return baseDir, nil
-	}
-
-	// Reject paths containing ..
-	if strings.Contains(relDir, "..") {
-		return "", fmt.Errorf("validation failed: working_dir contains .. (path traversal)")
-	}
-
-	// Reject absolute paths.
-	if filepath.IsAbs(relDir) {
-		return "", fmt.Errorf("validation failed: working_dir must be relative")
+	if baseDir == "" {
+		baseDir = os.Getenv("HOME")
+		if baseDir == "" {
+			baseDir = "."
+		}
 	}
 
 	// Resolve the base directory to eliminate symlinks.
@@ -114,13 +107,36 @@ func ValidateWorkingDir(baseDir, relDir string) (string, error) {
 		baseDirResolved = filepath.Clean(baseDir)
 	}
 
-	// Build the full path by joining resolved base with relative path.
-	fullPath := filepath.Clean(filepath.Join(baseDirResolved, relDir))
+	if relDir == "" || relDir == "." {
+		// No relative dir specified; use base dir.
+		return baseDirResolved, nil
+	}
 
-	// Verify that the resulting path is still under the base directory.
-	rel, err := filepath.Rel(baseDirResolved, fullPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("validation failed: working_dir escapes base directory")
+	// Reject paths containing ..
+	if strings.Contains(relDir, "..") {
+		return "", fmt.Errorf("validation failed: working_dir contains .. (path traversal)")
+	}
+
+	var fullPath string
+	if filepath.IsAbs(relDir) {
+		relClean := filepath.Clean(relDir)
+		relResolved, err := filepath.EvalSymlinks(relClean)
+		if err != nil {
+			relResolved = relClean
+		}
+		if relResolved != baseDirResolved && !strings.HasPrefix(relResolved, baseDirResolved+string(filepath.Separator)) {
+			return "", fmt.Errorf("validation failed: working_dir escapes base directory")
+		}
+		fullPath = relResolved
+	} else {
+		// Build the full path by joining resolved base with relative path.
+		fullPath = filepath.Clean(filepath.Join(baseDirResolved, relDir))
+
+		// Verify that the resulting path is still under the base directory.
+		rel, err := filepath.Rel(baseDirResolved, fullPath)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			return "", fmt.Errorf("validation failed: working_dir escapes base directory")
+		}
 	}
 
 	return fullPath, nil

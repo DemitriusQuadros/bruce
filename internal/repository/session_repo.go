@@ -134,7 +134,7 @@ func (r *SQLiteSessionRepository) UpdateProviderOverride(id, provider string) er
 func (r *SQLiteSessionRepository) GetByConnectorType(connectorType string) ([]*domain.Session, error) {
 	rows, err := r.db.Query(
 		`SELECT id, connector_type, channel_id, title, system_prompt, is_active, provider_override, created_at, updated_at
-		 FROM sessions WHERE connector_type = ? ORDER BY updated_at DESC`,
+		 FROM sessions WHERE connector_type = ? ORDER BY updated_at DESC, rowid DESC`,
 		connectorType,
 	)
 	if err != nil {
