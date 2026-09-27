@@ -176,31 +176,50 @@ func (g *geminiProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 		if role == "system" {
 			continue // handled via system_instruction
 		}
-		// Skip empty tool_call placeholders added by the agent loop for Claude compatibility.
-		// Gemini rejects Parts with no initialized data field.
-		if m.Type == "tool_call" && m.Content == "" {
+
+		if m.Type == "tool_call" && len(m.ToolCalls) > 0 {
+			parts := make([]geminiPart, 0, len(m.ToolCalls)+1)
+			if m.Content != "" {
+				parts = append(parts, geminiPart{Text: m.Content})
+			}
+			for _, tc := range m.ToolCalls {
+				parts = append(parts, geminiPart{
+					FunctionCall: &geminiFunctionCall{
+						Name: tc.Name,
+						Args: tc.Input,
+					},
+				})
+			}
+			contents = append(contents, geminiContent{
+				Role:  "model",
+				Parts: parts,
+			})
 			continue
 		}
 
 		// Handle tool results — Gemini requires response to be a JSON object (Struct)
 		if m.Type == "tool_result" && m.ToolResult != nil {
-			contents = append(contents, geminiContent{
-				Role: role,
-				Parts: []geminiPart{
-					{
-						FunctionResponse: &geminiFunctionResponse{
-							Name:     m.ToolResult.ID,
-							Response: map[string]interface{}{"output": m.ToolResult.Content},
-						},
-					},
+			fResp := geminiPart{
+				FunctionResponse: &geminiFunctionResponse{
+					Name:     m.ToolResult.ID,
+					Response: map[string]interface{}{"output": m.ToolResult.Content},
 				},
-			})
-		} else {
+			}
+			if len(contents) > 0 && contents[len(contents)-1].Role == "user" {
+				contents[len(contents)-1].Parts = append(contents[len(contents)-1].Parts, fResp)
+				continue
+			}
 			contents = append(contents, geminiContent{
-				Role:  role,
-				Parts: []geminiPart{{Text: m.Content}},
+				Role:  "user",
+				Parts: []geminiPart{fResp},
 			})
+			continue
 		}
+
+		contents = append(contents, geminiContent{
+			Role:  role,
+			Parts: []geminiPart{{Text: m.Content}},
+		})
 	}
 
 	reqBody := geminiRequest{

@@ -26,6 +26,7 @@ func RunAgentLoop(
 	messages []domain.Message,
 	maxRetries int,
 ) (string, error) {
+	effectivePrompt := AppendToolGuidelines(systemPrompt)
 	currentMessages := make([]domain.Message, len(messages))
 	copy(currentMessages, messages)
 
@@ -34,7 +35,7 @@ func RunAgentLoop(
 		toolDefs := registry.GetDefinitions()
 
 		// Call LLM with tools
-		resp, err := llm.GenerateWithTools(ctx, systemPrompt, currentMessages, toolDefs)
+		resp, err := llm.GenerateWithTools(ctx, effectivePrompt, currentMessages, toolDefs)
 		if err != nil {
 			return "", fmt.Errorf("generate with tools: %w", err)
 		}

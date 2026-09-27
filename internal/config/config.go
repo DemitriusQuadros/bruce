@@ -263,6 +263,9 @@ func Load() *Config {
 	v.SetDefault("tools.web_search.provider", "duckduckgo")
 	v.SetDefault("tools.artifacts.enabled", true)
 	v.SetDefault("tools.artifacts.dir", "./data/artifacts")
+	v.SetDefault("claude.max_tokens", 4096)
+	v.SetDefault("gemini.max_tokens", 4096)
+	v.SetDefault("openai.max_tokens", 4096)
 
 	if err := v.ReadInConfig(); err != nil {
 		log.Printf("WARNING: could not read config file %q: %v — using defaults", path, err)
@@ -271,6 +274,16 @@ func Load() *Config {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		log.Printf("WARNING: could not unmarshal config: %v — using defaults", err)
+	}
+
+	if cfg.Claude.MaxTokens <= 0 {
+		cfg.Claude.MaxTokens = 4096
+	}
+	if cfg.Gemini.MaxTokens <= 0 {
+		cfg.Gemini.MaxTokens = 4096
+	}
+	if cfg.OpenAI.MaxTokens <= 0 {
+		cfg.OpenAI.MaxTokens = 4096
 	}
 
 	return &cfg
