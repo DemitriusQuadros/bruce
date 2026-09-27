@@ -19,7 +19,7 @@ type ProcessIncomingMessagePayload struct {
 }
 
 // NewProcessIncomingMessageTask creates an Asynq task for processing an incoming message.
-// MaxRetry is 3; Timeout is 90s (must exceed Claude's 60s HTTP timeout).
+// MaxRetry is 3; Timeout is 180s (allows multi-step tool execution and artifact generation).
 func NewProcessIncomingMessageTask(p ProcessIncomingMessagePayload) (*asynq.Task, error) {
 	payload, err := json.Marshal(p)
 	if err != nil {
@@ -27,7 +27,7 @@ func NewProcessIncomingMessageTask(p ProcessIncomingMessagePayload) (*asynq.Task
 	}
 	return asynq.NewTask(TaskProcessIncomingMessage, payload,
 		asynq.MaxRetry(3),
-		asynq.Timeout(90*time.Second),
+		asynq.Timeout(180*time.Second),
 	), nil
 }
 
@@ -79,7 +79,7 @@ func NewExecuteScheduledReportTask(p ExecuteScheduledReportPayload) (*asynq.Task
 	}
 	return asynq.NewTask(TaskExecuteScheduledReport, payload,
 		asynq.MaxRetry(2),
-		asynq.Timeout(120*time.Second),
+		asynq.Timeout(180*time.Second),
 	), nil
 }
 

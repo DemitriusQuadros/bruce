@@ -27,7 +27,7 @@ func NewOpenAIProvider(cfg config.OpenAIConfig) LLMService {
 		apiKey:     cfg.APIKey,
 		model:      cfg.Model,
 		maxTokens:  cfg.MaxTokens,
-		httpClient: &http.Client{Timeout: 60 * time.Second},
+		httpClient: &http.Client{Timeout: 120 * time.Second},
 		baseURL:    "https://api.openai.com",
 	}
 }

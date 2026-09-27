@@ -27,7 +27,7 @@ func NewGeminiProvider(cfg config.GeminiConfig) LLMService {
 		apiKey:     cfg.APIKey,
 		model:      cfg.Model,
 		maxTokens:  cfg.MaxTokens,
-		httpClient: &http.Client{Timeout: 60 * time.Second},
+		httpClient: &http.Client{Timeout: 120 * time.Second},
 		baseURL:    "https://generativelanguage.googleapis.com/v1beta/models",
 	}
 }

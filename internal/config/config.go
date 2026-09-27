@@ -277,13 +277,13 @@ func Load() *Config {
 	}
 
 	if cfg.Claude.MaxTokens <= 0 {
-		cfg.Claude.MaxTokens = 4096
+		cfg.Claude.MaxTokens = 8192
 	}
 	if cfg.Gemini.MaxTokens <= 0 {
-		cfg.Gemini.MaxTokens = 4096
+		cfg.Gemini.MaxTokens = 8192
 	}
 	if cfg.OpenAI.MaxTokens <= 0 {
-		cfg.OpenAI.MaxTokens = 4096
+		cfg.OpenAI.MaxTokens = 8192
 	}
 
 	return &cfg

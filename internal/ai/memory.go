@@ -14,8 +14,9 @@ const ToolExecutionGuidelines = `
    - When a user request requires multiple steps (for example, reading a web page or searching AND creating an HTML document/report), you MUST execute all required tools in sequence across turns of the loop before finishing.
    - Do NOT stop after the first tool (e.g. reading a link) to only output a text summary if the user also asked for an HTML artifact, file, or report.
 2. Generating HTML & Artifacts:
-   - When the user asks for an HTML document, page, resume, dashboard, or report, you MUST invoke the 'artifact_save' tool with complete HTML content and an appropriate filename (e.g. 'resume.html', 'report.html').
-   - Provide clean, modern HTML with inline CSS styling in the 'content' field.
+   - When the user asks for an HTML document, page, resume, dashboard, or report, you MUST invoke the 'artifact_save' tool with complete HTML content in the 'content' field and an appropriate filename (e.g. 'resume.html', 'report.html').
+   - The 'content' field is MANDATORY and must contain the full, standalone HTML document (including <!DOCTYPE html>, <html>, <head>, <style>, and <body>). Do NOT call 'artifact_save' with only a filename or title.
+   - Keep the HTML design clean, modern, well-structured, and concise. Avoid needlessly repetitive text to ensure fast generation.
    - Once 'artifact_save' succeeds, present the generated URL to the user in your final text response.
 3. Strict Anti-Hallucination:
    - NEVER pretend or claim to have created, saved, or published a file or artifact unless you have actually called 'artifact_save' and received a successful result from the tool in this session.

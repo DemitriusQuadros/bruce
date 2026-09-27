@@ -128,20 +128,28 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 
 	effectiveSystemPrompt := ai.BuildEffectiveSystemPrompt(systemPrompt, summaryText, timeGapNotice)
 
-	// 4. Insert incoming user message.
-	userMsg := &domain.Message{
-		ID:        uuid.New().String(),
-		SessionID: session.ID,
-		Role:      "user",
-		Content:   payload.Content,
-		Timestamp: time.Now().UTC(),
+	// 4. Insert incoming user message if not already inserted (e.g. during an Asynq task retry).
+	alreadyInserted := false
+	if lastMsg != nil && lastMsg.Role == "user" && lastMsg.Content == payload.Content && time.Since(lastMsg.Timestamp) < 10*time.Minute {
+		alreadyInserted = true
+		logging.Infof("user message already inserted for session %s (likely task retry), skipping duplicate insert", session.ID)
 	}
-	logging.Debugf("inserting user message - msg_id=%s, session_id=%s", userMsg.ID, session.ID)
-	if err := p.messageRepo.Insert(userMsg); err != nil {
-		logging.Errorf("failed to insert user message: %v", err)
-		return fmt.Errorf("insert user message: %w", err)
+
+	if !alreadyInserted {
+		userMsg := &domain.Message{
+			ID:        uuid.New().String(),
+			SessionID: session.ID,
+			Role:      "user",
+			Content:   payload.Content,
+			Timestamp: time.Now().UTC(),
+		}
+		logging.Debugf("inserting user message - msg_id=%s, session_id=%s", userMsg.ID, session.ID)
+		if err := p.messageRepo.Insert(userMsg); err != nil {
+			logging.Errorf("failed to insert user message: %v", err)
+			return fmt.Errorf("insert user message: %w", err)
+		}
+		logging.Debug("user message inserted successfully")
 	}
-	logging.Debug("user message inserted successfully")
 
 	// 5. Fetch context window.
 	logging.Debugf("fetching context window - session_id=%s, window_size=%d",

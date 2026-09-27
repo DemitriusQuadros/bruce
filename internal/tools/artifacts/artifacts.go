@@ -133,8 +133,8 @@ func (t *ArtifactSaveTool) Execute(ctx context.Context, input map[string]interfa
 	}
 
 	content, ok := input["content"].(string)
-	if !ok {
-		return nil, fmt.Errorf("content is required")
+	if !ok || strings.TrimSpace(content) == "" {
+		return nil, fmt.Errorf("content is required: you must provide the full document or HTML text to write in the 'content' argument")
 	}
 
 	cleanFilename, err := validateFilename(rawFilename)
