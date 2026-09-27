@@ -1,0 +1,77 @@
+site_name: Bruce
+site_description: "A self-hosted, autonomous personal AI assistant that lives in your messaging apps."
+site_author: "Demitrius Quadros"
+site_url: "https://demitriusquadros.github.io/bruce/"
+repo_url: "https://github.com/DemitriusQuadros/bruce"
+repo_name: "DemitriusQuadros/bruce"
+edit_uri: "edit/master/docs/"
+
+docs_dir: "docs"
+site_dir: "site"
+
+theme:
+  name: material
+  logo: assets/bruce-logo.png
+  favicon: assets/bruce-logo.png
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.tracking
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Overview: README.md
+  - Architecture:
+      - System Overview: architecture/overview.md
+      - Autonomous Agent Loop: architecture/agent-loop.md
+      - Memory & Context: architecture/memory-and-context.md
+  - Features:
+      - Scheduler & Proactive Tasks: features/scheduler-and-proactive.md
+      - Standalone HTML Artifacts: features/artifacts.md
+      - Multi-Provider LLM Engine: features/llm-providers.md
+      - Omnichannel Connectors: features/connectors.md
+      - Web Dashboard & REST API: features/dashboard-and-api.md
+  - Installation & Deployment:
+      - Docker Compose: guides/installation-docker.md
+      - Bare-Metal Local Dev: guides/installation-local.md
+      - Homelab & Production: guides/deployment-homelab.md
+  - Tools Reference: tools/reference.md
