@@ -1,337 +1,392 @@
 # Bruce
 
-**A personal AI assistant that lives in your messaging apps.**
-
-![Go version](https://img.shields.io/badge/go-1.23+-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
+<p align="center">
+  <img src="web/public/bruce-logo.png" alt="Bruce AI Assistant" width="180" />
+</p>
 
 <p align="center">
-  <img src="web/public/bruce-logo.png" alt="Bruce" width="200" />
+  <strong>A self-hosted, autonomous personal AI assistant that lives in your messaging apps.</strong>
 </p>
+
+<p align="center">
+  <a href="https://golang.org"><img src="https://img.shields.io/badge/go-1.23%2B-blue" alt="Go Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+  <a href="#features"><img src="https://img.shields.io/badge/tools-15%2B%20built--in-purple" alt="Tools"></a>
+  <a href="#connectors"><img src="https://img.shields.io/badge/platforms-Discord%20%7C%20WhatsApp%20%7C%20Telegram%20%7C%20Web-orange" alt="Platforms"></a>
+</p>
+
+---
+
+## Table of Contents
+
+- [What is Bruce?](#what-is-bruce)
+- [Key Capabilities](#key-capabilities)
+- [Architecture & Message Flow](#architecture--message-flow)
+- [Quick Start](#quick-start)
+  - [Option 1: Docker Compose (Recommended)](#option-1-docker-compose-recommended)
+  - [Option 2: Bare-Metal Go (Local Development)](#option-2-bare-metal-go-local-development)
+- [Core Features Walkthrough](#core-features-walkthrough)
+  - [1. Autonomous Agent Loop & Multi-Step Tool Chaining](#1-autonomous-agent-loop--multi-step-tool-chaining)
+  - [2. Dual-Mode Scheduler & Proactive Tasks](#2-dual-mode-scheduler--proactive-tasks)
+  - [3. Standalone HTML Artifact Generation](#3-standalone-html-artifact-generation)
+  - [4. Multi-Provider LLM Engine](#4-multi-provider-llm-engine)
+  - [5. Omnichannel Messaging](#5-omnichannel-messaging)
+- [Built-In Tools Reference](#built-in-tools-reference)
+- [Configuration & Web Dashboard](#configuration--web-dashboard)
+- [Development & Testing](#development--testing)
+- [Documentation Sitemap](#documentation-sitemap)
+- [License](#license)
 
 ---
 
 ## What is Bruce?
 
-Bruce is a self-hosted AI assistant you talk to through the apps you already use — WhatsApp, Discord, or Telegram. Send it a message on your phone and get a reply powered by Claude, Gemini, or OpenAI. No new app to install, no subscription to manage, no data leaving your infrastructure unless you decide it does.
+Bruce is a private, self-hosted AI assistant that you talk to through the messaging applications you already use every day: **Discord**, **WhatsApp**, **Telegram**, or an embedded **Web Chat**.
 
-Under the hood, Bruce is a single Go binary. It connects to your messaging platforms, queues incoming messages through Redis, processes them with an LLM of your choice, and stores everything in a local SQLite database. The entire conversation history — sessions, messages, config — lives on your machine. You own it.
+Send a message from your phone or desktop, and Bruce will:
+- Answer questions using cutting-edge LLMs (**Claude**, **Gemini**, or **OpenAI**).
+- Autonomously execute multi-step tool workflows (browse the web, inspect repositories, search emails, execute shell commands).
+- Generate interactive, standalone **HTML artifacts** (dashboards, resumes, spreadsheets, visualizations) hosted directly on your server.
+- Proactively alert you, monitor conditions in the background, or schedule future messages and briefings using an intelligent **dual-mode scheduler**.
 
-The web dashboard at `http://localhost:8080` lets you inspect sessions, monitor logs, and manage settings without touching config files. Asynqmon at `/monitor` gives you a live view of the task queue. 
+### Why Self-Hosted?
+- **Zero Lock-In**: Everything runs as a single Go binary backed by Redis and local SQLite (WAL mode).
+- **Data Sovereignty**: Your chat history, tools log, credentials, and artifacts stay on your hardware.
+- **Always Accessible**: Message Bruce directly without opening a separate browser tab or mobile app.
 
 ---
 
-## Features
+## Key Capabilities
 
-| Category | Details |
+| Capability | Details |
 |---|---|
-| **Connectors** | WhatsApp (whatsmeow), Discord (discordgo), Telegram (long-polling) |
-| **LLM Providers** | Anthropic Claude, Google Gemini, OpenAI GPT — switchable via config |
-| **Tools** | 11 built-in tools: bash, gmail, calendar, docs, github, git_local, files, notion, trello, http_client, n8n |
-| **Storage** | SQLite (WAL mode) — no Postgres, no cloud DB required |
-| **UI** | Vanilla JS web dashboard — sessions, logs, connectors, settings tabs |
-| **Deployment** | Single binary or Docker Compose — embed all assets, no separate static server |
-| **Observability** | Asynqmon task monitor, structured logs |
+| **Omnichannel Connectors** | WhatsApp (`whatsmeow` multi-device QR pairing), Discord (`discordgo`), Telegram (long-polling), and Web Chat (`/api/v1/chat`). |
+| **Autonomous Agent Loop** | Multi-step tool execution (up to 5 turns per request) with context windowing, automatic long-term session summarization, real-time clock injection, and anti-hallucination guardrails. |
+| **Dual-Mode Scheduler** | **Direct Message Delivery** (instant, 0 tokens, for reminders and alarms) vs **Agent Briefing** (AI agent loop with tool execution for daily reports and web monitoring). Supports standard cron and natural relative offsets (`+2m`, `in 5 minutes`). |
+| **HTML Artifacts Engine** | Generates standalone HTML dashboards, visual reports, and web apps saved to disk, served at `/artifacts/{id}`, and previewed in the dashboard. |
+| **Multi-Provider LLM** | Seamlessly switch between Anthropic Claude, Google Gemini, and OpenAI. Configure different providers for interactive chat vs background proactive tasks. |
+| **15+ Built-in Tools** | Web search, bash execution, file I/O, local git, GitHub, Google Workspace (Gmail, Calendar, Docs), Notion, Trello, n8n, HTTP client, and proactive task management. |
+| **Web Dashboard** | Responsive management interface for live chat, session history, proactive schedules, artifact gallery, credentials, and settings. |
 
 ---
 
-## Architecture Overview
+## Architecture & Message Flow
 
-The diagram below shows how the main components relate at runtime.
+Bruce coordinates messaging connectors, task queues, an autonomous AI loop, and local persistence.
 
 ```mermaid
-flowchart LR
-    subgraph Connectors
-        WA[WhatsApp]
-        DC[Discord]
-        TG[Telegram]
+flowchart TD
+    subgraph Connectors ["Omnichannel Connectors"]
+        DC[Discord Bot]
+        WA[WhatsApp Device]
+        TG[Telegram Bot]
+        WEB[Web Chat UI]
     end
 
-    subgraph Bruce
-        direction TB
-        W[Worker]
-        LLM[LLM Service]
-        T[Tools]
-        DB[(SQLite)]
+    subgraph Queue ["Task Queue & Scheduling"]
+        R[(Redis)]
+        P[Background Poller\nEvery 1m]
     end
 
-    subgraph External
-        CA[Claude / Gemini / OpenAI]
-        GH[GitHub / Notion / n8n ...]
+    subgraph BruceWorker ["Bruce Core Worker Engine"]
+        W[Asynq Worker]
+        AL[Autonomous Agent Loop\nRunAgentLoop]
+        TR[Tool Registry]
     end
 
-    WA & DC & TG -->|Enqueue task| R[(Redis)]
-    R -->|Dequeue| W
-    W <--> LLM
-    W <--> T
-    W <--> DB
-    LLM --> CA
-    T --> GH
+    subgraph LLMProviders ["LLM Providers"]
+        CL[Anthropic Claude]
+        GM[Google Gemini]
+        OA[OpenAI GPT]
+    end
 
-    UI[Web UI] -->|HTTP| API[HTTP API :8080]
-    API <--> DB
+    subgraph Storage ["Local Storage"]
+        DB[(SQLite WAL)]
+        ART[./data/artifacts]
+    end
+
+    Connectors -->|Enqueue message:process| R
+    P -->|Enqueue proactive:execute| R
+    R -->|Dequeue Task| W
+    W -->|Assemble Context & History| DB
+    W -->|Execute| AL
+    AL <-->|Tool Calls / Results| TR
+    AL <-->|Chat / Reasoning| LLMProviders
+    TR -->|Save Generated Files| ART
+    W -->|Persist Messages & History| DB
+    W -->|Dispatch Formatted Reply| Connectors
 ```
 
-### End-to-end message flow
+### End-to-End Execution Sequence
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant C as Connector
-    participant R as Redis
-    participant W as Worker
-    participant D as SQLite
-    participant L as LLM
+    autonumber
+    actor User
+    participant Connector as Connector (Discord/WhatsApp)
+    participant Redis as Redis Queue (Asynq)
+    participant Worker as Worker Engine
+    participant SQLite as SQLite DB
+    participant LLM as LLM Provider
+    participant Tool as Tool Execution
 
-    U->>C: Send message
-    C->>R: Enqueue ProcessIncomingMessage task
-    R->>W: Dequeue task
-    W->>D: Fetch conversation context
-    D-->>W: Last N messages
-    W->>L: Send messages + context
-    L-->>W: Response text
-    W->>D: Persist reply
-    W->>C: Send(channelID, reply)
-    C->>U: Deliver reply
+    User->>Connector: "Search the web for Go 1.25 release notes and send me a summary"
+    Connector->>Redis: Enqueue ProcessIncomingMessageTask
+    Redis->>Worker: Dequeue Task
+    Worker->>SQLite: Load Context (History, Summary, Temporal Clock)
+    Worker->>LLM: Generate with Tool Definitions
+    LLM-->>Worker: Tool Call Request: web_search("Go 1.25 release notes")
+    Worker->>Tool: Execute web_search
+    Tool-->>Worker: Search Results
+    Worker->>SQLite: Log Tool Execution
+    Worker->>LLM: Return Tool Result & Prompt Next Step
+    LLM-->>Worker: Final Synthesized Answer
+    Worker->>SQLite: Persist User & Assistant Messages
+    Worker->>Connector: Dispatch Formatted Response
+    Connector-->>User: Delivers reply to channel
 ```
 
 ---
-## WARNING
-- The whatsapp connector and telegram connector are not tested yet
+
 ## Quick Start
 
-### Option 1 — Local (go run)
+### Option 1: Docker Compose (Recommended)
 
-```bash
-git clone https://github.com/DemitriusQuadros/bruce
-cd bruce
-cp config.example.yml config.yml
-# Edit config.yml — add your LLM API key and enable a connector
-go run cmd/bruce/main.go
-```
+Docker Compose bundles Bruce and Redis with persistent data volumes.
 
-Requires Go 1.23+ and a running Redis instance. The server listens on port `8080`.
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/DemitriusQuadros/bruce.git
+   cd bruce
+   ```
 
-### Option 2 — Docker Compose
+2. **Create your configuration**:
+   ```bash
+   cp config.example.yml config.yml
+   ```
+   Edit `config.yml` and provide your LLM API key and connector tokens:
+   ```yaml
+   claude:
+     api_key: "sk-ant-api03-..."
+     model: "claude-haiku-4-5-20251001"
 
-```bash
-cp config.example.yml config.yml
-# Edit config.yml
-docker compose up -d
-```
+   llm:
+     provider: "claude"
+     background_provider: "claude"
 
-The Docker Compose stack starts Redis and Bruce together. Bruce is accessible on port `9090` (mapped from container port `8080`). Logs: `docker compose logs -f`.
+   connectors:
+     discord:
+       enabled: true
+       bot_token: "YOUR_DISCORD_BOT_TOKEN"
+   ```
 
-> **CGO required:** Bruce uses `mattn/go-sqlite3`, which requires CGO. Pre-built binaries are CGO-enabled. If building from source, ensure `CGO_ENABLED=1` (the default on most platforms).
+3. **Start the stack**:
+   ```bash
+   docker compose up -d
+   ```
 
----
-
-## Configuration
-
-Copy `config.example.yml` to `config.yml` and set at minimum an LLM API key and one connector:
-
-```yaml
-claude:
-  api_key: "sk-ant-..."
-  model: "claude-opus-4-6"
-
-llm:
-  provider: "claude"
-
-connectors:
-  telegram:
-    enabled: true
-    bot_token: "your-telegram-bot-token"
-```
-
-See `config.example.yml` for the full schema including all tools, Google OAuth, and n8n integration.
+4. **Verify installation**:
+   - Check health: `curl http://localhost:9090/health`
+   - Open Web Dashboard: `http://localhost:9090`
+   - Inspect Task Queue: `http://localhost:9090/monitor`
+   - View container logs: `docker compose logs -f bruce`
 
 ---
 
-## Connectors
+### Option 2: Bare-Metal Go (Local Development)
 
-Each connector is enabled independently. Enable one to get started; enable all three to receive messages from any platform simultaneously.
+#### Prerequisites
+- **Go**: 1.23 or higher
+- **C Compiler**: `gcc` or `clang` (required for SQLite `CGO_ENABLED=1`)
+- **Redis**: Running locally on `localhost:6379`
 
-### WhatsApp
+1. **Clone & Configure**:
+   ```bash
+   git clone https://github.com/DemitriusQuadros/bruce.git
+   cd bruce
+   cp config.example.yml config.yml
+   # Configure your API keys in config.yml
+   ```
 
-Connects via the WhatsApp multi-device protocol. No Meta Business account required — Bruce pairs as a linked device on your personal account.
+2. **Run Redis**:
+   ```bash
+   redis-server --daemonize yes
+   ```
 
-```yaml
-connectors:
-  whatsapp:
-    enabled: true
-    device_store_dsn: "./data/whatsapp.db"
-```
-
-On first start, Bruce prints a QR code to the terminal. Scan it in WhatsApp under Settings → Linked Devices. See [docs/connectors/whatsapp.md](docs/connectors/whatsapp.md) for the full setup guide.
-
-### Discord
-
-Connects as a Discord bot. Create a bot in the Developer Portal, copy the token, and invite the bot to a mutual server with the users who will message it.
-
-```yaml
-connectors:
-  discord:
-    enabled: true
-    bot_token: "your-discord-bot-token"
-```
-
-See [docs/connectors/discord.md](docs/connectors/discord.md) for bot creation steps and chunking behaviour.
-
-### Telegram
-
-Connects via HTTP long-polling. Get a token from @BotFather in Telegram — no portal, no OAuth, no public IP required.
-
-```yaml
-connectors:
-  telegram:
-    enabled: true
-    bot_token: "your-telegram-bot-token"
-```
-
-See [docs/connectors/telegram.md](docs/connectors/telegram.md) for @BotFather setup, polling behaviour, and resilience details.
+3. **Build and Run**:
+   ```bash
+   CGO_ENABLED=1 go run cmd/bruce/main.go
+   ```
+   Bruce will start the HTTP API and Web Dashboard on `http://localhost:8080`.
 
 ---
 
-## Tools
+## Core Features Walkthrough
 
-Tools extend what Bruce can do beyond conversation. Each tool is opt-in — enable only what you need.
+### 1. Autonomous Agent Loop & Multi-Step Tool Chaining
 
-| Tool | What it does | Requires |
+Bruce does not simply return text — it can reason and chain tools sequentially before answering.
+
+- **Dynamic Context Assembly**: Every prompt automatically receives:
+  - **Temporal Clock Context**: Exact date, time, weekday, timezone (`America/Sao_Paulo`, `UTC`, etc.), and user idle gap.
+  - **Long-Term Session Summarization**: Older messages are compressed into persistent session summaries to stay within the LLM context window without losing context.
+  - **Strict Anti-Hallucination Guidelines**: The AI is forbidden from claiming actions happened (like saving artifacts or scheduling reminders) without an actual successful tool execution in that turn.
+- **Multi-Step Execution**: If you ask *"Search for the latest inflation numbers and generate an HTML report"*, Bruce will first execute `web_search`, receive the data, invoke `artifact_save` with standalone HTML, and then return the final summary with a link.
+
+---
+
+### 2. Dual-Mode Scheduler & Proactive Tasks
+
+Bruce features a background poller (evaluating every minute) supporting two execution modes:
+
+```
+┌────────────────────────────────────────────────────────┐
+│               Scheduled Task (Cron)                    │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────┴─────────────┐
+             ▼                           ▼
+    execution_mode: "message"   execution_mode: "agent"
+      (Direct Notification)        (AI Dynamic Task)
+             │                           │
+     Bypasses LLM                Runs Agent Loop
+     0 tokens, 0 latency         Executes tools & compiles report
+```
+
+#### Mode A: Direct Message Delivery (`execution_mode: "message"`)
+Ideal for alarms, medication reminders, and direct notifications.
+- **Bypasses the LLM completely** at execution time.
+- **Zero latency, zero token cost**, immune to LLM rate limits or quota errors.
+- **Example**: *"Me manda um hello world daqui a dois minutos"* or *"Lembre-me de tomar o remédio às 20h"*.
+
+#### Mode B: Agent Briefing (`execution_mode: "agent"`)
+Ideal for dynamic briefings and research.
+- Invokes the AI agent loop at the scheduled time to execute tools (web search, GitHub, files) and compile a synthesized briefing.
+- **Example**: *"Todo dia às 8h pesquise as notícias de IA e me envie um resumo"*.
+
+#### Flexible Schedule Syntax
+- **Relative Offsets**: `+2m`, `10m`, `in 5 minutes`, `daqui a 2 minutos` (automatically converted to concrete 5-token date-specific crons and auto-deactivated after execution).
+- **Standard Cron**: `0 9 * * 1-5` (every weekday at 9:00 AM).
+- **Ambient Condition Watches (`watch`)**: Periodic polling (minimum 5 minutes) evaluating natural language triggers with hash-based deduplication (`last_result_hash`).
+
+---
+
+### 3. Standalone HTML Artifact Generation
+
+Bruce can generate rich, interactive standalone HTML documents using the `artifact_save` tool:
+- **Dashboards, Resumes, Visual Reports, Interactive Charts**.
+- Stored safely on disk under `./data/artifacts/<id>/<filename>`.
+- Served directly over HTTP at `/artifacts/<id>/<filename>`.
+- Previewed live with responsive toggles in the Web Dashboard **Artifacts** tab.
+
+---
+
+### 4. Multi-Provider LLM Engine
+
+Configure different providers on the fly through `config.yml` or the Web Dashboard Settings:
+- **Anthropic Claude**: `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-6`.
+- **Google Gemini**: `gemini-2.5-flash`, `gemini-1.5-pro`.
+- **OpenAI**: `gpt-4o`, `gpt-4o-mini`.
+
+Separate providers can be assigned for interactive user chat vs background proactive tasks (`llm.background_provider`) to optimize cost and quota limits.
+
+---
+
+### 5. Omnichannel Messaging
+
+| Connector | Mechanism | Setup Highlights |
 |---|---|---|
-| `bash` | Execute shell commands in a sandboxed working directory | `tools.bash.enabled: true` |
-| `gmail` | Read and send Gmail messages | Google OAuth (`google.oauth_client_id`) |
-| `calendar` | Read and create Google Calendar events | Google OAuth (`google.oauth_client_id`) |
-| `docs` | Read and write Google Docs | Google OAuth with documents scope |
-| `github` | Manage issues, PRs, and repos via GitHub API | Personal access token |
-| `git_local` | Run git commands on local repositories | `tools.git_local.enabled: true` |
-| `files` | Read, write, and list files on the local filesystem | `tools.files.enabled: true` |
-| `notion` | Query and update Notion pages and databases | Notion integration token |
-| `trello` | Read and create Trello cards and lists | Trello API key + user token |
-| `http_client` | Make arbitrary HTTP requests to external URLs | Enabled by default |
-| `n8n` | Trigger n8n workflows and MCP tools | n8n base URL + API key |
-
-Tool configuration lives under the `tools:` key in `config.yml`. See `config.example.yml` for all options.
+| **Discord** | WebSocket (`discordgo`) | Create bot in Discord Developer Portal, enable Message Content Intent, add bot token. Automatically breaks long replies into 1900-character chunks on word boundaries. |
+| **WhatsApp** | Multi-Device Protocol (`whatsmeow`) | Pairs as a linked device on your personal WhatsApp account. Scans QR code printed in terminal on first boot. No Meta Business API required. |
+| **Telegram** | HTTP Long-Polling | Create bot with `@BotFather`, copy bot token. No public IP or webhook configuration required. |
+| **Web Chat** | HTTP REST & Session API | Embedded web chat interface inside the dashboard at `/`. Supports session creation, history browsing, and markdown rendering. |
 
 ---
 
-## Web Dashboard
+## Built-In Tools Reference
 
-The dashboard at `http://localhost:8080` provides four tabs: **Connectors** (status and controls), **Sessions** (conversation list and history), **Logs** (live message log), and **Settings** (config key management).
+All tools are modular and opt-in via configuration:
 
-The Asynq task monitor is available at `http://localhost:8080/monitor` — useful for inspecting queued and failed tasks.
-
-API documentation is served at `http://localhost:8080/swagger/`.
+| Tool Name | Description | Key Configuration |
+|---|---|---|
+| `bash` | Execute shell commands in a sandboxed directory | `tools.bash.enabled: true` |
+| `web_search` | Search Google for live web information | `tools.web_search.enabled: true`, `tools.web_search.google_api_key`, `cx` |
+| `artifacts` | Generate and host standalone HTML files | `tools.artifacts.enabled: true` |
+| `proactive_create` | Create scheduled crons, reminders, and watches | Built-in |
+| `proactive_list` | List active and paused proactive tasks | Built-in |
+| `proactive_toggle` | Pause or resume a background proactive task | Built-in |
+| `proactive_delete` | Delete a scheduled proactive task | Built-in |
+| `gmail` | Read, search, and send emails via Gmail API | Google OAuth client ID & secret |
+| `calendar` | Read and create Google Calendar events | Google OAuth client ID & secret |
+| `docs` | Read, write, and create Google Docs | Google OAuth client ID & secret |
+| `github` | Manage issues, pull requests, and repositories | `tools.github.api_token` |
+| `git_local` | Run local git commands (status, log, diff, commit) | `tools.git_local.enabled: true` |
+| `files` | Read, write, list files on the local filesystem | `tools.files.enabled: true` |
+| `notion` | Search and update Notion databases and pages | `tools.notion.api_key` |
+| `trello` | Manage Trello boards, lists, and cards | `tools.trello.api_key`, `user_token` |
+| `http_client` | Make outbound HTTP requests to APIs | Enabled by default |
+| `n8n` | Trigger n8n workflows and webhooks | `tools.n8n.base_url`, `api_key` |
 
 ---
 
-## Development
+## Configuration & Web Dashboard
+
+Bruce supports a hybrid configuration model:
+1. **YAML Base Configuration (`config.yml`)**: Seeds initial defaults, secrets, and server configuration.
+2. **Dynamic Database Configuration (SQLite)**: Manage and override settings live via the Web UI **Settings** tab or REST API (`PUT /api/v1/config`) without restarting the server!
+
+### Web Dashboard Tabs
+- **Chat**: Live interactive web session with markdown formatting.
+- **Sessions**: Browse all conversation sessions across WhatsApp, Discord, Telegram, and Web.
+- **Schedules**: Inspect, trigger, pause, or create proactive cron tasks and ambient watches with execution mode badges.
+- **Artifacts**: Gallery of generated HTML artifacts with live iframe preview.
+- **Logs**: Real-time log of tool executions and connector dispatches.
+- **Settings**: Dynamic configuration editor with password masking for credentials.
+
+---
+
+## Development & Testing
 
 ```bash
-go build ./...          # Compile — must produce zero errors
-go test ./...           # Run all tests
-go test -race ./...     # Run with race detector
-go vet ./...            # Static analysis
-gofmt -l .              # Check formatting (empty output = clean)
-make test-frontend      # Playwright E2E tests for the web UI
-```
+# Build the binary
+go build ./...
 
-Bruce uses `mattn/go-sqlite3`, which requires CGO. If you see `cgo: not found` errors, ensure your system has a C compiler (`gcc` or `clang`) installed and `CGO_ENABLED=1` is set in your environment.
+# Run the complete test suite (Unit, Integration, and BDD E2E)
+go test -v ./...
+
+# Run tests with race detection
+go test -race ./...
+
+# Static analysis and formatting
+go vet ./...
+gofmt -l -w .
+
+# Run Playwright E2E frontend tests
+npm install
+npx playwright test
+```
 
 ---
 
-## Spec-Driven Development (SDD) with Claude Code
+## Documentation Sitemap
 
-Bruce ships with a 6-stage AI-assisted development pipeline built directly into Claude Code. Open this repository in Claude Code and you get six slash commands — one per stage — that take you from raw idea to deployed, tested feature without leaving your editor.
+Explore detailed documentation in the [`docs/`](docs/) directory:
 
-### The pipeline
-
-```
-/business-investor-validator → /product-manager-prd → /software-architect → /go-backend-dev → /frontend-specialist → /qa-specialist
-```
-
-| Stage | Command | Input | Output |
-|---|---|---|---|
-| 1 | `/business-investor-validator` | Raw idea | Investor-grade scorecard — market size, revenue model, moat, risks |
-| 2 | `/product-manager-prd` | Validator output | Full PRD — personas, user stories, MVP scope, success metrics |
-| 3 | `/software-architect` | PRD | Technical blueprint — system diagram, DB schema, API contracts, ADRs |
-| 4 | `/go-backend-dev` | Blueprint | Go packages under `internal/` — handlers, repos, workers, tests |
-| 5 | `/frontend-specialist` | Blueprint + API | Vanilla JS UI pages against the Go API on port 8080 |
-| 6 | `/qa-specialist` | Spec files in `docs/specs/` | BDD E2E tests (Gherkin + godog) |
-
-### How to use it
-
-Each command is invoked with a description of what you want. The output of each stage feeds directly into the next.
-
-**Stage 1 — Validate the idea**
-```
-/business-investor-validator I want to build a feature that lets Bruce proactively
-alert users when a calendar event is starting in 10 minutes
-```
-
-**Stage 2 — Turn it into a PRD**
-```
-/product-manager-prd [paste the validator output here]
-```
-
-**Stage 3 — Get a technical blueprint**
-```
-/software-architect [paste the PRD here]
-```
-
-**Stage 4 — Implement the backend**
-```
-/go-backend-dev implement the watch-alerts feature from this blueprint: [paste blueprint]
-```
-
-**Stage 5 — Build the UI**
-```
-/frontend-specialist add a Watches tab to the dashboard per this spec: [paste spec]
-```
-
-**Stage 6 — Write the tests**
-```
-/qa-specialist generate BDD tests for docs/specs/30-watch-alerts.md
-```
-
-### What each agent knows
-
-Every agent loads the full project context before it responds — architecture rules from `CLAUDE.md`, existing packages, the database schema, and prior specs in `docs/specs/`. You do not need to re-explain the stack at each stage. The agents enforce Bruce's conventions automatically: no FX, no GORM, no Postgres, manual DI in `main.go`.
-
-### Skipping stages
-
-You do not have to run every stage for every change. For a small bug fix, go straight to `/go-backend-dev`. For a UI tweak, go straight to `/frontend-specialist`. The pipeline is a guide, not a requirement.
-
-See `CLAUDE.md` for the full architectural conventions and rules each agent enforces.
+- **Architecture**:
+  - [`docs/architecture/overview.md`](docs/architecture/overview.md) — System architecture, database schema, and queue mechanics.
+  - [`docs/architecture/agent-loop.md`](docs/architecture/agent-loop.md) — Deep dive into the autonomous agent loop, multi-step execution, and anti-hallucination guardrails.
+  - [`docs/architecture/memory-and-context.md`](docs/architecture/memory-and-context.md) — Temporal clock injection, context windowing, and session summarization.
+- **Features & Guides**:
+  - [`docs/features/scheduler-and-proactive.md`](docs/features/scheduler-and-proactive.md) — Proactive tasks, dual execution modes, relative offsets, and poller.
+  - [`docs/features/artifacts.md`](docs/features/artifacts.md) — HTML artifact generation and serving.
+  - [`docs/features/connectors.md`](docs/features/connectors.md) — Setting up Discord, WhatsApp, Telegram, and Web Chat.
+  - [`docs/features/llm-providers.md`](docs/features/llm-providers.md) — Configuring Claude, Gemini, and OpenAI.
+  - [`docs/guides/installation-docker.md`](docs/guides/installation-docker.md) — Production Docker Compose deployment guide.
+  - [`docs/guides/installation-local.md`](docs/guides/installation-local.md) — Bare-metal installation and local setup.
+  - [`docs/tools/reference.md`](docs/tools/reference.md) — Comprehensive reference for all 15+ built-in tools.
 
 ---
 
-## Deployment
+## License
 
-The provided `docker-compose.yml` is suitable for personal production use:
-
-```bash
-docker compose up -d
-docker compose logs -f bruce
-```
-
-Bruce handles graceful shutdown on `SIGTERM`: the HTTP server stops accepting new requests, the Asynq worker finishes in-flight tasks, and SQLite is closed safely. Allow ~15 seconds for a clean shutdown before force-killing the container.
-
-For single-machine deployments, run Bruce behind a reverse proxy (nginx, Caddy) if you need TLS. Bruce itself serves plain HTTP.
-
----
-
-## Observability
-
-Structured logs are written to stdout. All log lines include a level prefix (`INFO`, `DEBUG`, `ERROR`, `WARN`) for easy filtering with `grep` or a log aggregator.
-
----
-
-## Contributing
-
-Bug reports and pull requests are welcome. Open an issue before starting significant work so we can discuss the approach.
-
-Bruce is covered by the MIT License. See `LICENSE` for details.
-
-For Claude Code users: `CLAUDE.md` at the root of this repository documents the architecture, dependency rules, and the full SDD agent pipeline available when you open this project in Claude Code.
+Bruce is released under the **MIT License**. See [`LICENSE`](LICENSE) for details.
