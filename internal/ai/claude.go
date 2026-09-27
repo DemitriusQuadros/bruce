@@ -142,8 +142,8 @@ func (c *claudeProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 	cleaned := sanitizeHistory(messages)
 
 	// Build message array, handling tool_use and tool_result specially.
-	msgs := make([]anthropicMessage, len(cleaned))
-	for i, m := range cleaned {
+	msgs := make([]anthropicMessage, 0, len(cleaned))
+	for _, m := range cleaned {
 		switch {
 		case m.Type == "tool_call" && len(m.ToolCalls) > 0:
 			// Reconstruct the assistant tool_use content blocks Claude requires.
@@ -160,24 +160,31 @@ func (c *claudeProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 					Input: tc.Input,
 				})
 			}
-			msgs[i] = anthropicMessage{Role: m.Role, Content: parts}
+			msgs = append(msgs, anthropicMessage{Role: m.Role, Content: parts})
 
 		case m.Type == "tool_result" && m.ToolResult != nil:
 			// Tool results must be sent as content arrays with matching tool_use_id.
-			msgs[i] = anthropicMessage{
-				Role: m.Role,
-				Content: []anthropicContent{
-					{
-						Type:      "tool_result",
-						ToolUseID: m.ToolResult.ID,
-						Content:   m.ToolResult.Content,
-						IsError:   m.ToolResult.IsError,
-					},
-				},
+			item := anthropicContent{
+				Type:      "tool_result",
+				ToolUseID: m.ToolResult.ID,
+				Content:   m.ToolResult.Content,
+				IsError:   m.ToolResult.IsError,
 			}
+			// If previous message in msgs is already a user message with tool_results,
+			// merge this tool_result into it to maintain alternating user/assistant turns.
+			if len(msgs) > 0 && msgs[len(msgs)-1].Role == "user" {
+				if prevParts, ok := msgs[len(msgs)-1].Content.([]anthropicContent); ok {
+					msgs[len(msgs)-1].Content = append(prevParts, item)
+					continue
+				}
+			}
+			msgs = append(msgs, anthropicMessage{
+				Role:    m.Role,
+				Content: []anthropicContent{item},
+			})
 
 		default:
-			msgs[i] = anthropicMessage{Role: m.Role, Content: m.Content}
+			msgs = append(msgs, anthropicMessage{Role: m.Role, Content: m.Content})
 		}
 	}
 
@@ -242,49 +249,50 @@ func (c *claudeProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
-	// Parse response based on stop reason
-	if apiResp.StopReason == "tool_use" {
-		// Extract tool calls from content
-		var toolCalls []ToolCall
-		for _, content := range apiResp.Content {
-			if content.Type == "tool_use" {
-				// Parse input as map
-				var inputMap map[string]interface{}
-				switch v := content.Input.(type) {
-				case map[string]interface{}:
-					inputMap = v
-				case string:
-					if err := json.Unmarshal([]byte(v), &inputMap); err != nil {
-						inputMap = make(map[string]interface{})
-					}
-				default:
-					inputMap = make(map[string]interface{})
-				}
+	// Parse response for tool calls and text
+	var toolCalls []ToolCall
+	var responseText string
 
-				toolCalls = append(toolCalls, ToolCall{
-					ID:    content.ID,
-					Name:  content.Name,
-					Input: inputMap,
-				})
+	for _, content := range apiResp.Content {
+		if content.Type == "text" && content.Text != "" {
+			if responseText == "" {
+				responseText = content.Text
+			} else {
+				responseText += "\n" + content.Text
 			}
 		}
+		if content.Type == "tool_use" {
+			// Parse input as map
+			var inputMap map[string]interface{}
+			switch v := content.Input.(type) {
+			case map[string]interface{}:
+				inputMap = v
+			case string:
+				if err := json.Unmarshal([]byte(v), &inputMap); err != nil {
+					inputMap = make(map[string]interface{})
+				}
+			default:
+				inputMap = make(map[string]interface{})
+			}
+
+			toolCalls = append(toolCalls, ToolCall{
+				ID:    content.ID,
+				Name:  content.Name,
+				Input: inputMap,
+			})
+		}
+	}
+
+	if len(toolCalls) > 0 {
 		return &ToolCallResponse{
 			ToolCalls: toolCalls,
+			Text:      responseText,
 			Complete:  false,
 		}, nil
 	}
 
-	// Extract final text from response
-	var finalText string
-	for _, content := range apiResp.Content {
-		if content.Type == "text" && content.Text != "" {
-			finalText = content.Text
-			break
-		}
-	}
-
 	return &ToolCallResponse{
-		Text:      finalText,
-		Complete:  true,
+		Text:     responseText,
+		Complete: true,
 	}, nil
 }

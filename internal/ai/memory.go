@@ -2,8 +2,33 @@ package ai
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
+
+// ToolExecutionGuidelines contains multi-step execution and artifact generation instructions.
+const ToolExecutionGuidelines = `
+
+<tool_execution_guidelines>
+1. Multi-Step Execution & Tool Chaining:
+   - When a user request requires multiple steps (for example, reading a web page or searching AND creating an HTML document/report), you MUST execute all required tools in sequence across turns of the loop before finishing.
+   - Do NOT stop after the first tool (e.g. reading a link) to only output a text summary if the user also asked for an HTML artifact, file, or report.
+2. Generating HTML & Artifacts:
+   - When the user asks for an HTML document, page, resume, dashboard, or report, you MUST invoke the 'artifact_save' tool with complete HTML content and an appropriate filename (e.g. 'resume.html', 'report.html').
+   - Provide clean, modern HTML with inline CSS styling in the 'content' field.
+   - Once 'artifact_save' succeeds, present the generated URL to the user in your final text response.
+3. Strict Anti-Hallucination:
+   - NEVER pretend or claim to have created, saved, or published a file or artifact unless you have actually called 'artifact_save' and received a successful result from the tool in this session.
+   - NEVER generate fake URLs like '/artifacts/...' or 'https://.../artifacts/...' in your text without executing the tool first.
+</tool_execution_guidelines>`
+
+// AppendToolGuidelines appends tool execution instructions if not already present.
+func AppendToolGuidelines(prompt string) string {
+	if strings.Contains(prompt, "<tool_execution_guidelines>") {
+		return prompt
+	}
+	return prompt + ToolExecutionGuidelines
+}
 
 // FormatTimeGap formats the elapsed time between last interaction and now.
 // Returns an empty string if elapsed time is less than 1 hour.

@@ -197,9 +197,25 @@ func (o *openaiProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 				ToolCallID: m.ToolResult.ID,
 				Content:    m.ToolResult.Content,
 			})
-		} else if m.Type == "tool_call" {
-			// Assistant tool call message (we'll skip this; OpenAI doesn't need it separately)
-			continue
+		} else if m.Type == "tool_call" && len(m.ToolCalls) > 0 {
+			// Assistant tool call message
+			tcs := make([]openaiToolCall, len(m.ToolCalls))
+			for i, tc := range m.ToolCalls {
+				argBytes, _ := json.Marshal(tc.Input)
+				tcs[i] = openaiToolCall{
+					ID:   tc.ID,
+					Type: "function",
+					Function: openaiToolFunction{
+						Name:      tc.Name,
+						Arguments: string(argBytes),
+					},
+				}
+			}
+			msgs = append(msgs, openaiMessage{
+				Role:      "assistant",
+				Content:   m.Content,
+				ToolCalls: tcs,
+			})
 		} else {
 			// Regular text message
 			msgs = append(msgs, openaiMessage{

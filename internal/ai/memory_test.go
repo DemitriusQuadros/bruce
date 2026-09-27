@@ -39,3 +39,16 @@ func TestBuildEffectiveSystemPrompt(t *testing.T) {
 	// When empty, returns base
 	assert.Equal(t, base, BuildEffectiveSystemPrompt(base, "", ""))
 }
+
+func TestAppendToolGuidelines(t *testing.T) {
+	base := "You are Bruce."
+	res := AppendToolGuidelines(base)
+	assert.Contains(t, res, "You are Bruce.")
+	assert.Contains(t, res, "<tool_execution_guidelines>")
+	assert.Contains(t, res, "artifact_save")
+
+	// Idempotent: should not duplicate
+	res2 := AppendToolGuidelines(res)
+	assert.Equal(t, res, res2)
+}
+
