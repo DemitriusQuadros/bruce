@@ -31,6 +31,7 @@ type ProactiveTask struct {
 	LastRunAt       *time.Time `json:"last_run_at,omitempty"`
 	NextRunAt       time.Time  `json:"next_run_at"`
 	LastResultHash  string     `json:"last_result_hash"`
+	ExecutionMode   string     `json:"execution_mode"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }

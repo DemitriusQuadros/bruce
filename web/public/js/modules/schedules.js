@@ -147,6 +147,10 @@ function renderTasks() {
             ? '<span class="pill-badge pill-badge--active">Active</span>'
             : '<span class="pill-badge pill-badge--paused">Paused</span>';
 
+        const modeBadge = task.execution_mode === 'message'
+            ? '<span class="pill-badge pill-badge--watch"><i class="fas fa-bell"></i> Message</span>'
+            : '';
+
         const targetConn = task.target_connector || task.connector_type || 'web';
         const targetChan = task.target_channel_id || task.channel_id || '';
         const connIcon = CONNECTOR_ICONS[targetConn] || 'fas fa-arrow-right';
@@ -164,6 +168,7 @@ function renderTasks() {
                         <h4 class="schedule-card__title" data-testid="task-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</h4>
                         <div class="schedule-card__badges">
                             ${typeBadge}
+                            ${modeBadge}
                             ${statusBadge}
                         </div>
                     </div>
@@ -388,6 +393,8 @@ function openEditModal(task) {
     if (timezoneInput) timezoneInput.value = task.timezone || 'America/Sao_Paulo';
     if (promptInput) promptInput.value = task.prompt_condition || '';
     if (toolsInput) toolsInput.value = (task.target_tools || []).join(', ');
+    const modeSelect = document.getElementById('task-execution-mode');
+    if (modeSelect) modeSelect.value = task.execution_mode || 'agent';
 
     if (backdrop) backdrop.hidden = false;
     if (titleInput) {
@@ -433,6 +440,8 @@ function setupModal() {
 
         form.reset();
         updateTypeForm('cron');
+        const modeSelect = document.getElementById('task-execution-mode');
+        if (modeSelect) modeSelect.value = 'agent';
         try {
             const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             if (timezoneInput) timezoneInput.value = localTz || 'America/Sao_Paulo';
@@ -450,6 +459,8 @@ function setupModal() {
         backdrop.hidden = true;
         form.reset();
         updateTypeForm('cron');
+        const modeSelect = document.getElementById('task-execution-mode');
+        if (modeSelect) modeSelect.value = 'agent';
         try {
             const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             if (timezoneInput) timezoneInput.value = localTz || 'America/Sao_Paulo';
@@ -504,6 +515,7 @@ function setupModal() {
         const timezone = document.getElementById('task-timezone').value.trim();
         const prompt = document.getElementById('task-prompt').value.trim();
         const toolsRaw = document.getElementById('task-tools').value.trim();
+        const executionMode = document.getElementById('task-execution-mode')?.value || 'agent';
 
         if (!title) {
             showToast('Please provide a title for the task', 'error');
@@ -549,6 +561,7 @@ function setupModal() {
                     timezone,
                     prompt_condition: prompt,
                     target_tools: targetTools,
+                    execution_mode: executionMode,
                 };
                 await req('PATCH', `/api/v1/proactive-tasks/${editingTaskId}`, patchPayload);
                 showToast(`Task "${title}" updated successfully`, 'success');
@@ -565,6 +578,7 @@ function setupModal() {
                     timezone,
                     prompt_condition: prompt,
                     target_tools: targetTools,
+                    execution_mode: executionMode,
                 };
                 await req('POST', '/api/v1/proactive-tasks', payload);
                 showToast(`Task "${title}" created successfully`, 'success');

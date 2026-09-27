@@ -146,3 +146,58 @@ func TestHandleExecuteScheduledReportTask(t *testing.T) {
 	assert.Contains(t, disp.messages[0], "Daily Morning Briefing")
 	assert.Contains(t, disp.messages[0], "Team Standup")
 }
+
+func TestHandleExecuteScheduledReportTask_DirectMessageMode(t *testing.T) {
+	disp := &mockProactiveDispatcher{}
+	dispRegistry := NewDispatcherRegistry()
+	dispRegistry.Register("discord", disp)
+
+	// Note: llm is nil to prove that direct message mode bypasses LLM completely
+	proc := NewProcessor(nil, nil, nil, nil, dispRegistry, &config.Config{})
+
+	payload := ExecuteScheduledReportPayload{
+		TaskID:          "direct-msg-1",
+		TargetConnector: "discord",
+		TargetChannelID: "1481391762319605924",
+		Title:           "Hello World",
+		Prompt:          "Hello World!",
+		ExecutionMode:   "message",
+	}
+	b, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	task := asynq.NewTask(TaskExecuteScheduledReport, b)
+	err = proc.HandleExecuteScheduledReportTask(context.Background(), task)
+	require.NoError(t, err)
+
+	require.Len(t, disp.messages, 1)
+	assert.Equal(t, "1481391762319605924", disp.channels[0])
+	assert.Equal(t, "Hello World!", disp.messages[0])
+}
+
+func TestHandleExecuteScheduledReportTask_DirectMessageMode_HeuristicPrefix(t *testing.T) {
+	disp := &mockProactiveDispatcher{}
+	dispRegistry := NewDispatcherRegistry()
+	dispRegistry.Register("discord", disp)
+
+	// Note: llm is nil, execution_mode is empty, but Prompt has "Send the message: 'Hello World!'"
+	proc := NewProcessor(nil, nil, nil, nil, dispRegistry, &config.Config{})
+
+	payload := ExecuteScheduledReportPayload{
+		TaskID:          "direct-msg-2",
+		TargetConnector: "discord",
+		TargetChannelID: "1481391762319605924",
+		Title:           "Hello World em 2 minutos",
+		Prompt:          "Send the message: \"Hello World!\"",
+	}
+	b, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	task := asynq.NewTask(TaskExecuteScheduledReport, b)
+	err = proc.HandleExecuteScheduledReportTask(context.Background(), task)
+	require.NoError(t, err)
+
+	require.Len(t, disp.messages, 1)
+	assert.Equal(t, "1481391762319605924", disp.channels[0])
+	assert.Equal(t, "Hello World!", disp.messages[0])
+}

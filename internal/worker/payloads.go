@@ -69,6 +69,7 @@ type ExecuteScheduledReportPayload struct {
 	TargetChannelID string `json:"target_channel_id"`
 	Title           string `json:"title"`
 	Prompt          string `json:"prompt"`
+	ExecutionMode   string `json:"execution_mode,omitempty"`
 }
 
 // NewExecuteScheduledReportTask creates an Asynq task for executing a scheduled report.

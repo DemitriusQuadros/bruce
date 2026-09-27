@@ -84,6 +84,17 @@ func RunMigrations(db *sql.DB) error {
 		return fmt.Errorf("migration create_session_summaries_table: %w", err)
 	}
 
+	// Migration: add execution_mode column to proactive_tasks.
+	if exists, err := columnExists(db, "proactive_tasks", "execution_mode"); err != nil {
+		return fmt.Errorf("check column exists: %w", err)
+	} else if !exists {
+		log.Printf("migration: applying add_execution_mode_to_proactive_tasks")
+		if _, err := db.Exec(`ALTER TABLE proactive_tasks ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'agent'`); err != nil {
+			return fmt.Errorf("migration add_execution_mode_to_proactive_tasks: %w", err)
+		}
+		log.Printf("migration: add_execution_mode_to_proactive_tasks applied successfully")
+	}
+
 	return nil
 }
 

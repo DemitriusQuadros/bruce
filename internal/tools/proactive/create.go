@@ -55,7 +55,12 @@ func (t *CreateTool) Definition() ai.ToolDefinition {
 				},
 				"prompt_condition": map[string]interface{}{
 					"type":        "string",
-					"description": "For cron: instructions on what report to compile. For watch: natural language trigger condition (e.g. 'emails from contractors about invoices')",
+					"description": "For cron with mode 'message': the exact text of the message/reminder to send directly. For cron with mode 'agent': instructions on what report to compile. For watch: natural language trigger condition",
+				},
+				"execution_mode": map[string]interface{}{
+					"type":        "string",
+					"enum":        []string{"message", "agent"},
+					"description": "Optional: 'message' to deliver the text directly as a notification/reminder without LLM reprocessing (best for simple reminders like 'take medicine', 'hello world'); 'agent' (default) to run the prompt through the AI agent to search/use tools and compile a dynamic report",
 				},
 				"timezone": map[string]interface{}{
 					"type":        "string",
@@ -86,6 +91,7 @@ func (t *CreateTool) Execute(ctx context.Context, input map[string]interface{}) 
 	taskTypeStr, _ := input["type"].(string)
 	schedule, _ := input["schedule"].(string)
 	promptCondition, _ := input["prompt_condition"].(string)
+	execMode, _ := input["execution_mode"].(string)
 	tz, _ := input["timezone"].(string)
 	targetConnector, _ := input["target_connector"].(string)
 	targetChannelID, _ := input["target_channel_id"].(string)
@@ -98,6 +104,25 @@ func (t *CreateTool) Execute(ctx context.Context, input map[string]interface{}) 
 	}
 	if strings.TrimSpace(promptCondition) == "" {
 		return nil, fmt.Errorf("prompt_condition is required")
+	}
+
+	execMode = strings.ToLower(strings.TrimSpace(execMode))
+	if execMode != "message" && execMode != "agent" {
+		lowerPrompt := strings.ToLower(strings.TrimSpace(promptCondition))
+		if strings.HasPrefix(lowerPrompt, "send the message:") ||
+			strings.HasPrefix(lowerPrompt, "send message:") ||
+			strings.HasPrefix(lowerPrompt, "enviar mensagem:") ||
+			strings.HasPrefix(lowerPrompt, "enviar a mensagem:") ||
+			strings.HasPrefix(lowerPrompt, "lembrete:") ||
+			strings.HasPrefix(lowerPrompt, "reminder:") ||
+			strings.Contains(strings.ToLower(title), "hello world") {
+			execMode = "message"
+		} else {
+			execMode = "agent"
+		}
+	}
+	if execMode == "message" {
+		promptCondition = cleanDirectMessageText(promptCondition)
 	}
 
 	taskType := domain.TaskType(strings.ToLower(strings.TrimSpace(taskTypeStr)))
@@ -211,6 +236,7 @@ func (t *CreateTool) Execute(ctx context.Context, input map[string]interface{}) 
 		Timezone:        loc.String(),
 		PromptCondition: promptCondition,
 		TargetTools:     targetTools,
+		ExecutionMode:   execMode,
 		IsActive:        true,
 		NextRunAt:       nextRun,
 		CreatedAt:       now,
@@ -221,8 +247,8 @@ func (t *CreateTool) Execute(ctx context.Context, input map[string]interface{}) 
 		return nil, fmt.Errorf("save proactive task: %w", err)
 	}
 
-	return fmt.Sprintf("✅ Proactive task '%s' created successfully!\n- Type: %s\n- Schedule: %s (%s)\n- Target: %s (%s)\n- Next execution: %s",
-		task.Title, task.TaskType, task.ScheduleExpr, task.Timezone, task.TargetConnector, task.TargetChannelID, task.NextRunAt.In(loc).Format("2006-01-02 15:04:05 MST")), nil
+	return fmt.Sprintf("✅ Proactive task '%s' created successfully!\n- Type: %s (mode: %s)\n- Schedule: %s (%s)\n- Target: %s (%s)\n- Next execution: %s",
+		task.Title, task.TaskType, task.ExecutionMode, task.ScheduleExpr, task.Timezone, task.TargetConnector, task.TargetChannelID, task.NextRunAt.In(loc).Format("2006-01-02 15:04:05 MST")), nil
 }
 
 // parseCronSchedule parses either standard 5-token cron syntax or relative offsets (e.g. "+2m", "2m", "in 2 minutes", "daqui a 2 minutos").
@@ -265,4 +291,33 @@ func parseCronSchedule(schedule string, nowInLoc time.Time, parser cron.Parser) 
 		return "", time.Time{}, fmt.Errorf("invalid cron expression %q: %w. Expected 5 fields ('minute hour day-of-month month day-of-week') or relative offset (e.g. '+2m', '10m')", schedule, err)
 	}
 	return schedule, sched.Next(nowInLoc).UTC(), nil
+}
+
+// cleanDirectMessageText removes common command prefixes and enclosing quotes from direct messages.
+func cleanDirectMessageText(text string) string {
+	trimmed := strings.TrimSpace(text)
+	prefixes := []string{
+		"send the message:",
+		"send message:",
+		"send:",
+		"enviar a mensagem:",
+		"enviar mensagem:",
+		"enviar:",
+		"lembrete:",
+		"reminder:",
+	}
+
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(strings.ToLower(trimmed), prefix) {
+			trimmed = strings.TrimSpace(trimmed[len(prefix):])
+			break
+		}
+	}
+
+	if (strings.HasPrefix(trimmed, "\"") && strings.HasSuffix(trimmed, "\"") && len(trimmed) >= 2) ||
+		(strings.HasPrefix(trimmed, "'") && strings.HasSuffix(trimmed, "'") && len(trimmed) >= 2) {
+		trimmed = trimmed[1 : len(trimmed)-1]
+	}
+
+	return strings.TrimSpace(trimmed)
 }

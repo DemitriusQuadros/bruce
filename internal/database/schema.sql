@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS proactive_tasks (
     last_run_at        DATETIME,
     next_run_at        DATETIME NOT NULL,
     last_result_hash   TEXT NOT NULL DEFAULT '',
+    execution_mode     TEXT NOT NULL DEFAULT 'agent',
     created_at         DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at         DATETIME NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE

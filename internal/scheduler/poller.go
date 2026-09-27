@@ -203,6 +203,7 @@ func (p *Poller) EvaluateDueTasks(ctx context.Context) {
 				TargetChannelID: task.TargetChannelID,
 				Title:           task.Title,
 				Prompt:          task.PromptCondition,
+				ExecutionMode:   task.ExecutionMode,
 			})
 		}
 

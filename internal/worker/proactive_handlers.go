@@ -173,7 +173,35 @@ func (p *Processor) HandleExecuteScheduledReportTask(ctx context.Context, t *asy
 		return fmt.Errorf("unmarshal scheduled report payload: %w", err)
 	}
 
-	logging.Infof("executing scheduled report %s (%q) for %s/%s", payload.TaskID, payload.Title, payload.TargetConnector, payload.TargetChannelID)
+	logging.Infof("executing scheduled task %s (%q, mode=%s) for %s/%s", payload.TaskID, payload.Title, payload.ExecutionMode, payload.TargetConnector, payload.TargetChannelID)
+
+	// Direct message delivery: bypass LLM agent loop completely.
+	if payload.ExecutionMode == "message" || isDirectMessagePayload(payload) {
+		messageText := cleanDirectMessageText(payload.Prompt)
+		if messageText == "" {
+			messageText = payload.Title
+		}
+
+		if p.dispatcher != nil {
+			if err := p.dispatcher.Dispatch(payload.TargetConnector, payload.TargetChannelID, messageText); err != nil {
+				logging.Errorf("scheduled direct message %s dispatch failed: %v", payload.TaskID, err)
+				return err
+			}
+		}
+
+		if payload.SessionID != "" && p.messageRepo != nil {
+			_ = p.messageRepo.Insert(&domain.Message{
+				ID:        uuid.New().String(),
+				SessionID: payload.SessionID,
+				Role:      "assistant",
+				Content:   messageText,
+				Timestamp: time.Now(),
+			})
+		}
+
+		logging.Infof("scheduled direct message %s delivered successfully to %s/%s", payload.TaskID, payload.TargetConnector, payload.TargetChannelID)
+		return nil
+	}
 
 	bgLLM := p.getBackgroundLLM()
 	if bgLLM == nil {
@@ -234,4 +262,59 @@ func (p *Processor) HandleExecuteScheduledReportTask(ctx context.Context, t *asy
 
 	logging.Infof("scheduled report %s delivered successfully to %s/%s", payload.TaskID, payload.TargetConnector, payload.TargetChannelID)
 	return nil
+}
+
+// isDirectMessagePayload detects if a payload was intended as a direct notification/message delivery
+// even if execution_mode was not explicitly set to "message".
+func isDirectMessagePayload(p ExecuteScheduledReportPayload) bool {
+	if p.ExecutionMode == "message" {
+		return true
+	}
+	lower := strings.ToLower(strings.TrimSpace(p.Prompt))
+	prefixes := []string{
+		"send the message:",
+		"send message:",
+		"send:",
+		"enviar mensagem:",
+		"enviar a mensagem:",
+		"enviar:",
+		"lembrete:",
+		"reminder:",
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// cleanDirectMessageText removes common command prefixes and enclosing quotes from direct messages.
+func cleanDirectMessageText(text string) string {
+	trimmed := strings.TrimSpace(text)
+	prefixes := []string{
+		"send the message:",
+		"send message:",
+		"send:",
+		"enviar a mensagem:",
+		"enviar mensagem:",
+		"enviar:",
+		"lembrete:",
+		"reminder:",
+	}
+
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(strings.ToLower(trimmed), prefix) {
+			trimmed = strings.TrimSpace(trimmed[len(prefix):])
+			break
+		}
+	}
+
+	// Strip matching surrounding quotes if present (e.g. "Hello World!" -> Hello World!)
+	if (strings.HasPrefix(trimmed, "\"") && strings.HasSuffix(trimmed, "\"") && len(trimmed) >= 2) ||
+		(strings.HasPrefix(trimmed, "'") && strings.HasSuffix(trimmed, "'") && len(trimmed) >= 2) {
+		trimmed = trimmed[1 : len(trimmed)-1]
+	}
+
+	return strings.TrimSpace(trimmed)
 }

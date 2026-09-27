@@ -56,6 +56,10 @@ func (r *SQLiteProactiveTaskRepository) Create(ctx context.Context, task *domain
 		task.Timezone = "UTC"
 	}
 
+	if task.ExecutionMode == "" {
+		task.ExecutionMode = "agent"
+	}
+
 	var lastRunStr *string
 	if task.LastRunAt != nil {
 		s := task.LastRunAt.UTC().Format(time.RFC3339)
@@ -65,8 +69,8 @@ func (r *SQLiteProactiveTaskRepository) Create(ctx context.Context, task *domain
 	query := `INSERT INTO proactive_tasks (
 		id, session_id, connector_type, channel_id, target_connector, target_channel_id,
 		title, task_type, schedule_expr, timezone, prompt_condition, target_tools,
-		is_active, last_run_at, next_run_at, last_result_hash, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		is_active, last_run_at, next_run_at, last_result_hash, execution_mode, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	isActiveInt := 0
 	if task.IsActive {
@@ -80,7 +84,7 @@ func (r *SQLiteProactiveTaskRepository) Create(ctx context.Context, task *domain
 		task.Title, string(task.TaskType), task.ScheduleExpr, task.Timezone,
 		task.PromptCondition, task.TargetToolsJSON(),
 		isActiveInt, lastRunStr, task.NextRunAt.UTC().Format(time.RFC3339),
-		task.LastResultHash, task.CreatedAt.UTC().Format(time.RFC3339), task.UpdatedAt.UTC().Format(time.RFC3339),
+		task.LastResultHash, task.ExecutionMode, task.CreatedAt.UTC().Format(time.RFC3339), task.UpdatedAt.UTC().Format(time.RFC3339),
 	)
 	if err != nil {
 		return fmt.Errorf("create proactive task: %w", err)
@@ -137,10 +141,13 @@ func (r *SQLiteProactiveTaskRepository) GetDueTasks(ctx context.Context, now tim
 
 // Update updates the mutable fields of a proactive task.
 func (r *SQLiteProactiveTaskRepository) Update(ctx context.Context, task *domain.ProactiveTask) error {
+	if task.ExecutionMode == "" {
+		task.ExecutionMode = "agent"
+	}
 	query := `UPDATE proactive_tasks SET
 		title = ?, schedule_expr = ?, timezone = ?, prompt_condition = ?,
 		target_connector = ?, target_channel_id = ?, target_tools = ?,
-		is_active = ?, next_run_at = ?, updated_at = datetime('now')
+		is_active = ?, next_run_at = ?, execution_mode = ?, updated_at = datetime('now')
 		WHERE id = ?`
 	isActiveInt := 0
 	if task.IsActive {
@@ -150,7 +157,7 @@ func (r *SQLiteProactiveTaskRepository) Update(ctx context.Context, task *domain
 		ctx, query,
 		task.Title, task.ScheduleExpr, task.Timezone, task.PromptCondition,
 		task.TargetConnector, task.TargetChannelID, task.TargetToolsJSON(),
-		isActiveInt, task.NextRunAt.UTC().Format(time.RFC3339),
+		isActiveInt, task.NextRunAt.UTC().Format(time.RFC3339), task.ExecutionMode,
 		task.ID,
 	)
 	if err != nil {
@@ -210,7 +217,7 @@ func (r *SQLiteProactiveTaskRepository) Delete(ctx context.Context, id string) e
 const selectProactiveTaskColumns = `
 	SELECT id, session_id, connector_type, channel_id, target_connector, target_channel_id,
 	       title, task_type, schedule_expr, timezone, prompt_condition, target_tools,
-	       is_active, last_run_at, next_run_at, last_result_hash, created_at, updated_at
+	       is_active, last_run_at, next_run_at, last_result_hash, execution_mode, created_at, updated_at
 	FROM proactive_tasks`
 
 func scanProactiveTaskRow(row *sql.Row) (*domain.ProactiveTask, error) {
@@ -225,7 +232,7 @@ func scanProactiveTaskRow(row *sql.Row) (*domain.ProactiveTask, error) {
 		&t.Title, &taskTypeStr, &t.ScheduleExpr, &t.Timezone,
 		&t.PromptCondition, &targetToolsJSON,
 		&isActiveInt, &lastRunStr, &nextRunStr,
-		&t.LastResultHash, &createdAtStr, &updatedAtStr,
+		&t.LastResultHash, &t.ExecutionMode, &createdAtStr, &updatedAtStr,
 	)
 	if err != nil {
 		return nil, err
@@ -234,6 +241,9 @@ func scanProactiveTaskRow(row *sql.Row) (*domain.ProactiveTask, error) {
 	t.TaskType = domain.TaskType(taskTypeStr)
 	t.IsActive = isActiveInt == 1
 	t.SetTargetToolsFromJSON(targetToolsJSON)
+	if t.ExecutionMode == "" {
+		t.ExecutionMode = "agent"
+	}
 
 	if nextRun, err := parseSQLiteTime(nextRunStr); err == nil {
 		t.NextRunAt = nextRun
@@ -267,7 +277,7 @@ func scanProactiveTaskRows(rows *sql.Rows) ([]domain.ProactiveTask, error) {
 			&t.Title, &taskTypeStr, &t.ScheduleExpr, &t.Timezone,
 			&t.PromptCondition, &targetToolsJSON,
 			&isActiveInt, &lastRunStr, &nextRunStr,
-			&t.LastResultHash, &createdAtStr, &updatedAtStr,
+			&t.LastResultHash, &t.ExecutionMode, &createdAtStr, &updatedAtStr,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan proactive task row: %w", err)
@@ -276,6 +286,9 @@ func scanProactiveTaskRows(rows *sql.Rows) ([]domain.ProactiveTask, error) {
 		t.TaskType = domain.TaskType(taskTypeStr)
 		t.IsActive = isActiveInt == 1
 		t.SetTargetToolsFromJSON(targetToolsJSON)
+		if t.ExecutionMode == "" {
+			t.ExecutionMode = "agent"
+		}
 
 		if nextRun, err := parseSQLiteTime(nextRunStr); err == nil {
 			t.NextRunAt = nextRun

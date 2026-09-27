@@ -20,6 +20,13 @@ const ToolExecutionGuidelines = `
    - Once 'artifact_save' succeeds, present the generated URL to the user in your final text response.
 3. Scheduling & Proactive Reminders:
    - When the user asks you to schedule a message, report, reminder, or monitor a condition (e.g. 'me manda um hello world daqui a 2 minutos', 'send me a message in 5 minutes', 'watch for emails'), you MUST invoke the 'proactive_create' tool.
+   - Bruce supports two execution modes for scheduled tasks:
+     a) Direct Message Delivery ('execution_mode': 'message'):
+        Use this when the user wants to receive a specific reminder or message at a future time (e.g. 'me manda um hello world daqui a 2 minutos', 'lembre-me de tomar o remédio às 20h', 'send me a reminder').
+        In 'prompt_condition', put the exact message text you want delivered to the user (e.g. 'Hello World!' or 'Lembrete: Tomar o remédio'). Do NOT write instructions to an agent like 'Send the message...'. Write the actual message.
+     b) AI Agent Execution ('execution_mode': 'agent'):
+        Use this when the user wants Bruce to actively research, monitor, use tools, or compile a dynamic report at that time (e.g. 'todo dia às 9h pesquise as notícias de IA e me envie um resumo').
+        In 'prompt_condition', write the prompt instructions for the agent.
    - For relative offsets like 'in 2 minutes' or 'daqui a 5 minutos', pass 'type': 'cron' and 'schedule': '+2m' (or '+5m', '+10m', etc.).
    - For recurring crons at a specific time of day (e.g. 'every day at 9am'), pass 'type': 'cron' and standard 5-token cron (e.g. '0 9 * * *').
    - For ambient condition monitoring, pass 'type': 'watch' and the interval in minutes (e.g. '30', minimum 5).

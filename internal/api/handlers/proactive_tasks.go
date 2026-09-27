@@ -185,6 +185,7 @@ type createProactiveTaskRequest struct {
 	ScheduleExpr    string   `json:"schedule_expr"`
 	Timezone        string   `json:"timezone"`
 	PromptCondition string   `json:"prompt_condition"`
+	ExecutionMode   string   `json:"execution_mode"`
 	TargetTools     []string `json:"target_tools"`
 }
 
@@ -288,6 +289,11 @@ func handleCreateProactiveTask(w http.ResponseWriter, r *http.Request, repo repo
 		targetChan = chanID
 	}
 
+	execMode := strings.ToLower(strings.TrimSpace(req.ExecutionMode))
+	if execMode != "message" && execMode != "agent" {
+		execMode = "agent"
+	}
+
 	task := &domain.ProactiveTask{
 		ID:              uuid.New().String(),
 		SessionID:       sessionID,
@@ -301,6 +307,7 @@ func handleCreateProactiveTask(w http.ResponseWriter, r *http.Request, repo repo
 		Timezone:        loc.String(),
 		PromptCondition: req.PromptCondition,
 		TargetTools:     req.TargetTools,
+		ExecutionMode:   execMode,
 		IsActive:        true,
 		NextRunAt:       nextRun,
 		CreatedAt:       now,
@@ -324,6 +331,7 @@ type patchProactiveTaskRequest struct {
 	TargetConnector *string   `json:"target_connector"`
 	TargetChannelID *string   `json:"target_channel_id"`
 	TargetTools     *[]string `json:"target_tools"`
+	ExecutionMode   *string   `json:"execution_mode"`
 }
 
 func handlePatchProactiveTask(w http.ResponseWriter, r *http.Request, repo repository.ProactiveTaskRepository, id string, cfg *config.Config) {
@@ -374,6 +382,12 @@ func handlePatchProactiveTask(w http.ResponseWriter, r *http.Request, repo repos
 	}
 	if req.TargetTools != nil {
 		task.TargetTools = *req.TargetTools
+	}
+	if req.ExecutionMode != nil {
+		mode := strings.ToLower(strings.TrimSpace(*req.ExecutionMode))
+		if mode == "message" || mode == "agent" {
+			task.ExecutionMode = mode
+		}
 	}
 
 	if scheduleChanged {

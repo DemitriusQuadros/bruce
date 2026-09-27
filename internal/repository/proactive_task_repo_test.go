@@ -53,6 +53,7 @@ func TestProactiveTaskRepository_CRUD(t *testing.T) {
 	assert.Equal(t, "whatsapp", fetched.TargetConnector)
 	assert.Equal(t, "5511999999999", fetched.TargetChannelID)
 	assert.Equal(t, []string{"calendar_read", "github_list_prs"}, fetched.TargetTools)
+	assert.Equal(t, "agent", fetched.ExecutionMode)
 	assert.True(t, fetched.IsActive)
 
 	// 3. ListBySession
