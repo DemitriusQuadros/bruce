@@ -126,7 +126,16 @@ func (p *Processor) HandleProcessIncomingMessageTask(ctx context.Context, t *asy
 		}
 	}
 
-	effectiveSystemPrompt := ai.BuildEffectiveSystemPrompt(systemPrompt, summaryText, timeGapNotice)
+	appTz := "America/Sao_Paulo"
+	if p.configRepo != nil {
+		if dbTz, err := p.configRepo.Get("app.timezone"); err == nil && dbTz != "" {
+			appTz = dbTz
+		}
+	} else if p.cfg != nil && p.cfg.App.Timezone != "" {
+		appTz = p.cfg.App.Timezone
+	}
+	temporalContext := ai.FormatTemporalContext(time.Now(), appTz, timeGapNotice)
+	effectiveSystemPrompt := ai.BuildEffectiveSystemPrompt(systemPrompt, summaryText, temporalContext)
 
 	// 4. Insert incoming user message if not already inserted (e.g. during an Asynq task retry).
 	alreadyInserted := false

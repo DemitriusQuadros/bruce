@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -235,13 +236,14 @@ func handleCreateProactiveTask(w http.ResponseWriter, r *http.Request, repo repo
 		nextRun = now.Add(time.Duration(mins) * time.Minute)
 	} else {
 		parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
-		sched, err := parser.Parse(req.ScheduleExpr)
+		nowInLoc := now.In(loc)
+		parsedExpr, parsedNext, err := parseCronSchedule(req.ScheduleExpr, nowInLoc, parser)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid cron expression: "+err.Error())
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		nowInLoc := now.In(loc)
-		nextRun = sched.Next(nowInLoc).UTC()
+		req.ScheduleExpr = parsedExpr
+		nextRun = parsedNext
 	}
 
 	connType := req.ConnectorType
@@ -396,12 +398,13 @@ func handlePatchProactiveTask(w http.ResponseWriter, r *http.Request, repo repos
 			task.NextRunAt = now.Add(time.Duration(mins) * time.Minute)
 		} else {
 			parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
-			sched, err := parser.Parse(task.ScheduleExpr)
+			parsedExpr, parsedNext, err := parseCronSchedule(task.ScheduleExpr, now.In(loc), parser)
 			if err != nil {
-				writeError(w, http.StatusBadRequest, "invalid cron expression: "+err.Error())
+				writeError(w, http.StatusBadRequest, err.Error())
 				return
 			}
-			task.NextRunAt = sched.Next(now.In(loc)).UTC()
+			task.ScheduleExpr = parsedExpr
+			task.NextRunAt = parsedNext
 		}
 	}
 
@@ -420,4 +423,44 @@ func handleDeleteProactiveTask(w http.ResponseWriter, r *http.Request, repo repo
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "task deleted"})
+}
+
+func parseCronSchedule(schedule string, nowInLoc time.Time, parser cron.Parser) (string, time.Time, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(schedule))
+
+	cleaned := strings.TrimPrefix(trimmed, "+")
+	cleaned = strings.TrimPrefix(cleaned, "in ")
+	cleaned = strings.TrimPrefix(cleaned, "daqui a ")
+	cleaned = strings.TrimSuffix(cleaned, " minutes")
+	cleaned = strings.TrimSuffix(cleaned, " minutos")
+	cleaned = strings.TrimSuffix(cleaned, " mins")
+	cleaned = strings.TrimSuffix(cleaned, " min")
+	cleaned = strings.TrimSuffix(cleaned, " m")
+	cleaned = strings.TrimSpace(cleaned)
+
+	var duration time.Duration
+	var isRelative bool
+
+	if d, err := time.ParseDuration(cleaned); err == nil && d > 0 {
+		duration = d
+		isRelative = true
+	} else if d, err := time.ParseDuration(cleaned + "m"); err == nil && d > 0 {
+		duration = d
+		isRelative = true
+	} else if mins, err := strconv.Atoi(cleaned); err == nil && mins > 0 {
+		duration = time.Duration(mins) * time.Minute
+		isRelative = true
+	}
+
+	if isRelative {
+		target := nowInLoc.Add(duration)
+		cronExpr := fmt.Sprintf("%d %d %d %d *", target.Minute(), target.Hour(), target.Day(), int(target.Month()))
+		return cronExpr, target.UTC(), nil
+	}
+
+	sched, err := parser.Parse(schedule)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("invalid cron expression %q: %w. Expected 5 fields ('minute hour day-of-month month day-of-week') or relative offset (e.g. '+2m', '10m')", schedule, err)
+	}
+	return schedule, sched.Next(nowInLoc).UTC(), nil
 }

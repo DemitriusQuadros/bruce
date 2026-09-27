@@ -125,12 +125,13 @@ func (t *CreateTool) Execute(ctx context.Context, input map[string]interface{}) 
 		nextRun = now.Add(time.Duration(mins) * time.Minute)
 	} else {
 		parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
-		sched, err := parser.Parse(schedule)
-		if err != nil {
-			return nil, fmt.Errorf("invalid cron expression %q: %w. Expected 5 fields: 'minute hour day-of-month month day-of-week'", schedule, err)
-		}
 		nowInLoc := now.In(loc)
-		nextRun = sched.Next(nowInLoc).UTC()
+		parsedExpr, parsedNext, err := parseCronSchedule(schedule, nowInLoc, parser)
+		if err != nil {
+			return nil, err
+		}
+		schedule = parsedExpr
+		nextRun = parsedNext
 	}
 
 	var targetTools []string
@@ -222,4 +223,46 @@ func (t *CreateTool) Execute(ctx context.Context, input map[string]interface{}) 
 
 	return fmt.Sprintf("✅ Proactive task '%s' created successfully!\n- Type: %s\n- Schedule: %s (%s)\n- Target: %s (%s)\n- Next execution: %s",
 		task.Title, task.TaskType, task.ScheduleExpr, task.Timezone, task.TargetConnector, task.TargetChannelID, task.NextRunAt.In(loc).Format("2006-01-02 15:04:05 MST")), nil
+}
+
+// parseCronSchedule parses either standard 5-token cron syntax or relative offsets (e.g. "+2m", "2m", "in 2 minutes", "daqui a 2 minutos").
+func parseCronSchedule(schedule string, nowInLoc time.Time, parser cron.Parser) (string, time.Time, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(schedule))
+
+	// Check if this is a relative offset
+	cleaned := strings.TrimPrefix(trimmed, "+")
+	cleaned = strings.TrimPrefix(cleaned, "in ")
+	cleaned = strings.TrimPrefix(cleaned, "daqui a ")
+	cleaned = strings.TrimSuffix(cleaned, " minutes")
+	cleaned = strings.TrimSuffix(cleaned, " minutos")
+	cleaned = strings.TrimSuffix(cleaned, " mins")
+	cleaned = strings.TrimSuffix(cleaned, " min")
+	cleaned = strings.TrimSuffix(cleaned, " m")
+	cleaned = strings.TrimSpace(cleaned)
+
+	var duration time.Duration
+	var isRelative bool
+
+	if d, err := time.ParseDuration(cleaned); err == nil && d > 0 {
+		duration = d
+		isRelative = true
+	} else if d, err := time.ParseDuration(cleaned + "m"); err == nil && d > 0 {
+		duration = d
+		isRelative = true
+	} else if mins, err := strconv.Atoi(cleaned); err == nil && mins > 0 {
+		duration = time.Duration(mins) * time.Minute
+		isRelative = true
+	}
+
+	if isRelative {
+		target := nowInLoc.Add(duration)
+		cronExpr := fmt.Sprintf("%d %d %d %d *", target.Minute(), target.Hour(), target.Day(), int(target.Month()))
+		return cronExpr, target.UTC(), nil
+	}
+
+	sched, err := parser.Parse(schedule)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("invalid cron expression %q: %w. Expected 5 fields ('minute hour day-of-month month day-of-week') or relative offset (e.g. '+2m', '10m')", schedule, err)
+	}
+	return schedule, sched.Next(nowInLoc).UTC(), nil
 }

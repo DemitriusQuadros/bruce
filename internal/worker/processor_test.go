@@ -195,7 +195,7 @@ func TestProcessor_UsesSessionSystemPromptOverDefault(t *testing.T) {
 	})
 	require.NoError(t, proc.HandleProcessIncomingMessageTask(context.Background(), task))
 
-	assert.Equal(t, "session-specific prompt", llm.capturedPrompt)
+	assert.Contains(t, llm.capturedPrompt, "session-specific prompt")
 }
 
 func TestProcessor_UsesDBSystemPromptWhenNoSessionPrompt(t *testing.T) {
@@ -215,7 +215,7 @@ func TestProcessor_UsesDBSystemPromptWhenNoSessionPrompt(t *testing.T) {
 	})
 	require.NoError(t, proc.HandleProcessIncomingMessageTask(context.Background(), task))
 
-	assert.Equal(t, "database default prompt", llm.capturedPrompt)
+	assert.Contains(t, llm.capturedPrompt, "database default prompt")
 }
 
 func TestProcessor_UsesYAMLSystemPromptWhenNotInDB(t *testing.T) {
@@ -235,7 +235,7 @@ func TestProcessor_UsesYAMLSystemPromptWhenNotInDB(t *testing.T) {
 	})
 	require.NoError(t, proc.HandleProcessIncomingMessageTask(context.Background(), task))
 
-	assert.Equal(t, "yaml default prompt", llm.capturedPrompt)
+	assert.Contains(t, llm.capturedPrompt, "yaml default prompt")
 }
 
 func TestProcessor_RateLimitedErrorReturnsForRetry(t *testing.T) {

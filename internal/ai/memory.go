@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// ToolExecutionGuidelines contains multi-step execution and artifact generation instructions.
+// ToolExecutionGuidelines contains multi-step execution, scheduling, and artifact generation instructions.
 const ToolExecutionGuidelines = `
 
 <tool_execution_guidelines>
@@ -18,8 +18,14 @@ const ToolExecutionGuidelines = `
    - The 'content' field is MANDATORY and must contain the full, standalone HTML document (including <!DOCTYPE html>, <html>, <head>, <style>, and <body>). Do NOT call 'artifact_save' with only a filename or title.
    - Keep the HTML design clean, modern, well-structured, and concise. Avoid needlessly repetitive text to ensure fast generation.
    - Once 'artifact_save' succeeds, present the generated URL to the user in your final text response.
-3. Strict Anti-Hallucination:
-   - NEVER pretend or claim to have created, saved, or published a file or artifact unless you have actually called 'artifact_save' and received a successful result from the tool in this session.
+3. Scheduling & Proactive Reminders:
+   - When the user asks you to schedule a message, report, reminder, or monitor a condition (e.g. 'me manda um hello world daqui a 2 minutos', 'send me a message in 5 minutes', 'watch for emails'), you MUST invoke the 'proactive_create' tool.
+   - For relative offsets like 'in 2 minutes' or 'daqui a 5 minutos', pass 'type': 'cron' and 'schedule': '+2m' (or '+5m', '+10m', etc.).
+   - For recurring crons at a specific time of day (e.g. 'every day at 9am'), pass 'type': 'cron' and standard 5-token cron (e.g. '0 9 * * *').
+   - For ambient condition monitoring, pass 'type': 'watch' and the interval in minutes (e.g. '30', minimum 5).
+   - NEVER pretend or claim to have scheduled a task or set a reminder unless you have actually called 'proactive_create' and received a successful response from the tool in this turn.
+4. Strict Anti-Hallucination:
+   - NEVER pretend or claim to have created, saved, or published a file, artifact, or scheduled task unless you have actually called the corresponding tool ('artifact_save', 'proactive_create') and received a successful result in this session.
    - NEVER generate fake URLs like '/artifacts/...' or 'https://.../artifacts/...' in your text without executing the tool first.
 </tool_execution_guidelines>`
 
@@ -64,14 +70,32 @@ func FormatTimeGap(lastTime time.Time) string {
 	)
 }
 
+// FormatTemporalContext combines current date/time in timezone with any time gap notice.
+func FormatTemporalContext(now time.Time, tz string, timeGapNotice string) string {
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		loc = time.Local
+	}
+	t := now.In(loc)
+	out := fmt.Sprintf("Current Date & Time: %s (%s). Timezone: %s.",
+		t.Format("Monday, 2006-01-02 15:04:05 -0700"),
+		t.Format("2006-01-02 15:04"),
+		loc.String(),
+	)
+	if timeGapNotice != "" {
+		out += "\n" + timeGapNotice
+	}
+	return out
+}
+
 // BuildEffectiveSystemPrompt injects conversation summary and temporal context into the base system prompt.
-func BuildEffectiveSystemPrompt(basePrompt, summary, timeGapNotice string) string {
+func BuildEffectiveSystemPrompt(basePrompt, summary, temporalNotice string) string {
 	prompt := basePrompt
 	if summary != "" {
 		prompt += fmt.Sprintf("\n\n<conversation_context>\nBelow is a concise summary of previous conversation history and key facts for this session:\n%s\n</conversation_context>", summary)
 	}
-	if timeGapNotice != "" {
-		prompt += fmt.Sprintf("\n\n<temporal_context>\n%s\n</temporal_context>", timeGapNotice)
+	if temporalNotice != "" {
+		prompt += fmt.Sprintf("\n\n<temporal_context>\n%s\n</temporal_context>", temporalNotice)
 	}
 	return prompt
 }

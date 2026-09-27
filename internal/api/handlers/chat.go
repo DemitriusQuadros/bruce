@@ -227,7 +227,16 @@ func handleSendChatMessage(
 		}
 	}
 
-	effectiveSystemPrompt := ai.BuildEffectiveSystemPrompt(systemPrompt, summaryText, timeGapNotice)
+	appTz := "America/Sao_Paulo"
+	if configRepo != nil {
+		if dbTz, err := configRepo.Get("app.timezone"); err == nil && dbTz != "" {
+			appTz = dbTz
+		}
+	} else if cfg != nil && cfg.App.Timezone != "" {
+		appTz = cfg.App.Timezone
+	}
+	temporalContext := ai.FormatTemporalContext(time.Now(), appTz, timeGapNotice)
+	effectiveSystemPrompt := ai.BuildEffectiveSystemPrompt(systemPrompt, summaryText, temporalContext)
 
 	// 5. Fetch context window.
 	historyPtrs, err := messageRepo.GetContextWindow(sessionID, cfg.Claude.ContextWindow)

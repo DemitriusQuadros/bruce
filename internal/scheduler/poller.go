@@ -172,6 +172,12 @@ func (p *Poller) EvaluateDueTasks(ctx context.Context) {
 			continue
 		}
 
+		// If this was a one-off date-specific cron whose next run is more than 30 days away, deactivate it
+		if task.TaskType == domain.TaskTypeCron && nextRun.Sub(now) > 30*24*time.Hour {
+			_ = p.repo.UpdateStatus(ctx, task.ID, false)
+			log.Printf("INFO: one-off proactive task %s (%s) completed and deactivated", task.ID, task.Title)
+		}
+
 		if p.asynqClient == nil {
 			continue
 		}
