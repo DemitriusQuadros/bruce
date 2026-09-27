@@ -1,6 +1,8 @@
-# Bruce Documentation Index
-
-Welcome to the comprehensive technical documentation for **Bruce**, the self-hosted personal AI assistant.
+<div class="bruce-hero">
+  <img src="assets/bruce-logo.png" alt="Bruce Logo" />
+  <h1>Bruce Documentation</h1>
+  <p>A self-hosted, autonomous personal AI assistant that lives in your messaging apps with multi-step reasoning, proactive scheduling, and 12+ real-world tools.</p>
+</div>
 
 ---
 

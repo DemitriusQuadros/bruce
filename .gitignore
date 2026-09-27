@@ -35,3 +35,7 @@ data/
 # Node / UI test artifacts
 node_modules/
 test-results/
+
+# Documentation build and venvs
+site/
+.venv*

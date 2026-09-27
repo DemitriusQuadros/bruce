@@ -15,14 +15,14 @@ theme:
   favicon: assets/bruce-logo.png
   palette:
     - scheme: default
-      primary: deep purple
-      accent: indigo
+      primary: slate
+      accent: blue
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: deep purple
-      accent: indigo
+      primary: slate
+      accent: cyan
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -35,6 +35,9 @@ theme:
     - content.code.copy
     - search.suggest
     - search.highlight
+
+extra_css:
+  - stylesheets/extra.css
 
 extra_javascript:
   - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
