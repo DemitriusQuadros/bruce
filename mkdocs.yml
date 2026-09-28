@@ -36,6 +36,59 @@ theme:
     - search.suggest
     - search.highlight
 
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: pt
+          name: Português
+          build: true
+          nav_translations:
+            Overview: Visão Geral
+            Architecture: Arquitetura
+            System Overview: Visão Geral do Sistema
+            Autonomous Agent Loop: Loop do Agente Autônomo
+            Memory & Context: Memória & Contexto
+            Features: Recursos
+            Scheduler & Proactive Tasks: Agendador & Tarefas Proativas
+            Standalone HTML Artifacts: Artefatos HTML Autônomos
+            Multi-Provider LLM Engine: Motor LLM Multi-Provedor
+            Omnichannel Connectors: Conectores Omnichannel
+            Web Dashboard & REST API: Painel Web & API REST
+            Installation & Deployment: Instalação & Deploy
+            Docker Compose: Docker Compose
+            Bare-Metal Local Dev: Dev Local Bare-Metal
+            Homelab & Production: Homelab & Produção
+            Tools Reference: Referência de Ferramentas
+        - locale: es
+          name: Español
+          build: true
+          nav_translations:
+            Overview: Visión General
+            Architecture: Arquitectura
+            System Overview: Visión General del Sistema
+            Autonomous Agent Loop: Bucle del Agente Autónomo
+            Memory & Context: Memoria y Contexto
+            Features: Características
+            Scheduler & Proactive Tasks: Programador y Tareas Proactivas
+            Standalone HTML Artifacts: Artefactos HTML Autónomos
+            Multi-Provider LLM Engine: Motor LLM Multiproveedor
+            Omnichannel Connectors: Conectores Omnicanal
+            Web Dashboard & REST API: Panel Web y API REST
+            Installation & Deployment: Instalación y Despliegue
+            Docker Compose: Docker Compose
+            Bare-Metal Local Dev: Dev Local Bare-Metal
+            Homelab & Production: Homelab y Producción
+            Tools Reference: Referencia de Herramientas
+
 extra_css:
   - stylesheets/extra.css
 
