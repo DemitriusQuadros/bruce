@@ -1,10 +1,7 @@
 <div class="intro-hero">
   <img src="../assets/bruce-logo.png" alt="Bruce Logo" class="intro-logo" />
   <div class="intro-text">
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
-      <span class="intro-badge">Asistente de IA Personal</span>
-      <a href="https://github.com/DemitriusQuadros/bruce" target="_blank" class="intro-badge" style="text-decoration: none;">⭐ Código Abierto en GitHub</a>
-    </div>
+    <div class="intro-badge">Asistente de IA Personal</div>
     <h1 class="intro-title">Introducción</h1>
     <p class="intro-subtitle">Un asistente de IA personal, autónomo y autohospedado que vive directamente en tus aplicaciones de mensajería con razonamiento multipaso, programación proactiva y más de 15 herramientas del mundo real.</p>
   </div>

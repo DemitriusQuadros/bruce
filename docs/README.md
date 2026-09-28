@@ -1,10 +1,7 @@
 <div class="intro-hero">
   <img src="assets/bruce-logo.png" alt="Bruce Logo" class="intro-logo" />
   <div class="intro-text">
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
-      <span class="intro-badge">Personal AI Assistant</span>
-      <a href="https://github.com/DemitriusQuadros/bruce" target="_blank" class="intro-badge" style="text-decoration: none;">⭐ GitHub Open Source</a>
-    </div>
+    <div class="intro-badge">Personal AI Assistant</div>
     <h1 class="intro-title">Introduction</h1>
     <p class="intro-subtitle">A self-hosted, autonomous personal AI assistant that lives directly in your messaging apps with multi-step reasoning, proactive scheduling, and 15+ real-world tools.</p>
   </div>
