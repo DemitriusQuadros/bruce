@@ -1,156 +1,312 @@
 /* ==========================================================================
-   Bruce Documentation Custom Theme & Styling
+   TypeSafe AI / Mintlify Modern Layout & Styling
    ========================================================================== */
 
-/* --- Logo & Header Brand Styling --- */
+/* --- Clean, Seamless Header --- */
+.md-header {
+  box-shadow: none !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+[data-md-color-scheme="default"] .md-header {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+[data-md-color-scheme="slate"] .md-header {
+  background-color: rgba(11, 15, 25, 0.92) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Header Text, Logo & Controls */
+[data-md-color-scheme="default"] .md-header .md-header__button {
+  color: #475569;
+}
+[data-md-color-scheme="default"] .md-header .md-header__button:hover {
+  color: #0f172a;
+}
+[data-md-color-scheme="default"] .md-header__title {
+  color: #0f172a;
+}
+
+[data-md-color-scheme="slate"] .md-header .md-header__button {
+  color: #94a3b8;
+}
+[data-md-color-scheme="slate"] .md-header .md-header__button:hover {
+  color: #f8fafc;
+}
+[data-md-color-scheme="slate"] .md-header__title {
+  color: #f8fafc;
+}
+
+.md-header__title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.15rem;
+}
+
 .md-header__button.md-logo {
-  margin: 0.1rem 0.5rem 0.1rem 0;
-  padding: 0.2rem;
-  display: flex;
-  align-items: center;
+  margin: 0.1rem 0.6rem 0.1rem 0;
+  padding: 0.15rem;
 }
 
 .md-header__button.md-logo img,
 .md-header__button.md-logo svg {
   height: 2.2rem;
   width: auto;
-  max-height: 44px;
+  max-height: 42px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .md-header__button.md-logo:hover img {
-  transform: scale(1.08);
-}
-
-.md-header__title {
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  font-size: 1.15rem;
+  transform: scale(1.06);
 }
 
 /* Mobile Drawer Logo */
-.md-nav--primary .md-nav__title .md-logo {
-  margin-bottom: 0.6rem;
-  display: block;
-}
-
 .md-nav--primary .md-nav__title .md-logo img {
-  height: 3.2rem;
+  height: 2.8rem;
   width: auto;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+  margin-bottom: 0.5rem;
 }
 
-/* --- Color Theme Overrides (Modern Slate & Electric Accent) --- */
+/* --- Search Bar: Mintlify-style Pill Input --- */
+.md-search__inner {
+  padding: 0;
+}
 
-/* Light Mode: Clean Slate & Electric Blue */
+.md-search__form {
+  border-radius: 8px !important;
+  transition: all 0.2s ease;
+}
+
+[data-md-color-scheme="default"] .md-search__form {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+}
+
+[data-md-color-scheme="slate"] .md-search__form {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.md-search__form:hover,
+.md-search__form:focus-within {
+  border-color: var(--md-accent-fg-color) !important;
+  box-shadow: 0 0 0 2px var(--md-accent-fg-color--transparent);
+}
+
+/* --- Left Sidebar (Clean Mintlify Style) --- */
+.md-sidebar--primary {
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-md-color-scheme="slate"] .md-sidebar--primary {
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Group Section Header (e.g. GET STARTED, ARCHITECTURE) */
+.md-nav__item--section > .md-nav__link,
+.md-nav__item--section > label.md-nav__link {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b !important;
+  margin-top: 1.4rem;
+  margin-bottom: 0.35rem;
+  padding: 0.2rem 0.5rem;
+}
+
+[data-md-color-scheme="slate"] .md-nav__item--section > .md-nav__link,
+[data-md-color-scheme="slate"] .md-nav__item--section > label.md-nav__link {
+  color: #94a3b8 !important;
+}
+
+/* Navigation Links */
+.md-nav__link {
+  font-size: 0.88rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  color: var(--md-default-fg-color--light);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-nav__link:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: var(--md-default-fg-color);
+}
+
+[data-md-color-scheme="slate"] .md-nav__link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+}
+
+.md-nav__item--active > .md-nav__link {
+  font-weight: 600;
+  color: #0284c7 !important;
+  background-color: rgba(2, 132, 199, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-nav__item--active > .md-nav__link {
+  color: #38bdf8 !important;
+  background-color: rgba(56, 189, 248, 0.12);
+}
+
+/* --- Theme Colors (Crisp White / Deep Obsidian & Electric Blue) --- */
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color: #0f172a;        /* Deep Slate Navy Header */
-  --md-primary-fg-color--light: #1e293b;
-  --md-primary-fg-color--dark: #020617;
-  --md-accent-fg-color: #2563eb;         /* Electric Blue */
-  --md-accent-fg-color--transparent: rgba(37, 99, 235, 0.1);
-  --md-typeset-a-color: #2563eb;         /* Crisp hyperlink blue */
+  --md-primary-fg-color: #0f172a;
+  --md-accent-fg-color: #0284c7;
+  --md-accent-fg-color--transparent: rgba(2, 132, 199, 0.1);
+  --md-typeset-a-color: #0284c7;
+  --md-default-bg-color: #ffffff;
 }
 
-/* Dark Mode: Deep Midnight Obsidian & Sky Cyan */
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #090d16;        /* Sleek Midnight Obsidian Header */
-  --md-primary-fg-color--light: #111827;
-  --md-primary-fg-color--dark: #030712;
-  --md-accent-fg-color: #38bdf8;         /* Vibrant Sky Cyan Accent */
-  --md-accent-fg-color--transparent: rgba(56, 189, 248, 0.15);
-  --md-default-bg-color: #0b0f19;        /* Rich dark background */
-  --md-default-bg-color--light: #111827; /* Card / sidebar background */
-  --md-default-bg-color--lighter: #1f2937;
-  --md-typeset-a-color: #38bdf8;         /* Crisp hyperlink cyan */
+  --md-primary-fg-color: #0b0f19;
+  --md-accent-fg-color: #38bdf8;
+  --md-accent-fg-color--transparent: rgba(56, 189, 248, 0.14);
+  --md-typeset-a-color: #38bdf8;
+  --md-default-bg-color: #0b0f19;
+  --md-default-bg-color--light: #111827;
+  --md-default-bg-color--lighter: #1e293b;
 }
 
-/* Navigation tabs polish */
-.md-tabs {
-  background-color: var(--md-primary-fg-color);
+/* --- Content Typography & Headings --- */
+.md-typeset h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
+}
+
+.md-typeset h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-top: 2rem;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-md-color-scheme="slate"] .md-typeset h2 {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.md-tabs__link {
-  font-weight: 500;
-  font-size: 0.86rem;
-  letter-spacing: -0.01em;
-  opacity: 0.85;
-  transition: opacity 0.15s ease, color 0.15s ease;
+.md-typeset h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-top: 1.6rem;
+  margin-bottom: 0.6rem;
 }
 
-.md-tabs__link:hover,
-.md-tabs__item--active .md-tabs__link {
-  opacity: 1;
+/* Mintlify-style Lead Quote under H1 */
+.md-typeset > blockquote:first-of-type {
+  border-left: 3px solid var(--md-accent-fg-color);
+  background: transparent;
+  padding: 0.3rem 0 0.3rem 1.1rem;
+  margin: 0.5rem 0 1.5rem;
+  font-size: 1.12rem;
+  line-height: 1.6;
+  color: var(--md-default-fg-color--light);
 }
 
-/* Admonitions & Callouts */
+/* --- Mintlify-style Interactive Card Grid --- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.card {
+  display: block;
+  padding: 1.25rem 1.35rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-md-color-scheme="slate"] .card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+[data-md-color-scheme="slate"] .card:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.card .card-icon {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.card .card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+  color: var(--md-default-fg-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card .card-description {
+  font-size: 0.85rem;
+  color: var(--md-default-fg-color--light);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* --- Admonitions, Tables & Code Blocks --- */
 .md-typeset .admonition,
 .md-typeset details {
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  border-left-width: 4px;
 }
 
-/* Code Blocks & Tables */
 .md-typeset pre > code {
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.85rem;
-}
-
-.md-typeset table:not([class]) {
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-/* Mermaid Diagrams Centering & Polish */
-.mermaid {
-  display: flex;
-  justify-content: center;
-  margin: 1.5rem 0;
-  background: transparent;
-}
-
-/* Documentation Hero Card */
-.bruce-hero {
-  text-align: center;
-  padding: 2.5rem 1rem 1.5rem;
-  margin-bottom: 2rem;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.05) 0%, transparent 100%);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-[data-md-color-scheme="default"] .bruce-hero {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.03) 0%, transparent 100%);
+.md-typeset table:not([class]) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Mermaid Diagrams Container */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.02);
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.bruce-hero img {
-  width: 140px;
-  height: auto;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.18));
-  margin-bottom: 1rem;
-  transition: transform 0.3s ease;
-}
-
-.bruce-hero img:hover {
-  transform: translateY(-4px) scale(1.03);
-}
-
-.bruce-hero h1 {
-  margin: 0.5rem 0 0.8rem;
-  font-size: 2.2rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.bruce-hero p {
-  font-size: 1.15rem;
-  color: var(--md-default-fg-color--light);
-  max-width: 680px;
-  margin: 0 auto 1.5rem;
-  line-height: 1.6;
+[data-md-color-scheme="slate"] .mermaid {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }

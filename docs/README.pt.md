@@ -1,37 +1,63 @@
-<div class="bruce-hero">
-  <img src="../assets/bruce-logo.png" alt="Bruce Logo" />
-  <h1>Documentação do Bruce</h1>
-  <p>Um assistente de IA pessoal autônomo e auto-hospedado que vive nos seus apps de mensagens, com raciocínio multi-etapas, agendamento proativo e mais de 12 ferramentas do mundo real.</p>
+# Introdução
+
+> O Bruce é um assistente de IA pessoal autônomo e auto-hospedado que vive diretamente nos seus aplicativos de mensagens (Discord, WhatsApp, Telegram, Web). Ele conta com raciocínio multi-etapas, agendamento proativo em segundo plano e mais de 12 ferramentas do mundo real.
+
+A maioria das interfaces de chat com IA são simples geradores de texto: você faz uma pergunta, elas retornam texto. Quando você precisa que uma IA execute ações no mundo real em seu nome — agendar lembretes, revisar pull requests, consultar bancos de dados ou construir painéis interativos —, você precisa de um sistema autônomo que raciocine em loops multi-etapas e utilize ferramentas diretamente.
+
+O Bruce roda como um binário Go único e independente com os recursos do painel web embutidos e um banco SQLite local em modo Write-Ahead Log (WAL). As mensagens recebidas das suas plataformas de chat são desacopladas por uma fila assíncrona no Redis (Asynq), permitindo que o Bruce realize pesquisas longas, encadeamento de ferramentas e tarefas agendadas sem travar ou perder mensagens.
+
+```mermaid
+flowchart LR
+    user["<b>Você</b><br/>WhatsApp · Discord · Telegram"]
+    
+    subgraph core["Núcleo do Bruce"]
+        queue["Fila Assíncrona Redis<br/>(Asynq)"]
+        loop["Loop do Agente Autônomo<br/>(RunAgentLoop)"]
+        tools["Registro de Ferramentas<br/>Busca · Arquivos · Git · Google"]
+    end
+    
+    ai["<b>Provedores de IA</b><br/>Claude · Gemini · OpenAI"]
+    
+    user -- "mensagem" --> queue
+    queue --> loop
+    loop <--> ai
+    loop <--> tools
+    loop -- "resposta direta ou artefato" --> user
+```
+
+## Primitivas Principais
+
+O Bruce foi construído com base em cinco primitivas fundamentais projetadas para automação pessoal e produtividade diária:
+
+| Primitiva | Finalidade | Como Funciona |
+| --- | --- | --- |
+| [**Loop Autônomo**](architecture/agent-loop.md) | Raciocínio multi-etapas | Executa dinamicamente ferramentas em sequência até solucionar comandos complexos. |
+| [**Agendador Proativo**](features/scheduler-and-proactive.md) | Tarefas temporizadas & alertas | Execução em modo duplo: lembretes diretos sem tokens (`message`) ou relatórios inteligentes (`agent`). |
+| [**Artefatos HTML**](features/artifacts.md) | Documentos web interativos | Gera dashboards, calculadoras e relatórios HTML autônomos acessíveis via `/artifacts/...`. |
+| [**Memória Híbrida**](architecture/memory-and-context.md) | Continuidade de contexto | Janela deslizante de mensagens recentes + sumarização automática de longo prazo em background. |
+| [**Conectores Omnichannel**](features/connectors.md) | Uma só IA, em todo lugar | Conecta-se simultaneamente ao Discord, WhatsApp, Telegram e Web Chat integrado. |
+
+## Navegação Rápida
+
+<div class="card-grid">
+  <a href="guides/installation-docker/" class="card">
+    <span class="card-icon">🚀</span>
+    <span class="card-title">Início Rápido com Docker</span>
+    <span class="card-description">Implante o Bruce em menos de 2 minutos com dados persistentes e Redis.</span>
+  </a>
+  <a href="architecture/overview/" class="card">
+    <span class="card-icon">🏛️</span>
+    <span class="card-title">Arquitetura do Sistema</span>
+    <span class="card-description">Entenda a persistência SQLite WAL, filas Asynq e ciclos de vida resilientes.</span>
+  </a>
+  <a href="features/scheduler-and-proactive/" class="card">
+    <span class="card-icon">⚡</span>
+    <span class="card-title">Agendador & Lembretes</span>
+    <span class="card-description">Agende lembretes diretos ou briefings recorrentes de IA usando linguagem natural.</span>
+  </a>
+  <a href="tools/reference/" class="card">
+    <span class="card-icon">🛠️</span>
+    <span class="card-title">Referência de Ferramentas</span>
+    <span class="card-description">Conheça as mais de 15 ferramentas nativas para busca, bash, git e Google Workspace.</span>
+  </a>
 </div>
-
----
-
-## 🏛️ Arquitetura do Sistema
-
-- [Visão Geral da Arquitetura](architecture/overview.md) — Componentes de execução, filas de tarefas Asynq, persistência SQLite WAL e ciclo de vida.
-- [Loop do Agente Autônomo (`RunAgentLoop`)](architecture/agent-loop.md) — Execução de ferramentas em multi-etapas, ciclos de raciocínio e salvaguardas anti-alucinação.
-- [Memória, Contexto & Sumarização](architecture/memory-and-context.md) — Injeção de relógio temporal em tempo real, janela deslizante de contexto e sumarização em background de sessões de longo prazo.
-
----
-
-## 🚀 Instalação & Deploy
-
-- [Guia de Instalação com Docker Compose](guides/installation-docker.md) — Configuração para produção com volumes persistentes, Redis e verificações de integridade (health checks).
-- [Desenvolvimento Local Bare-Metal](guides/installation-local.md) — Compilação a partir do código fonte (`CGO_ENABLED=1`), Redis local e execução de testes.
-- [Deploy em Homelab & Produção](guides/deployment-homelab.md) — Proxy reverso Caddy/Nginx, TLS automático, malha privada Tailscale e serviços systemd.
-
----
-
-## ⚡ Recursos Principais
-
-- [Agendador & Tarefas Proativas](features/scheduler-and-proactive.md) — Modos duplos de execução (**`message`** para entrega direta vs **`agent`** para briefings gerados pela IA), offsets relativos (`+2m`, `daqui a 2 minutos`), monitoramento de condições ambientais e mecanismo do poller.
-- [Motor de Artefatos HTML Autônomos](features/artifacts.md) — Geração, hospedagem (`/artifacts/...`) e visualização de documentos HTML ricos, dashboards e calculadoras.
-- [Motor LLM Multi-Provedor](features/llm-providers.md) — Integração com Claude, Gemini e OpenAI com alternância dinâmica de provedores em tempo de execução.
-- [Guia de Conectores Omnichannel](features/connectors.md) — Guias completos de configuração para Discord, WhatsApp (`whatsmeow`), Telegram e Web Chat.
-- [Painel Web & Referência da API REST](features/dashboard-and-api.md) — Navegação na interface Web, monitor de filas de tarefas Asynqmon e endpoints da API REST.
-
----
-
-## 🛠️ Referência de Ferramentas
-
-- [Referência de Ferramentas Nativas](tools/reference.md) — Esquemas de parâmetros completos, requisitos de configuração e exemplos de uso para mais de 15 ferramentas integradas.

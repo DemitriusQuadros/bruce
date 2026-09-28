@@ -15,8 +15,8 @@ theme:
   favicon: assets/bruce-logo.png
   palette:
     - scheme: default
-      primary: slate
-      accent: blue
+      primary: white
+      accent: indigo
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
@@ -27,9 +27,9 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.tabs
     - navigation.sections
     - navigation.expand
+    - navigation.path
     - navigation.top
     - navigation.tracking
     - content.code.copy
