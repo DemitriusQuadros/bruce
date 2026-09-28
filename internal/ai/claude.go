@@ -19,6 +19,7 @@ type claudeProvider struct {
 	model      string
 	maxTokens  int
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewClaudeProvider returns an LLMService backed by the Anthropic Claude API.
@@ -30,6 +31,14 @@ func NewClaudeProvider(cfg config.ClaudeConfig) LLMService {
 		httpClient: &http.Client{Timeout: 120 * time.Second},
 	}
 }
+
+func (c *claudeProvider) endpoint() string {
+	if c.baseURL != "" {
+		return c.baseURL + "/v1/messages"
+	}
+	return "https://api.anthropic.com/v1/messages"
+}
+
 
 type anthropicRequest struct {
 	Model     string             `json:"model"`
@@ -95,7 +104,7 @@ func (c *claudeProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://api.anthropic.com/v1/messages", bytes.NewReader(bodyBytes))
+		c.endpoint(), bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", fmt.Errorf("build request: %w", err)
 	}
@@ -212,7 +221,7 @@ func (c *claudeProvider) GenerateWithTools(ctx context.Context, systemPrompt str
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://api.anthropic.com/v1/messages", bytes.NewReader(bodyBytes))
+		c.endpoint(), bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
