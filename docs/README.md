@@ -1,9 +1,12 @@
 <div class="intro-hero">
   <img src="assets/bruce-logo.png" alt="Bruce Logo" class="intro-logo" />
   <div class="intro-text">
-    <div class="intro-badge">Personal AI Assistant</div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+      <span class="intro-badge">Personal AI Assistant</span>
+      <a href="https://github.com/DemitriusQuadros/bruce" target="_blank" class="intro-badge" style="text-decoration: none;">⭐ GitHub Open Source</a>
+    </div>
     <h1 class="intro-title">Introduction</h1>
-    <p class="intro-subtitle">A self-hosted, autonomous personal AI assistant that lives directly in your messaging apps with multi-step reasoning, proactive scheduling, and 12+ real-world tools.</p>
+    <p class="intro-subtitle">A self-hosted, autonomous personal AI assistant that lives directly in your messaging apps with multi-step reasoning, proactive scheduling, and 15+ real-world tools.</p>
   </div>
 </div>
 
@@ -66,3 +69,12 @@ Bruce is built around five core primitives designed for personal automation and 
     <span class="card-description">Explore the 15+ built-in tools for search, bash, git, and Google Workspace.</span>
   </a>
 </div>
+
+## Open Source & Community
+
+Bruce is an independent, 100% open-source project released under the **MIT License**.
+
+- 🐙 **Source Code**: [GitHub Repository (DemitriusQuadros/bruce)](https://github.com/DemitriusQuadros/bruce)
+- 🐛 **Issues & Feedback**: [Report bugs or request features](https://github.com/DemitriusQuadros/bruce/issues)
+- 💡 **Contribute**: Pull requests for new tools, connectors, and optimizations are warmly welcomed!
+- ⭐ **Star**: If Bruce helps your daily routine, please [star the project on GitHub](https://github.com/DemitriusQuadros/bruce)!

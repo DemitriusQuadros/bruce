@@ -1,9 +1,12 @@
 <div class="intro-hero">
   <img src="../assets/bruce-logo.png" alt="Bruce Logo" class="intro-logo" />
   <div class="intro-text">
-    <div class="intro-badge">Assistente de IA Pessoal</div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+      <span class="intro-badge">Assistente de IA Pessoal</span>
+      <a href="https://github.com/DemitriusQuadros/bruce" target="_blank" class="intro-badge" style="text-decoration: none;">⭐ Código Aberto no GitHub</a>
+    </div>
     <h1 class="intro-title">Introdução</h1>
-    <p class="intro-subtitle">Um assistente de IA pessoal autônomo e auto-hospedado que vive diretamente nos seus aplicativos de mensagens com raciocínio multi-etapas, agendamento proativo e mais de 12 ferramentas do mundo real.</p>
+    <p class="intro-subtitle">Um assistente de IA pessoal autônomo e auto-hospedado que vive diretamente nos seus aplicativos de mensagens com raciocínio multi-etapas, agendamento proativo e mais de 15 ferramentas do mundo real.</p>
   </div>
 </div>
 
@@ -58,11 +61,20 @@ O Bruce foi construído com base em cinco primitivas fundamentais projetadas par
   <a href="features/scheduler-and-proactive/" class="card">
     <span class="card-icon">⚡</span>
     <span class="card-title">Agendador & Lembretes</span>
-    <span class="card-description">Agende lembretes diretos ou briefings recorrentes de IA usando linguagem natural.</span>
+    <span class="card-description">Agende lembretes diretos ou briefings recorrentes via linguagem natural.</span>
   </a>
   <a href="tools/reference/" class="card">
     <span class="card-icon">🛠️</span>
     <span class="card-title">Referência de Ferramentas</span>
-    <span class="card-description">Conheça as mais de 15 ferramentas nativas para busca, bash, git e Google Workspace.</span>
+    <span class="card-description">Explore as mais de 15 ferramentas nativas para busca, bash, git e Google Workspace.</span>
   </a>
 </div>
+
+## Código Aberto & Comunidade
+
+O Bruce é um projeto 100% de código aberto sob a licença **MIT**, feito para quem busca controle total e soberania sobre sua IA.
+
+- 🐙 **Código Fonte**: [Repositório GitHub (DemitriusQuadros/bruce)](https://github.com/DemitriusQuadros/bruce)
+- 🐛 **Problemas e Sugestões**: [Abra uma issue no GitHub](https://github.com/DemitriusQuadros/bruce/issues)
+- 💡 **Contribua**: Pull requests para novas ferramentas, conectores e melhorias são super bem-vindos!
+- ⭐ **Apoie**: Se o Bruce é útil para você, deixe uma [estrela no repositório](https://github.com/DemitriusQuadros/bruce)!

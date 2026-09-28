@@ -1,9 +1,12 @@
 <div class="intro-hero">
   <img src="../assets/bruce-logo.png" alt="Bruce Logo" class="intro-logo" />
   <div class="intro-text">
-    <div class="intro-badge">Asistente de IA Personal</div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+      <span class="intro-badge">Asistente de IA Personal</span>
+      <a href="https://github.com/DemitriusQuadros/bruce" target="_blank" class="intro-badge" style="text-decoration: none;">⭐ Código Abierto en GitHub</a>
+    </div>
     <h1 class="intro-title">Introducción</h1>
-    <p class="intro-subtitle">Un asistente de IA personal, autónomo y autohospedado que vive directamente en tus aplicaciones de mensajería con razonamiento multipaso, programación proactiva y más de 12 herramientas del mundo real.</p>
+    <p class="intro-subtitle">Un asistente de IA personal, autónomo y autohospedado que vive directamente en tus aplicaciones de mensajería con razonamiento multipaso, programación proactiva y más de 15 herramientas del mundo real.</p>
   </div>
 </div>
 
@@ -58,11 +61,20 @@ Bruce está diseñado en torno a cinco primitivas esenciales pensadas para la au
   <a href="features/scheduler-and-proactive/" class="card">
     <span class="card-icon">⚡</span>
     <span class="card-title">Programador y Recordatorios</span>
-    <span class="card-description">Programa recordatorios directos o informes de IA periódicos en lenguaje natural.</span>
+    <span class="card-description">Programa recordatorios directos o informes de IA recurrentes mediante lenguaje natural.</span>
   </a>
   <a href="tools/reference/" class="card">
     <span class="card-icon">🛠️</span>
     <span class="card-title">Referencia de Herramientas</span>
-    <span class="card-description">Explora las más de 15 herramientas nativas para búsqueda, terminal, git y Google Workspace.</span>
+    <span class="card-description">Explora las más de 15 herramientas integradas para búsqueda, bash, git y Google Workspace.</span>
   </a>
 </div>
+
+## Código Abierto y Comunidad
+
+Bruce es un proyecto 100% de código abierto publicado bajo la licencia **MIT**.
+
+- 🐙 **Código Fuente**: [Repositorio en GitHub (DemitriusQuadros/bruce)](https://github.com/DemitriusQuadros/bruce)
+- 🐛 **Problemas y Sugerencias**: [Abre una incidencia en GitHub](https://github.com/DemitriusQuadros/bruce/issues)
+- 💡 **Contribuye**: ¡Las contribuciones con nuevas herramientas, conectores o documentación son bienvenidas!
+- ⭐ **Apoya**: Si Bruce te resulta útil, ¡apoya el proyecto con [una estrella en GitHub](https://github.com/DemitriusQuadros/bruce)!
