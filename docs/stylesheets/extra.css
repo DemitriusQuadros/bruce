@@ -11,8 +11,8 @@
 }
 
 [data-md-color-scheme="default"] .md-header {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-  border-bottom: 1px solid #e2e8f0;
+  background-color: rgba(250, 247, 242, 0.92) !important;
+  border-bottom: 1px solid #e7dfd1;
 }
 
 [data-md-color-scheme="slate"] .md-header {
@@ -22,13 +22,13 @@
 
 /* Header Text, Logo & Controls */
 [data-md-color-scheme="default"] .md-header .md-header__button {
-  color: #475569;
+  color: #5f574d;
 }
 [data-md-color-scheme="default"] .md-header .md-header__button:hover {
-  color: #0f172a;
+  color: #262320;
 }
 [data-md-color-scheme="default"] .md-header__title {
-  color: #0f172a;
+  color: #262320;
 }
 
 [data-md-color-scheme="slate"] .md-header .md-header__button {
@@ -65,11 +65,16 @@
   transform: scale(1.06);
 }
 
-/* Mobile Drawer Logo */
+/* Mobile Drawer Logo & Header */
 .md-nav--primary .md-nav__title .md-logo img {
   height: 2.8rem;
   width: auto;
   margin-bottom: 0.5rem;
+}
+
+[data-md-color-scheme="default"] .md-nav--primary .md-nav__title[for="__drawer"] {
+  background-color: #f0ebe0;
+  color: #262320;
 }
 
 /* --- Search Bar: Mintlify-style Pill Input --- */
@@ -83,8 +88,22 @@
 }
 
 [data-md-color-scheme="default"] .md-search__form {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
+  background-color: #f0ebe0;
+  border: 1px solid #dcd3c2;
+}
+
+[data-md-color-scheme="default"] .md-search__input {
+  color: #262320 !important;
+}
+
+[data-md-color-scheme="default"] .md-search__input::placeholder {
+  color: #877e71 !important;
+}
+
+[data-md-color-scheme="default"] .md-search__output {
+  background-color: #faf7f2;
+  border: 1px solid #e7dfd1;
+  box-shadow: 0 8px 24px rgba(45, 35, 20, 0.08);
 }
 
 [data-md-color-scheme="slate"] .md-search__form {
@@ -103,6 +122,14 @@
   border-right: 1px solid rgba(0, 0, 0, 0.06);
 }
 
+[data-md-color-scheme="default"] .md-sidebar--primary {
+  border-right: 1px solid #e8e0d2;
+}
+
+[data-md-color-scheme="default"] .md-sidebar--secondary {
+  border-left: 1px solid #e8e0d2;
+}
+
 [data-md-color-scheme="slate"] .md-sidebar--primary {
   border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -114,7 +141,7 @@
   font-weight: 700 !important;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #64748b !important;
+  color: #7c7365 !important;
   margin-top: 1.4rem;
   margin-bottom: 0.35rem;
   padding: 0.2rem 0.5rem;
@@ -131,13 +158,17 @@
   line-height: 1.4 !important;
   padding: 0.28rem 0.6rem !important;
   border-radius: 6px;
-  color: var(--md-default-fg-color--light);
+  color: #5a5349;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .md-nav__link:hover {
-  background-color: rgba(0, 0, 0, 0.04);
-  color: var(--md-default-fg-color);
+  background-color: rgba(50, 40, 25, 0.05);
+  color: #1e1b18;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link {
+  color: var(--md-default-fg-color--light);
 }
 
 [data-md-color-scheme="slate"] .md-nav__link:hover {
@@ -148,7 +179,7 @@
 .md-nav__item--active > .md-nav__link {
   font-weight: 600;
   color: #0284c7 !important;
-  background-color: rgba(2, 132, 199, 0.08);
+  background-color: rgba(2, 132, 199, 0.09);
 }
 
 [data-md-color-scheme="slate"] .md-nav__item--active > .md-nav__link {
@@ -164,13 +195,15 @@
   margin: 0.5rem 0 2rem;
   padding: 1.5rem;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  border: 1px solid #e6ded0;
+  box-shadow: 0 3px 12px rgba(45, 35, 20, 0.04);
 }
 
 [data-md-color-scheme="slate"] .intro-hero {
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: none;
 }
 
 .intro-hero .intro-logo {
@@ -232,13 +265,38 @@
   }
 }
 
-/* --- Theme Colors (Crisp White / Deep Obsidian & Electric Blue) --- */
+/* --- Theme Colors (Warm Paper Cream / Deep Obsidian & Electric Blue) --- */
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color: #0f172a;
+  --md-primary-fg-color: #262320;
   --md-accent-fg-color: #0284c7;
   --md-accent-fg-color--transparent: rgba(2, 132, 199, 0.1);
-  --md-typeset-a-color: #0284c7;
-  --md-default-bg-color: #ffffff;
+  --md-typeset-a-color: #0369a1;
+
+  /* Warm paper canvas & surfaces */
+  --md-default-bg-color: #faf7f2;
+  --md-default-bg-color--light: #f3efe6;
+  --md-default-bg-color--lighter: #ebe4d7;
+  --md-default-bg-color--lightest: #ded6c5;
+
+  /* Warm ink & graphite typography */
+  --md-default-fg-color: #262320;
+  --md-default-fg-color--light: #5f574d;
+  --md-default-fg-color--lighter: #877e71;
+  --md-default-fg-color--lightest: #b5aba0;
+
+  /* Warm paper code block defaults */
+  --md-code-bg-color: #f1ede4;
+  --md-code-fg-color: #262320;
+
+  /* Warm shadows */
+  --md-shadow-z1: 0 2px 8px rgba(45, 35, 20, 0.04);
+  --md-shadow-z2: 0 4px 16px rgba(45, 35, 20, 0.08);
+  --md-shadow-z3: 0 8px 24px rgba(45, 35, 20, 0.12);
+}
+
+body[data-md-color-scheme="default"] {
+  background-color: #faf7f2 !important;
+  color: #262320 !important;
 }
 
 [data-md-color-scheme="slate"] {
@@ -261,6 +319,13 @@
   line-height: 1.25;
 }
 
+[data-md-color-scheme="default"] .md-typeset h1,
+[data-md-color-scheme="default"] .md-typeset h2,
+[data-md-color-scheme="default"] .md-typeset h3,
+[data-md-color-scheme="default"] .md-typeset h4 {
+  color: #1e1b18;
+}
+
 .md-typeset h2 {
   font-size: 1.45rem;
   font-weight: 700;
@@ -268,7 +333,7 @@
   margin-top: 2rem;
   margin-bottom: 0.8rem;
   padding-bottom: 0.3rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid #e8e0d2;
 }
 
 [data-md-color-scheme="slate"] .md-typeset h2 {
@@ -280,6 +345,10 @@
   font-weight: 600;
   margin-top: 1.6rem;
   margin-bottom: 0.6rem;
+}
+
+[data-md-color-scheme="default"] .md-typeset hr {
+  border-bottom: 1px solid #e8e0d2;
 }
 
 /* Mintlify-style Lead Quote under H1 */
@@ -305,8 +374,9 @@
   display: block;
   padding: 1.25rem 1.35rem;
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid #e6ded0;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(45, 35, 20, 0.03);
   text-decoration: none !important;
   color: inherit !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -315,12 +385,13 @@
 [data-md-color-scheme="slate"] .card {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
+  box-shadow: none;
 }
 
 .card:hover {
   transform: translateY(-2px);
   border-color: var(--md-accent-fg-color);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(45, 35, 20, 0.08);
 }
 
 [data-md-color-scheme="slate"] .card:hover {
@@ -360,16 +431,58 @@
   border-left-width: 4px;
 }
 
+[data-md-color-scheme="default"] .md-typeset .admonition,
+[data-md-color-scheme="default"] .md-typeset details {
+  background-color: #f6f1e8;
+  border: 1px solid #e6dfd1;
+  border-left-width: 4px;
+}
+
+/* Inline Code */
+[data-md-color-scheme="default"] :not(pre) > code {
+  background-color: #f1ede3;
+  color: #b43403;
+  border: 1px solid #e2d9c8;
+  border-radius: 5px;
+  padding: 0.15em 0.4em;
+  font-size: 0.85em;
+}
+
+/* Code Blocks */
 .md-typeset pre > code {
   border-radius: 10px;
   font-size: 0.85rem;
+}
+
+[data-md-color-scheme="default"] .md-typeset pre > code {
+  background-color: #f3efe5;
+  border: 1px solid #e2dac9;
+  color: #262320;
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre > code {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .md-typeset table:not([class]) {
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(45, 35, 20, 0.04);
+}
+
+[data-md-color-scheme="default"] .md-typeset table:not([class]) {
+  border: 1px solid #e6dfd1;
+  background-color: #ffffff;
+}
+
+[data-md-color-scheme="default"] .md-typeset table:not([class]) th {
+  background-color: #f0ebe0;
+  color: #1e1b18;
+  border-bottom: 1px solid #e2dac9;
+}
+
+[data-md-color-scheme="default"] .md-typeset table:not([class]) td {
+  border-top: 1px solid #eee8dc;
 }
 
 /* Mermaid Diagrams Container */
@@ -379,11 +492,13 @@
   margin: 2rem 0;
   padding: 1.5rem;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  border: 1px solid #e6ded0;
+  box-shadow: 0 2px 8px rgba(45, 35, 20, 0.03);
 }
 
 [data-md-color-scheme="slate"] .mermaid {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
