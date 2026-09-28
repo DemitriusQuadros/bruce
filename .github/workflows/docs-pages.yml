@@ -37,7 +37,10 @@ jobs:
           pip install mkdocs-material mkdocs-static-i18n
 
       - name: Build documentation
-        run: mkdocs build
+        run: |
+          mkdocs build
+          cp -r site/assets site/pt/ || true
+          cp -r site/assets site/es/ || true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

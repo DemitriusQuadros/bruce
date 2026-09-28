@@ -1,5 +1,5 @@
 <div class="bruce-hero">
-  <img src="assets/bruce-logo.png" alt="Bruce Logo" />
+  <img src="../assets/bruce-logo.png" alt="Bruce Logo" />
   <h1>Documentación de Bruce</h1>
   <p>Un asistente de IA personal, autónomo y autohospedado que vive en tus aplicaciones de mensajería, con razonamiento multipaso, programación proactiva y más de 12 herramientas del mundo real.</p>
 </div>
