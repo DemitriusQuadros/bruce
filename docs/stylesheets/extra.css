@@ -492,9 +492,71 @@ body[data-md-color-scheme="default"] {
   margin: 2rem 0;
   padding: 1.5rem;
   border-radius: 12px;
-  background: #ffffff;
+  background: #f7f3eb;
   border: 1px solid #e6ded0;
   box-shadow: 0 2px 8px rgba(45, 35, 20, 0.03);
+  overflow-x: auto;
+}
+
+[data-md-color-scheme="default"] .mermaid {
+  background: #f7f3eb;
+  border: 1px solid #e6ded0;
+}
+
+[data-md-color-scheme="default"] .mermaid svg {
+  background-color: transparent !important;
+}
+
+/* Node boxes in charts */
+[data-md-color-scheme="default"] .mermaid .node rect,
+[data-md-color-scheme="default"] .mermaid .node circle,
+[data-md-color-scheme="default"] .mermaid .node ellipse,
+[data-md-color-scheme="default"] .mermaid .node polygon,
+[data-md-color-scheme="default"] .mermaid .node path {
+  fill: #ffffff !important;
+  stroke: #d8cfbf !important;
+}
+
+/* Subgraph / cluster containers */
+[data-md-color-scheme="default"] .mermaid .cluster rect {
+  fill: #ede7db !important;
+  stroke: #d8cfbf !important;
+}
+
+/* Connection lines and arrows */
+[data-md-color-scheme="default"] .mermaid .edgePath .path,
+[data-md-color-scheme="default"] .mermaid .flowchart-link {
+  stroke: #665e53 !important;
+}
+
+[data-md-color-scheme="default"] .mermaid .marker {
+  fill: #665e53 !important;
+  stroke: #665e53 !important;
+}
+
+/* Labels & text inside charts */
+[data-md-color-scheme="default"] .mermaid .node .label text,
+[data-md-color-scheme="default"] .mermaid .node .label div,
+[data-md-color-scheme="default"] .mermaid .node .label span,
+[data-md-color-scheme="default"] .mermaid .cluster-label span,
+[data-md-color-scheme="default"] .mermaid .cluster-label text {
+  fill: #262320 !important;
+  color: #262320 !important;
+}
+
+/* Edge labels */
+[data-md-color-scheme="default"] .mermaid .edgeLabel {
+  background-color: #f7f3eb !important;
+  color: #5f574d !important;
+}
+
+[data-md-color-scheme="default"] .mermaid .edgeLabel rect {
+  fill: #f7f3eb !important;
+  opacity: 0.95 !important;
+}
+
+[data-md-color-scheme="default"] .mermaid .edgeLabel span {
+  color: #5f574d !important;
 }
 
 [data-md-color-scheme="slate"] .mermaid {
