@@ -96,7 +96,7 @@ func (t *ArtifactSaveTool) Name() string { return "artifact_save" }
 func (t *ArtifactSaveTool) Definition() ai.ToolDefinition {
 	return ai.ToolDefinition{
 		Name:        "artifact_save",
-		Description: "Save a generated document, report, dashboard, table, or web page as an artifact. HTML files will be immediately rendered as static web pages at /artifacts/<filename>. Always use this tool when the user asks you to create, export, or generate an HTML page or report.",
+		Description: "Save a generated document, report, dashboard, table, or web page as an artifact. HTML files will be immediately rendered as static web pages at /artifacts/<filename>. When creating HTML artifacts, ALWAYS design them according to Bruce's official dark theme (palette: #0f1117 background, #1e2130 cards, #2d3148 borders, #00d4ff cyan accents, #e2e8f0 text) and include <link rel=\"stylesheet\" href=\"/css/bruce-theme.css\"> in <head>.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -141,6 +141,9 @@ func (t *ArtifactSaveTool) Execute(ctx context.Context, input map[string]interfa
 	if err != nil {
 		return nil, err
 	}
+
+	// Ensure HTML artifacts are styled with Bruce's unified design system
+	content = prepareHTMLArtifact(cleanFilename, content)
 
 	dir := resolveArtifactsDir(t.cfg)
 	targetPath := filepath.Join(dir, cleanFilename)
@@ -319,3 +322,53 @@ func (t *ArtifactReadTool) Execute(_ context.Context, input map[string]interface
 
 	return string(data), nil
 }
+
+// prepareHTMLArtifact ensures HTML documents link Bruce's official stylesheet and follow the unified design system.
+func prepareHTMLArtifact(filename, content string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if ext != ".html" && ext != ".htm" {
+		return content
+	}
+
+	if strings.Contains(content, "bruce-theme.css") {
+		return content
+	}
+
+	themeLink := `<link rel="stylesheet" href="/css/bruce-theme.css">`
+	lower := strings.ToLower(content)
+
+	// If </head> exists, inject right before </head>
+	if idx := strings.Index(lower, "</head>"); idx != -1 {
+		return content[:idx] + "    " + themeLink + "\n" + content[idx:]
+	}
+
+	// If <head> exists without </head>
+	if idx := strings.Index(lower, "<head>"); idx != -1 {
+		insertAt := idx + len("<head>")
+		return content[:insertAt] + "\n    " + themeLink + content[insertAt:]
+	}
+
+	// If <html> exists without <head>
+	if idx := strings.Index(lower, "<html"); idx != -1 {
+		endTag := strings.Index(content[idx:], ">")
+		if endTag != -1 {
+			insertAt := idx + endTag + 1
+			return content[:insertAt] + "\n<head>\n    " + themeLink + "\n</head>" + content[insertAt:]
+		}
+	}
+
+	// Bare HTML fragment without <html> tag: wrap in a complete HTML document
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>%s</title>
+    %s
+</head>
+<body>
+%s
+</body>
+</html>`, filename, themeLink, content)
+}
+

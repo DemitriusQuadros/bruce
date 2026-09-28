@@ -106,3 +106,30 @@ func TestArtifactSecurity(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "path traversal forbidden")
 }
+
+func TestPrepareHTMLArtifact(t *testing.T) {
+	// 1. With existing <head>
+	inputWithHead := "<!DOCTYPE html><html><head><title>Test</title></head><body><h1>Hello</h1></body></html>"
+	out1 := prepareHTMLArtifact("report.html", inputWithHead)
+	assert.Contains(t, out1, `<link rel="stylesheet" href="/css/bruce-theme.css">`)
+	assert.Contains(t, out1, "<title>Test</title>")
+	assert.Contains(t, out1, "</head>")
+
+	// 2. Already contains bruce-theme.css
+	inputAlreadyLinked := `<!DOCTYPE html><html><head><link rel="stylesheet" href="/css/bruce-theme.css"></head><body><h1>Hello</h1></body></html>`
+	out2 := prepareHTMLArtifact("report.html", inputAlreadyLinked)
+	assert.Equal(t, inputAlreadyLinked, out2)
+
+	// 3. Raw fragment without <html>
+	inputFragment := `<div class="card"><h3>Dashboard Summary</h3></div>`
+	out3 := prepareHTMLArtifact("dashboard.html", inputFragment)
+	assert.Contains(t, out3, "<!DOCTYPE html>")
+	assert.Contains(t, out3, `<link rel="stylesheet" href="/css/bruce-theme.css">`)
+	assert.Contains(t, out3, `<div class="card"><h3>Dashboard Summary</h3></div>`)
+
+	// 4. Non-HTML file should not be modified
+	inputMD := "# Markdown Report\nThis is text."
+	out4 := prepareHTMLArtifact("report.md", inputMD)
+	assert.Equal(t, inputMD, out4)
+}
+

@@ -1,0 +1,357 @@
+/* ==========================================================================
+   Bruce Official Design System - Unified Theme for HTML Artifacts & Reports
+   ========================================================================== */
+
+:root {
+    --bg: #0f1117;
+    --bg-card: #1e2130;
+    --bg-card-hover: #262940;
+    --bg-card-alt: #161824;
+    --bg-surface: #1e2130;
+    --border: #2d3148;
+    --border-subtle: #24273b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --text-white: #ffffff;
+    --accent: #00d4ff;
+    --accent-dim: rgba(0, 212, 255, 0.12);
+    --accent-hover: #38bdf8;
+    --green: #00ff88;
+    --green-dim: rgba(0, 255, 136, 0.12);
+    --red: #ff4d6d;
+    --red-dim: rgba(255, 77, 109, 0.12);
+    --orange: #ffb347;
+    --orange-dim: rgba(255, 179, 71, 0.12);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-glow: 0 0 16px rgba(0, 212, 255, 0.15);
+}
+
+/* Base Reset & Typography */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg) !important;
+    color: var(--text) !important;
+    font-family: var(--font-sans) !important;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    padding: 24px;
+    min-height: 100vh;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-white) !important;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.015em;
+}
+
+h1 { font-size: 1.85rem; }
+h2 { font-size: 1.45rem; }
+h3 { font-size: 1.2rem; }
+h4 { font-size: 1.05rem; }
+
+p {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+}
+
+code, kbd, samp {
+    font-family: var(--font-mono) !important;
+    font-size: 0.875em;
+    background: var(--bg-card-alt);
+    color: var(--accent);
+    padding: 0.2em 0.45em;
+    border-radius: 4px;
+    border: 1px solid var(--border-subtle);
+}
+
+pre {
+    font-family: var(--font-mono) !important;
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    color: var(--text);
+}
+
+pre code {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+blockquote {
+    margin: 1rem 0;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-card-alt);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    color: var(--text-muted);
+}
+
+/* Overrides for Common Generic LLM Layout Classes */
+.container, .main-container, .wrapper, .page, [class*="container"] {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    color: var(--text) !important;
+}
+
+.header, .hero, .banner, [class*="header"] {
+    background: var(--bg-card-hover) !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 2rem !important;
+    color: var(--text-white) !important;
+}
+
+.header h1, .hero h1, .banner h1 {
+    color: var(--text-white) !important;
+    margin-bottom: 0.5rem;
+}
+
+.header p, .hero p, .banner p {
+    color: var(--text-muted) !important;
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+/* Grids & Cards */
+.grid, .stats-grid, [class*="grid"] {
+    display: grid;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: transparent !important;
+}
+
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+.card, .stat-box, .stat-card, [class*="stat-box"], [class*="stat-card"] {
+    background: var(--bg-card-alt) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+    color: var(--text) !important;
+}
+
+.card:hover, .stat-box:hover, .stat-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.stat-value, .stat-number, [class*="stat-value"], [class*="stat-number"] {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--accent) !important;
+    font-family: var(--font-mono) !important;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label, [class*="stat-label"] {
+    font-size: 0.825rem;
+    color: var(--text-muted) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+}
+
+/* Section Blocks */
+.content, .section, .body, [class*="content"], [class*="section"] {
+    padding: 1.5rem;
+    color: var(--text) !important;
+    background: transparent !important;
+}
+
+.section-title {
+    font-size: 1.15rem;
+    color: var(--text-white);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.65rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* List Items (e.g. Email items, tasks, logs) */
+.item, .list-item, .email-item, .card-item, [class*="email-item"], [class*="list-item"] {
+    background: var(--bg-card-alt) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.85rem;
+    color: var(--text) !important;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.item:hover, .list-item:hover, .email-item:hover {
+    border-color: var(--accent);
+    background: var(--bg-card-hover) !important;
+}
+
+.item-title, .email-subject {
+    font-weight: 600;
+    color: var(--text-white) !important;
+    margin-bottom: 0.25rem;
+}
+
+.item-meta, .email-meta {
+    font-size: 0.825rem;
+    color: var(--text-muted) !important;
+    font-family: var(--font-mono);
+}
+
+/* Tables */
+table, .table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.925rem;
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+th, td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+
+th {
+    background: var(--bg-card-hover);
+    color: var(--text-white);
+    font-weight: 600;
+    font-size: 0.825rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr:hover {
+    background: var(--bg-card-hover);
+}
+
+/* Badges & Status Pills */
+.badge, .tag, .pill, [class*="badge"], [class*="tag"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid transparent;
+    font-family: var(--font-mono);
+}
+
+.badge-success, .tag-success {
+    background: var(--green-dim) !important;
+    color: var(--green) !important;
+}
+
+.badge-danger, .badge-error, .tag-danger {
+    background: var(--red-dim) !important;
+    color: var(--red) !important;
+}
+
+.badge-warning, .tag-warning {
+    background: var(--orange-dim) !important;
+    color: var(--orange) !important;
+}
+
+.badge-neutral, .tag-neutral {
+    background: rgba(148, 163, 184, 0.12) !important;
+    color: var(--text-muted) !important;
+}
+
+/* Utility Classes */
+.text-muted { color: var(--text-muted) !important; }
+.text-accent { color: var(--accent) !important; }
+.text-success { color: var(--green) !important; }
+.text-danger { color: var(--red) !important; }
+.text-mono { font-family: var(--font-mono) !important; }
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
+
+/* Force dark overrides on common high-contrast light elements */
+[style*="background: white"], [style*="background: #fff"], [style*="background: #ffffff"],
+[style*="background:#fff"], [style*="background:#ffffff"], [style*="background:white"] {
+    background-color: var(--bg-card) !important;
+    color: var(--text) !important;
+}
+
+[style*="color: #333"], [style*="color: #000"], [style*="color: black"],
+[style*="color:#333"], [style*="color:#000"], [style*="color:black"],
+[style*="color: #1a202c"], [style*="color: #2d3748"] {
+    color: var(--text) !important;
+}
+
+[style*="linear-gradient"] {
+    background: var(--bg-card-hover) !important;
+}
