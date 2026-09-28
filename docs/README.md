@@ -1,6 +1,11 @@
-# Introduction
-
-> Bruce is a self-hosted, autonomous personal AI assistant that lives directly in your messaging apps (Discord, WhatsApp, Telegram, Web). It features multi-step reasoning, proactive background scheduling, and 12+ real-world tools.
+<div class="intro-hero">
+  <img src="assets/bruce-logo.png" alt="Bruce Logo" class="intro-logo" />
+  <div class="intro-text">
+    <div class="intro-badge">Personal AI Assistant</div>
+    <h1 class="intro-title">Introduction</h1>
+    <p class="intro-subtitle">A self-hosted, autonomous personal AI assistant that lives directly in your messaging apps with multi-step reasoning, proactive scheduling, and 12+ real-world tools.</p>
+  </div>
+</div>
 
 Most AI chat interfaces are simple text generators: you ask a question, they return text. When you need an AI to take real-world action on your behalf—scheduling reminders, checking pull requests, querying databases, or building interactive dashboards—you need an autonomous system that reasons in multi-step loops and interfaces directly with tools.
 

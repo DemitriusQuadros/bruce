@@ -1,6 +1,11 @@
-# Introdução
-
-> O Bruce é um assistente de IA pessoal autônomo e auto-hospedado que vive diretamente nos seus aplicativos de mensagens (Discord, WhatsApp, Telegram, Web). Ele conta com raciocínio multi-etapas, agendamento proativo em segundo plano e mais de 12 ferramentas do mundo real.
+<div class="intro-hero">
+  <img src="../assets/bruce-logo.png" alt="Bruce Logo" class="intro-logo" />
+  <div class="intro-text">
+    <div class="intro-badge">Assistente de IA Pessoal</div>
+    <h1 class="intro-title">Introdução</h1>
+    <p class="intro-subtitle">Um assistente de IA pessoal autônomo e auto-hospedado que vive diretamente nos seus aplicativos de mensagens com raciocínio multi-etapas, agendamento proativo e mais de 12 ferramentas do mundo real.</p>
+  </div>
+</div>
 
 A maioria das interfaces de chat com IA são simples geradores de texto: você faz uma pergunta, elas retornam texto. Quando você precisa que uma IA execute ações no mundo real em seu nome — agendar lembretes, revisar pull requests, consultar bancos de dados ou construir painéis interativos —, você precisa de um sistema autônomo que raciocine em loops multi-etapas e utilize ferramentas diretamente.
 
